@@ -56,7 +56,8 @@ export default defineConfig({
     },
   },
   server: { 
-    port: 5173,
-    host: true // Allow external connections for Replit
+    port: 5000,
+    host: '0.0.0.0',
+    strictPort: true
   }
 });
