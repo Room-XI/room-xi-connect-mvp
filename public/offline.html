@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Room XI Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #F8F6F0 0%, #E8F5E8 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #2D3748;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 400px;
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #2EC489 0%, #A8E6CF 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #1A202C;
+        }
+        
+        p {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #4A5568;
+            margin-bottom: 30px;
+        }
+        
+        .features {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #2D3748;
+        }
+        
+        .feature-icon {
+            width: 20px;
+            height: 20px;
+            background: #2EC489;
+            border-radius: 50%;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .retry-button {
+            background: linear-gradient(135deg, #2EC489 0%, #20B2AA 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .retry-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .retry-button:active {
+            transform: translateY(0);
+        }
+        
+        .status {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #718096;
+        }
+        
+        .online {
+            color: #2EC489;
+        }
+        
+        .offline {
+            color: #E53E3E;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">
+            🌙
+        </div>
+        
+        <h1>You're Offline</h1>
+        <p>Don't worry! Room XI Connect works offline too. You can still access your saved content and use core features.</p>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>View saved programs</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>Record mood check-ins</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>Access crisis support contacts</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>Use QR scanner</span>
+            </div>
+        </div>
+        
+        <button class="retry-button" onclick="window.location.reload()">
+            Try Again
+        </button>
+        
+        <div class="status">
+            Connection status: <span id="status" class="offline">Offline</span>
+        </div>
+    </div>
+    
+    <script>
+        // Update connection status
+        function updateStatus() {
+            const statusEl = document.getElementById('status');
+            if (navigator.onLine) {
+                statusEl.textContent = 'Online';
+                statusEl.className = 'online';
+            } else {
+                statusEl.textContent = 'Offline';
+                statusEl.className = 'offline';
+            }
+        }
+        
+        // Listen for connection changes
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+        
+        // Initial status check
+        updateStatus();
+        
+        // Auto-reload when back online
+        window.addEventListener('online', () => {
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
