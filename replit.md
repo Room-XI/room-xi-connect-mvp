@@ -11,6 +11,7 @@ Successfully migrated the project from Vercel to Replit with the following chang
 1. **Port Configuration**
    - Updated Vite dev server to run on port 5000 (Replit requirement)
    - Configured host to `0.0.0.0` for external access
+   - Added `allowedHosts: true` to accept Replit development URLs
    - Updated both `vite.config.ts` and `package.json` scripts
 
 2. **TypeScript Configuration**
