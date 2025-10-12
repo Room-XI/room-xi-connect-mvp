@@ -1,6 +1,7 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { encryptData, decryptData } from './crypto';
 import { supabase } from './supabase';
+import { useState, useEffect } from 'react';
 
 // Fix for R-03: Inadequate Offline Feedback - Enhanced queue with retry logic and status tracking
 
@@ -275,10 +276,10 @@ async function notifyQueueListeners(): Promise<void> {
  * React hook for queue status
  */
 export function useQueue() {
-  const [itemCount, setItemCount] = React.useState(0);
-  const [isOnline, setIsOnline] = React.useState(navigator.onLine);
+  const [itemCount, setItemCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  React.useEffect(() => {
+  useEffect(() => {
     // Subscribe to queue changes
     const unsubscribe = subscribeToQueue(setItemCount);
     
