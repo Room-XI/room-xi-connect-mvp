@@ -3,9 +3,36 @@
 ## Overview
 Room XI Connect is a youth mental health and wellness application built with React, Vite, and Supabase. It provides daily check-ins, local program discovery, and crisis support resources for young people.
 
-## Recent Changes (October 12, 2025)
+## Recent Changes
 
-### Vercel to Replit Migration
+### Programs-First Experience (October 13, 2025)
+
+Implemented a "programs-first" browsing experience to reduce friction and allow all youths to discover programs without signing in:
+
+1. **Public Program Browsing**
+   - Unauthenticated users can now browse all programs without logging in
+   - Public routes: `/explore`, `/explore/map`, `/program/:id`
+   - Root path (`/`) redirects to `/explore` for better discovery
+
+2. **Smart Authentication Flow**
+   - Protected routes (`/home`, `/qr`, `/me`) redirect guests to `/explore`
+   - Sign-in prompts appear when users try to use auth-required features:
+     - Saving/bookmarking programs
+     - Daily mood check-ins
+     - QR code attendance
+     - Personal profile and settings
+
+3. **Guest-Friendly UI**
+   - Bottom navigation shows only "Explore" and "Sign In" for guests
+   - Authenticated users see full navigation (Home, Explore, QR, Me)
+   - "Saved" tab hidden for guests; shows sign-in prompt if accessed directly
+   - Program cards redirect to login when guests try to save
+
+4. **Always-Available Features**
+   - Crisis support ("Get help") button always visible, regardless of auth status
+   - Program browsing and map view fully functional without account
+
+### Vercel to Replit Migration (October 12, 2025)
 Successfully migrated the project from Vercel to Replit with the following changes:
 
 1. **Port Configuration**
@@ -54,10 +81,12 @@ Successfully migrated the project from Vercel to Replit with the following chang
 - **Encryption**: Web Crypto API
 
 ### Key Features
-- Daily mood tracking and check-ins
-- Local program/activity discovery with map view
-- Crisis support resources
-- QR code attendance tracking
+- **Programs-first browsing** - Discover programs without signing in
+- Daily mood tracking and check-ins (requires auth)
+- Local program/activity discovery with map view (public)
+- Crisis support resources (always available)
+- QR code attendance tracking (requires auth)
+- Save/bookmark favorite programs (requires auth)
 - Offline support with IndexedDB queue
 - PWA capabilities
 - End-to-end encryption for sensitive data

@@ -51,12 +51,19 @@ export default function App() {
       
       {!isAuthRoute && (
         <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-borderMutedLight/60 safe-area-bottom">
-          <div className="max-w-xl mx-auto grid grid-cols-4">
-            <Tab to="/home" icon={<Home />} label="Home" />
-            <Tab to="/explore" icon={<Compass />} label="Explore" />
-            <Tab to="/qr" icon={<QrCode />} label="QR" />
-            <Tab to="/me" icon={<User />} label="Me" showDot={itemCount > 0} />
-          </div>
+          {user ? (
+            <div className="max-w-xl mx-auto grid grid-cols-4">
+              <Tab to="/home" icon={<Home />} label="Home" />
+              <Tab to="/explore" icon={<Compass />} label="Explore" />
+              <Tab to="/qr" icon={<QrCode />} label="QR" />
+              <Tab to="/me" icon={<User />} label="Me" showDot={itemCount > 0} />
+            </div>
+          ) : (
+            <div className="max-w-xl mx-auto grid grid-cols-2">
+              <Tab to="/explore" icon={<Compass />} label="Explore" />
+              <Tab to="/auth/login" icon={<User />} label="Sign In" />
+            </div>
+          )}
         </nav>
       )}
     </div>
