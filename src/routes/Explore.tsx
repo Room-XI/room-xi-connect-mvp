@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ExploreTabs from '@/ui/explore/ExploreTabs';
@@ -7,9 +7,11 @@ import ProgramMap from '@/ui/explore/ProgramMap';
 import SavedList from '@/ui/explore/SavedList';
 import XimiDock from '@/ui/explore/XimiDock';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
+import { useSession } from '@/lib/session';
 
 export default function Explore() {
   const { view } = useParams();
+  const { user } = useSession();
   const currentView = view === 'map' ? 'map' : view === 'saved' ? 'saved' : 'programs';
   const [crisisOpen, setCrisisOpen] = useState(false);
 
@@ -50,8 +52,8 @@ export default function Explore() {
         <div className="h-32" />
       </motion.div>
       
-      {/* Ximi Dock - Floating AI assistant */}
-      <XimiDock onCrisis={() => setCrisisOpen(true)} />
+      {/* Ximi Dock - Floating AI assistant (authenticated users only) */}
+      {user && <XimiDock onCrisis={() => setCrisisOpen(true)} />}
       
       {/* Crisis Support Sheet */}
       <CrisisSheet open={crisisOpen} onClose={() => setCrisisOpen(false)} />
