@@ -5,6 +5,32 @@ Room XI Connect is a youth mental health and wellness application built with Rea
 
 ## Recent Changes
 
+### Landing Page & Guest Experience Improvements (October 13, 2025)
+
+Enhanced the guest experience and created a comprehensive landing page:
+
+1. **Room 11 Foundation Landing Page**
+   - Transformed `/auth/login` into a full landing page that serves both marketing and sign-in purposes
+   - Hero section with Room 11 mission: "Help youth ages 13 to 25 feel seen, build capacity, and find community"
+   - Comprehensive "About" sections explaining the challenge youth face and Room 11's solutions
+   - Impact stats: 570+ youth served across local programs and pilots
+   - Updated partner showcase: CanManDan, JumpStart, Allendale Community, Duggan Community, YMCA of Northern Alberta, OTB Basketball
+
+2. **Updated Solution Messaging**
+   - Publicly highlights: Universal Intake, Program Discovery, and Crisis Support
+   - Daily check-ins remain a feature but not emphasized in public marketing (auth-required feature)
+   - Privacy-by-design messaging with non-identifying XID and clear consent
+
+3. **AI Companion Privacy**
+   - Ximi AI assistant now hidden from guest users
+   - Only authenticated users see the AI companion
+   - Reduces clutter for guests exploring programs
+
+4. **Enhanced CTAs**
+   - "Explore Programs" button for immediate guest access
+   - "Sign In" scroll anchor for returning users
+   - "Continue as guest" option below sign-in form
+
 ### Programs-First Experience (October 13, 2025)
 
 Implemented a "programs-first" browsing experience to reduce friction and allow all youths to discover programs without signing in:
