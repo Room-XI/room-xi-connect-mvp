@@ -22,14 +22,19 @@ export default function App() {
     );
   }
 
-  // Redirect to login if not authenticated (except for auth routes)
-  if (!user && !window.location.pathname.startsWith('/auth')) {
-    window.location.href = '/auth/login';
+  // Define public routes that don't require authentication
+  const publicRoutes = ['/auth', '/explore', '/program'];
+  const currentPath = window.location.pathname;
+  const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
+
+  // Redirect to explore page if not authenticated and trying to access protected routes
+  if (!user && !isPublicRoute) {
+    window.location.href = '/explore';
     return null;
   }
 
   // Don't show navigation for auth routes
-  const isAuthRoute = window.location.pathname.startsWith('/auth');
+  const isAuthRoute = currentPath.startsWith('/auth');
 
   return (
     <div className="min-h-dvh flex flex-col bg-cream text-textPrimaryLight">

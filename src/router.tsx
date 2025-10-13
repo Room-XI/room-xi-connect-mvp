@@ -20,7 +20,7 @@ export const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
-      { index: true, element: <Home /> },
+      { index: true, element: <Explore /> },
       { path: 'home', element: <Home /> },
       { path: 'explore', element: <Explore /> },
       { path: 'explore/:view', element: <Explore /> }, // For map, saved
