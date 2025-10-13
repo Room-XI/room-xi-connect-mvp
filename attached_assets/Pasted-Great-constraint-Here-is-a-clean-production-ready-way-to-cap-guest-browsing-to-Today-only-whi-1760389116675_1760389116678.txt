@@ -1,0 +1,219 @@
+Great constraint. Here is a clean, production-ready way to cap guest browsing to **Today only**, while giving logged-in users the full catalog and still keeping trust, speed, and youth-friendly UX.
+
+# UX rules
+
+**Guests (not signed in)**
+
+* Explore route `/explore` loads **Today** only, broken into “Happening now”, “Starting soon”, “Later today”.
+* Search and filters work, but only within Today. Date picker and “This week” show a sign-in sheet with “Continue without account”.
+* Details are viewable only if the session occurs Today. If a user opens a non-Today link, show a short teaser with times, tags, and a **Create an account to see all dates** CTA.
+* Keep **Get help** visible, always usable.
+* Allow **Save on this device** with localStorage. Offer **Create an account** to keep saves across devices.
+
+**Authenticated users**
+
+* Full browsing and search across all dates.
+* All actions available, including Reminders, Follows, Streaks, History.
+
+# Backend enforcement (Supabase)
+
+## 1) Prefer an occurrences table
+
+If you have repeating schedules, create `program_occurrences(program_id, starts_at, ends_at, venue_id, …)`. If not, use your existing `programs` table with a single `starts_at`.
+
+## 2) Lock base tables and expose only what each audience needs
+
+```sql
+-- Enable RLS
+alter table programs enable row level security;
+alter table program_occurrences enable row level security;
+
+-- Authenticated users can read everything
+create policy "auth users read all programs"
+on programs for select
+to authenticated
+using (true);
+
+create policy "auth users read all occurrences"
+on program_occurrences for select
+to authenticated
+using (true);
+```
+
+### Option A, simplest: RLS filter for Today on anon
+
+```sql
+-- Guests may read only public items that occur Today in America/Edmonton
+create policy "anon read Today only"
+on program_occurrences for select
+to anon
+using (
+  exists (
+    select 1
+    from programs p
+    where p.id = program_occurrences.program_id
+      and p.is_public = true
+  )
+  and ((program_occurrences.starts_at at time zone 'America/Edmonton')::date
+       = (now() at time zone 'America/Edmonton')::date)
+);
+```
+
+### Option B, more secure: no anon SELECT on tables, expose an RPC
+
+This removes most attack surface and simplifies the client.
+
+```sql
+revoke select on programs, program_occurrences from anon;
+
+create or replace function get_public_programs_today(
+  p_city text default 'Edmonton',
+  p_limit int default 100,
+  p_offset int default 0
+) returns table (
+  occurrence_id bigint,
+  program_id uuid,
+  title text,
+  is_free boolean,
+  area text,
+  tags text[],
+  venue_name text,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  lat double precision,
+  lng double precision
+) language sql
+security definer
+set search_path = public
+as $$
+  with bounds as (
+    select
+      (date_trunc('day', (now() at time zone 'America/Edmonton'))
+         at time zone 'America/Edmonton') as start_utc,
+      ((date_trunc('day', (now() at time zone 'America/Edmonton')) + interval '1 day')
+         at time zone 'America/Edmonton') as end_utc
+  )
+  select
+    o.id,
+    p.id,
+    p.title,
+    p.is_free,
+    p.area,
+    p.tags,
+    p.venue_name,
+    o.starts_at,
+    o.ends_at,
+    st_y(p.geom) as lat,
+    st_x(p.geom) as lng
+  from program_occurrences o
+  join programs p on p.id = o.program_id
+  cross join bounds b
+  where p.is_public = true
+    and (p.city is null or p.city = p_city)
+    and o.starts_at >= b.start_utc
+    and o.starts_at <  b.end_utc
+  order by o.starts_at
+  limit p_limit offset p_offset;
+$$;
+
+grant execute on function get_public_programs_today to anon, authenticated;
+```
+
+**Indexes**
+
+```sql
+create index on program_occurrences (starts_at);
+create index on programs (is_public, city);
+```
+
+**Why this works**
+You get hard, server-side enforcement. Even if someone tweaks the client, anon can never fetch outside Today.
+
+# Frontend behavior
+
+**Data source**
+
+* If `session == null`, call `/rpc/get_public_programs_today`.
+* If `session`, query `program_occurrences` with date filters.
+
+**UI locks for guests**
+
+* Date picker shows a sheet: “Create an account to browse all days” with buttons **Create an account** and **Continue with Today**.
+* If a guest lands on a non-Today details link, render a compact teaser with a single CTA: **Create an account to view all dates** plus **Back to Today**.
+
+**Copy, youth-friendly**
+
+* Intro strip: “Find programs today. No account needed.” Buttons: **See Today’s programs**, **Create an account**.
+* Privacy cue: “Browsing is private. Saving and reminders need consent.”
+* Auth CTA benefit: “Create a free account to see the whole week, save programs, and get gentle reminders.”
+
+# Edge cases and guards
+
+* **Time zone**: Everything uses America/Edmonton for the day window. The SQL above handles DST automatically.
+* **All-day or overnight**: If a session spans midnight, include it in both days by generating occurrences per day, or add a rule that uses any overlap with Today.
+* **No results Today**: Show an honest empty state with reasons to sign up: “No programs today. Create a free account to see the full week,” plus a small list of always-open resources.
+* **Deep links**: Never 404. Show a safe teaser and the sign-up CTA.
+* **Crisis access**: Always available, signed in or not.
+
+# Migration of guest saves on sign-up
+
+Guests can save locally. On sign-up, claim those saves to the account.
+
+```sql
+create table saved_programs (
+  id bigserial primary key,
+  program_id uuid not null,
+  user_id uuid references auth.users(id),
+  device_id text,
+  created_at timestamptz default now()
+);
+
+alter table saved_programs enable row level security;
+
+create policy "owner reads"
+on saved_programs for select
+to authenticated using (auth.uid() = user_id);
+
+create policy "guest reads by device"
+on saved_programs for select
+to anon using (device_id = current_setting('request.jwt.claims', true)::jsonb->>'device_id');
+
+create or replace function claim_guest_saves(p_device_id text)
+returns void language sql security definer set search_path=public as $$
+  update saved_programs
+     set user_id = auth.uid(), device_id = null
+   where device_id = p_device_id;
+$$;
+grant execute on function claim_guest_saves(text) to authenticated;
+```
+
+Client after sign-up:
+
+```ts
+await supabase.rpc('claim_guest_saves', {
+  p_device_id: localStorage.getItem('device_id')
+});
+```
+
+# Performance and caching
+
+* Cache the Today RPC for 60 seconds at the edge. Use Workbox to cache the last Today list offline and mark it “Last updated at 3:04 PM.”
+* Preload the Today RPC on route focus, render with skeletons.
+* Lazy-load the Map toggle.
+
+# What to measure
+
+* Guest → account conversion after the “see the whole week” gate.
+* Time to first result and first detail view for guests.
+* Use of “Save on this device” and claim rate on sign-up.
+* Crisis button discoverability and taps.
+
+# QA checklist
+
+* Guest cannot access any non-Today list via API.
+* Guest details for non-Today show teaser, never full sensitive data.
+* Authenticated users see full date picker and week view.
+* City default set to Edmonton until location permission is granted.
+* All CTAs have “Continue without account.”
+
+If you want, I can fold this into your spec and hand you the exact React components for the guest gate, the Today RPC client, and the details teaser, aligned to your token palette and copy.
