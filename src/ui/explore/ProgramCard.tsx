@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   MapPin, 
@@ -37,6 +37,7 @@ interface ProgramCardProps {
 
 export default function ProgramCard({ program }: ProgramCardProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
@@ -65,7 +66,13 @@ export default function ProgramCard({ program }: ProgramCardProps) {
   const toggleSave = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation when clicking save button
     
-    if (!user || isToggling) return;
+    // Redirect to login if not authenticated
+    if (!user) {
+      navigate('/auth/login');
+      return;
+    }
+    
+    if (isToggling) return;
     
     setIsToggling(true);
     

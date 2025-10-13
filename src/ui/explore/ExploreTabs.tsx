@@ -1,23 +1,26 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useSession } from '@/lib/session';
 
 interface ExploreTabsProps {
   current: 'programs' | 'map' | 'saved';
 }
 
 export default function ExploreTabs({ current }: ExploreTabsProps) {
+  const { user } = useSession();
+  
   const tabs = [
     { key: 'programs', to: '/explore', label: 'Programs' },
     { key: 'map', to: '/explore/map', label: 'Map' },
-    { key: 'saved', to: '/explore/saved', label: 'Saved' }
+    ...(user ? [{ key: 'saved', to: '/explore/saved', label: 'Saved' }] : [])
   ];
 
   return (
     <div 
       role="tablist" 
       aria-label="Explore views" 
-      className="segmented-control grid-cols-3"
+      className={`segmented-control ${user ? 'grid-cols-3' : 'grid-cols-2'}`}
     >
       {tabs.map(tab => (
         <Link

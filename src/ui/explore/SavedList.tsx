@@ -34,6 +34,8 @@ export default function SavedList() {
   useEffect(() => {
     if (user) {
       loadSavedPrograms();
+    } else {
+      setLoading(false);
     }
   }, [user]);
 
@@ -79,6 +81,49 @@ export default function SavedList() {
       setLoading(false);
     }
   };
+
+  // Show sign-in prompt for unauthenticated users
+  if (!user) {
+    return (
+      <motion.div
+        className="cosmic-card p-8 text-center space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="space-y-4">
+          <div className="w-20 h-20 mx-auto bg-gold/10 rounded-2xl flex items-center justify-center">
+            <Bookmark className="w-10 h-10 text-gold" />
+          </div>
+          
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-deepSage">
+              Sign in to Save Programs
+            </h3>
+            <p className="text-textSecondaryLight max-w-sm mx-auto">
+              Create a free account to save your favorite programs and access them from any device.
+            </p>
+          </div>
+        </div>
+        
+        <div className="space-y-3">
+          <Link
+            to="/auth/register"
+            className="inline-block cosmic-button"
+          >
+            Create Account
+          </Link>
+          
+          <p className="text-sm text-textSecondaryLight">
+            Already have an account?{' '}
+            <Link to="/auth/login" className="text-teal hover:text-teal/80 font-medium">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
 
   if (loading) {
     return (
