@@ -10,6 +10,7 @@ import Admin from './routes/Admin';
 import NotFound from './routes/NotFound';
 import Login from './routes/auth/Login';
 import Register from './routes/auth/Register';
+import Signup from './routes/auth/Signup';
 import Reset from './routes/auth/Reset';
 import UpdatePassword from './routes/auth/UpdatePassword';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: 'admin', element: <Admin /> },
       { path: 'auth/login', element: <Login /> },
       { path: 'auth/register', element: <Register /> },
+      { path: 'auth/signup', element: <Signup /> },
       { path: 'auth/reset', element: <Reset /> },
       { path: 'auth/update-password', element: <UpdatePassword /> },
       { path: '*', element: <NotFound /> }

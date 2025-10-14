@@ -367,7 +367,7 @@ export default function Login() {
             <p className="text-textSecondaryLight">
               Don't have an account?{' '}
               <Link
-                to="/auth/register"
+                to="/auth/signup"
                 className="font-medium text-teal hover:text-teal/80 transition-colors"
               >
                 Sign up
