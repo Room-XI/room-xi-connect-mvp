@@ -4,12 +4,13 @@ import { Heart, MapPin, Shield, Users, ArrowLeft } from 'lucide-react';
 
 export default function About() {
   const partners = [
-    'CanManDan',
-    'JumpStart',
-    'Allendale Community',
-    'Duggan Community',
-    'YMCA of Northern Alberta',
-    'OTB Basketball'
+    'Jumpstart Canada',
+    'The Can Man Dan Foundation',
+    'D.S. MacKenzie School',
+    'Allendale School',
+    'OTB Academy',
+    'Caribbean Optimist Club of Edmonton',
+    'YMCA of Northern Alberta'
   ];
 
   return (
