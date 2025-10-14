@@ -5,6 +5,36 @@ Room XI Connect is a youth mental health and wellness application built with Rea
 
 ## Recent Changes
 
+### Youth-Friendly Landing Page & Donate Button (October 14, 2025)
+
+Redesigned the landing page to speak directly to youth with casual, authentic language while creating a separate page for institutional messaging:
+
+1. **Login Page Transformation (Youth-Focused)**
+   - Updated hero: "Your space. Your vibe. Your people." instead of mission statement
+   - Casual, relatable copy: "Find free programs, connect with your community, and get support when you need it"
+   - Simplified features: "Find Programs", "Track Your Journey", "Get Help" (not institutional jargon)
+   - Privacy section speaks to youth: "We only collect what's needed to keep you safe at programs. You control what gets shared."
+   - Removed stats, partners, and institutional content from main app
+
+2. **Donate Button**
+   - Fixed position top-right with gold background
+   - Links to Zeffy donation form: https://www.zeffy.com/en-CA/donation-form/build-the-room-xi-youth-hub-in-edmonton
+   - Heart icon for warmth
+
+3. **New About Page (/about)**
+   - Created separate institutional page for funders, parents, partners
+   - Contains: Room 11 Foundation mission, challenge/solution, privacy by design, who we serve, impact stats (570+ youth), partners, legal compliance (PIPA/HIA)
+   - Professional tone with complete organizational information
+   - Clear back navigation to main app
+   - Donate CTA at bottom
+
+4. **Navigation Updates**
+   - "Learn More about Room 11" link in login footer → routes to /about
+   - About page has back button → returns to /auth/login
+   - Clean separation: youth see casual app, stakeholders get formal details
+
+## Recent Changes
+
 ### Legally Compliant Consent System Implementation (October 14, 2025)
 
 Implemented a comprehensive two-layer consent system that addresses all major legal red flags for Alberta PIPA and HIA compliance:
