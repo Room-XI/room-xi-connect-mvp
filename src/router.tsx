@@ -13,6 +13,7 @@ import Register from './routes/auth/Register';
 import Signup from './routes/auth/Signup';
 import Reset from './routes/auth/Reset';
 import UpdatePassword from './routes/auth/UpdatePassword';
+import SafetyProfile from './routes/SafetyProfile';
 import ErrorBoundary from './ui/ErrorBoundary';
 
 export const router = createBrowserRouter([
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: 'program/:id', element: <ProgramDetail /> },
       { path: 'qr', element: <QRScan /> },
       { path: 'me', element: <Me /> },
+      { path: 'safety-profile', element: <SafetyProfile /> },
       { path: 'settings', element: <Settings /> },
       { path: 'admin', element: <Admin /> },
       { path: 'auth/login', element: <Login /> },

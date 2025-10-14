@@ -5,6 +5,120 @@ Room XI Connect is a youth mental health and wellness application built with Rea
 
 ## Recent Changes
 
+### Legally Compliant Consent System Implementation (October 14, 2025)
+
+Implemented a comprehensive two-layer consent system that addresses all major legal red flags for Alberta PIPA and HIA compliance:
+
+#### **Red Flags Fixed:**
+
+1. **Health Data Separation (HIA Compliance)**
+   - Created separate `health_profiles` table with dedicated consent tracking
+   - Health data (allergies, medications, medical conditions) requires explicit HIA-compliant consent
+   - Separate IP/user agent tracking for health consent audit trail
+
+2. **Individual Age Selection**
+   - Users select exact age (13-25) instead of age brackets
+   - Age 13+ can provide meaningful consent per PIPEDA guidelines
+   - Under 13 blocked from signup (federal requirement)
+
+3. **Granular Photo/Media Consent**
+   - 5 separate consent toggles, each independently revocable:
+     - Internal program documentation
+     - Social media posts
+     - Website/marketing materials  
+     - Fundraising materials
+     - Story/testimonial use (requires additional written consent)
+   - Complies with PIPA purpose limitation principle
+
+4. **Breach Notification System**
+   - `breach_events` table tracks incidents with severity levels
+   - 72-hour OIPC notification tracking (Alberta PIPA requirement)
+   - Automatic guardian notification for affected minors
+   - Remediation tracking and evidence storage
+
+5. **Indigenous Data Sovereignty**
+   - Optional Indigenous self-identification with OCAP principles disclosure
+   - Clear explanation of data ownership, control, access, and possession
+   - Community/Nation field for cultural context
+
+6. **No Gamification of Consent**
+   - XP points awarded only for non-consent actions (profile completion, program attendance)
+   - Consent actions never trigger rewards (prevents coercion under PIPA)
+
+7. **Guardian Verification (Optional for 13+)**
+   - Age 13+ can self-consent (meaningful consent capacity)
+   - Guardian verification optional but recommended for under 18 (trust/credibility)
+   - Email/SMS verification links with 15-minute expiration
+   - Alberta Digital ID placeholder for future integration (no public API available yet)
+   - Verification tracking with consent events audit trail
+
+#### **Two-Layer Consent System:**
+
+**Layer 1: Account Creation (60 seconds)**
+- Required at signup for all users:
+  - Name (first, last, preferred/nickname)
+  - Individual age selection (13-25)
+  - City and optional postal code
+  - Email/password for login
+  - Acceptance of Terms of Use, Privacy Notice, Data Collection consent
+- For users under 18:
+  - Optional guardian contact (email or phone) for verification
+  - Verification link sent to guardian with 15-min expiration
+  - Account usable immediately, guardian approval adds credibility
+
+**Layer 2: Safety Profile (Before First In-Person Program)**
+- Required once before attending any in-person session:
+  - Legal first and last name (for emergency identification)
+  - Emergency contact (name, phone, relationship - must be different from guardian)
+  - Health information (optional, requires separate HIA consent):
+    - Allergies
+    - Medical conditions
+    - Current medications
+    - Accessibility needs
+    - Dietary restrictions
+  - Photo/media consent (5 separate granular toggles, all optional and revocable)
+  - Optional Indigenous self-identification (OCAP principles disclosed)
+- Awards +30 XP upon completion (for profile completion, not consent)
+
+#### **Database Schema Updates:**
+
+New tables created:
+- `guardian_verifications`: Tracks guardian approval requests and verification status
+- `health_profiles`: HIA-compliant health data storage with separate consent
+- `consent_events`: Complete audit trail for all consent actions (PIPA requirement)
+- `breach_events`: Breach incident tracking with OIPC notification compliance
+
+Updated `profiles` table with:
+- Individual age field (13-25)
+- Layer 1 fields: first_name, last_name, preferred_name, city, postal_code
+- Layer 2 fields: legal names, emergency contact details
+- Indigenous identity fields (optional, OCAP-compliant)
+- Progress tracking: account_complete, safety_profile_complete, program_profile_complete
+- XP points (never awarded for consent actions)
+
+Updated `consents` table with granular consent types:
+- terms_of_use, privacy_notice, data_collection (Layer 1)
+- photo_internal, photo_social_media, photo_website, photo_fundraising, photo_story (Layer 2)
+- analytics_opt_in, ai_personalization, crash_reporting
+- marketing_email, marketing_sms
+
+#### **New Routes & Components:**
+
+- `/auth/signup`: Multi-step signup flow with age-appropriate consent
+- `/safety-profile`: Layer 2 safety information collection before program attendance
+- Updated `/auth/login`: Links to new signup flow
+
+#### **Compliance Documentation:**
+
+Research confirmed:
+- Federally incorporated non-profits in Alberta are subject to **Alberta PIPA** (not PIPEDA)
+- Age 13+ can provide meaningful consent under PIPEDA (applied to PIPA)
+- Mature minor doctrine (14-16+) applies but requires case-by-case assessment
+- Health data triggers **Health Information Act** requirements (separate from PIPA)
+- Alberta Digital ID has no public API yet (ATB Ventures Oliu platform requires partnership)
+
+## Recent Changes
+
 ### Landing Page & Guest Experience Improvements (October 13, 2025)
 
 Enhanced the guest experience and created a comprehensive landing page:
