@@ -14,6 +14,7 @@ import Signup from './routes/auth/Signup';
 import Reset from './routes/auth/Reset';
 import UpdatePassword from './routes/auth/UpdatePassword';
 import SafetyProfile from './routes/SafetyProfile';
+import About from './routes/About';
 import ErrorBoundary from './ui/ErrorBoundary';
 
 export const router = createBrowserRouter([
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: 'safety-profile', element: <SafetyProfile /> },
       { path: 'settings', element: <Settings /> },
       { path: 'admin', element: <Admin /> },
+      { path: 'about', element: <About /> },
       { path: 'auth/login', element: <Login /> },
       { path: 'auth/register', element: <Register /> },
       { path: 'auth/signup', element: <Signup /> },

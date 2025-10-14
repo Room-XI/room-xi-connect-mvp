@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, Users, ArrowRight, Compass } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Login() {
@@ -54,6 +54,19 @@ export default function Login() {
 
   return (
     <div className="min-h-dvh bg-cream">
+      {/* Donate Button - Fixed Position */}
+      <motion.a
+        href="https://www.zeffy.com/en-CA/donation-form/build-the-room-xi-youth-hub-in-edmonton"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed top-4 right-4 z-50 px-4 py-2 bg-gold text-deepSage font-medium rounded-full hover:bg-gold/80 transition-all flex items-center gap-2 shadow-lg"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <Heart className="w-4 h-4" />
+        <span>Donate</span>
+      </motion.a>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-deepSage/5 via-teal/5 to-cosmic/10 py-16 px-6">
         <motion.div
@@ -81,10 +94,10 @@ export default function Login() {
           {/* Headline */}
           <div className="space-y-4">
             <h1 className="text-4xl md:text-5xl font-display font-bold text-deepSage leading-tight">
-              Room 11 Foundation
+              Your space. Your vibe. Your people.
             </h1>
             <p className="text-xl md:text-2xl text-textSecondaryLight max-w-3xl mx-auto">
-              Help youth ages 13 to 25 feel seen, build capacity, and find community through creative expression, movement, and trauma-informed supports
+              Find free programs, connect with your community, and get support when you need it. Built for you (ages 13-25).
             </p>
           </div>
 
@@ -112,51 +125,34 @@ export default function Login() {
         </motion.div>
       </div>
 
-      {/* About Section */}
-      <div className="max-w-6xl mx-auto px-6 py-16 space-y-16">
-        {/* The Problem */}
-        <motion.div
-          className="space-y-6"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-3xl font-display font-bold text-deepSage text-center">The Challenge</h2>
-          <p className="text-lg text-textSecondaryLight max-w-3xl mx-auto text-center">
-            Youth struggle to find trustworthy programs, track well-being, and ask for help early. 
-            Staff lack simple tools to see needs and attendance without collecting invasive data. 
-            Communities want privacy-respecting options that fit limited budgets.
-          </p>
-        </motion.div>
-
-        {/* The Solution */}
+      {/* What You Can Do */}
+      <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
         <motion.div
           className="space-y-8"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: 0.6 }}
         >
-          <h2 className="text-3xl font-display font-bold text-deepSage text-center">Our Solution</h2>
+          <h2 className="text-3xl font-display font-bold text-deepSage text-center">What's here for you</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="cosmic-card p-6 space-y-3">
               <div className="w-12 h-12 bg-teal/10 rounded-full flex items-center justify-center">
                 <MapPin className="w-6 h-6 text-teal" />
               </div>
-              <h3 className="font-display font-bold text-deepSage">Discover Programs</h3>
+              <h3 className="font-display font-bold text-deepSage">Find Programs</h3>
               <p className="text-textSecondaryLight">
-                Find safe, free local programs tailored to your interests and needs
+                Discover free activities, workshops, and hangouts near you
               </p>
             </div>
             
             <div className="cosmic-card p-6 space-y-3">
               <div className="w-12 h-12 bg-cosmic/10 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-cosmic" />
+                <Compass className="w-6 h-6 text-cosmic" />
               </div>
-              <h3 className="font-display font-bold text-deepSage">Universal Intake</h3>
+              <h3 className="font-display font-bold text-deepSage">Track Your Journey</h3>
               <p className="text-textSecondaryLight">
-                Streamlined onboarding that respects your time and privacy
+                Check in with how you're feeling and see your growth over time
               </p>
             </div>
 
@@ -164,90 +160,29 @@ export default function Login() {
               <div className="w-12 h-12 bg-coral/10 rounded-full flex items-center justify-center">
                 <Heart className="w-6 h-6 text-coral" />
               </div>
-              <h3 className="font-display font-bold text-deepSage">Crisis Support</h3>
+              <h3 className="font-display font-bold text-deepSage">Get Help</h3>
               <p className="text-textSecondaryLight">
-                Quick access to help when you need it most, available 24/7
+                24/7 access to support resources when things get tough
               </p>
             </div>
           </div>
         </motion.div>
 
-        {/* Privacy & Design */}
+        {/* Your Privacy Matters */}
         <motion.div
-          className="cosmic-card p-8 space-y-6"
+          className="cosmic-card p-8 space-y-4"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="flex items-center space-x-3">
             <Shield className="w-8 h-8 text-teal" />
-            <h3 className="text-2xl font-display font-bold text-deepSage">Privacy by Design</h3>
+            <h3 className="text-2xl font-display font-bold text-deepSage">Your privacy matters</h3>
           </div>
-          <div className="grid md:grid-cols-2 gap-6 text-textSecondaryLight">
-            <div>
-              <p className="font-medium text-deepSage mb-2">Youth Dignity First</p>
-              <p>Minimal data collection with non-identifying XID for attendance. Clear consent, export, and deletion options.</p>
-            </div>
-            <div>
-              <p className="font-medium text-deepSage mb-2">Accessible Design</p>
-              <p>Warm, steady interface with WCAG AA standards and 44px tap targets for easy navigation.</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Who We Serve */}
-        <motion.div
-          className="space-y-6"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-          <h2 className="text-3xl font-display font-bold text-deepSage text-center">Who We Serve</h2>
-          <p className="text-lg text-textSecondaryLight max-w-3xl mx-auto text-center">
-            Low-income, newcomer, Indigenous, racialized, and system-impacted youth in Edmonton 
-            and similar cities, plus the staff who support them.
+          <p className="text-textSecondaryLight">
+            We only collect what's needed to keep you safe at programs. You control what gets shared, and you can delete your data anytime.
           </p>
-        </motion.div>
-
-        {/* Impact Stats */}
-        <motion.div
-          className="bg-gradient-to-br from-teal/5 to-cosmic/5 rounded-3xl p-8"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-        >
-          <div className="text-center space-y-4">
-            <p className="text-5xl font-display font-bold text-deepSage">570+</p>
-            <p className="text-xl text-textSecondaryLight">Youth served across local programs and pilots</p>
-          </div>
-        </motion.div>
-
-        {/* Partners */}
-        <motion.div
-          className="space-y-8"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
-          <h2 className="text-2xl font-display font-bold text-deepSage text-center">Our Partners</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-            {partners.map((partner, index) => (
-              <motion.div
-                key={partner}
-                className="cosmic-card p-4 text-center"
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-              >
-                <p className="text-sm font-medium text-deepSage">{partner}</p>
-              </motion.div>
-            ))}
-          </div>
         </motion.div>
       </div>
 
@@ -392,9 +327,15 @@ export default function Login() {
           </div>
 
           {/* Footer */}
-          <div className="text-center text-xs text-textSecondaryLight space-y-1">
-            <p>By signing in, you agree to our Terms of Service</p>
-            <p>and Privacy Policy</p>
+          <div className="text-center text-xs text-textSecondaryLight space-y-2">
+            <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
+            <Link
+              to="/about"
+              className="inline-flex items-center gap-1 text-teal hover:text-teal/80 transition-colors font-medium"
+            >
+              <span>Learn more about Room 11</span>
+              <ExternalLink className="w-3 h-3" />
+            </Link>
           </div>
         </motion.div>
       </div>
