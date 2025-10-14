@@ -51,7 +51,38 @@ create table if not exists public.profiles (
   scores jsonb,
   streak_count int default 0,
   last_checkin_date date,
-  is_admin boolean not null default false
+  is_admin boolean not null default false,
+  
+  -- Layer 1: Basic Info (collected at signup)
+  first_name text,
+  last_name text,
+  preferred_name text,
+  age int check (age between 13 and 25),
+  date_of_birth date,
+  city text,
+  postal_code text,
+  
+  -- Layer 2: Safety Profile (collected before first in-person program)
+  legal_first_name text,
+  legal_last_name text,
+  emergency_contact_name text,
+  emergency_contact_phone text,
+  emergency_contact_relationship text,
+  
+  -- Optional Indigenous Self-Identification (OCAP principles apply)
+  indigenous_identity text check (indigenous_identity in ('first_nations', 'metis', 'inuit', 'prefer_not_to_say')),
+  indigenous_community text,
+  
+  -- Progress Tracking (not for consent - for profile completion)
+  account_complete boolean default false,
+  safety_profile_complete boolean default false,
+  program_profile_complete boolean default false,
+  
+  -- XP system (never awarded for consent actions)
+  xp_points int default 0,
+  
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.xids (
@@ -74,15 +105,119 @@ create table if not exists public.attendance (
 );
 create index if not exists attendance_xid_ts_idx on public.attendance (xid_id, "timestamp" desc);
 
+-- Guardian Verification Table
+create table if not exists public.guardian_verifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  guardian_contact_type text not null check (guardian_contact_type in ('email', 'phone')),
+  guardian_contact_value text not null,
+  guardian_contact_hash text not null,
+  verification_token text not null,
+  verification_method text check (verification_method in ('alberta_digital_id', 'email_link', 'sms_link')),
+  verified_at timestamptz,
+  verified_by_name text,
+  verified_by_ip text,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists guardian_verifications_user_idx on public.guardian_verifications (user_id);
+create index if not exists guardian_verifications_token_idx on public.guardian_verifications (verification_token) where verified_at is null;
+
+-- Consents Table (Granular, Purpose-Specific)
 create table if not exists public.consents (
   user_id uuid not null references auth.users(id) on delete cascade,
-  key text not null,
+  consent_type text not null check (consent_type in (
+    'terms_of_use',
+    'privacy_notice',
+    'data_collection',
+    'photo_internal',
+    'photo_social_media',
+    'photo_website',
+    'photo_fundraising',
+    'photo_story',
+    'analytics_opt_in',
+    'ai_personalization',
+    'crash_reporting',
+    'marketing_email',
+    'marketing_sms'
+  )),
   value boolean not null,
   ip_address text,
   user_agent text,
+  granted_by text check (granted_by in ('self', 'guardian', 'staff')),
+  evidence_ref text,
+  text_version text,
   updated_at timestamptz not null default now(),
-  primary key (user_id, key)
+  primary key (user_id, consent_type)
 );
+
+-- Health Information Table (HIA Compliance - Separate from General Consents)
+create table if not exists public.health_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  allergies text,
+  medical_conditions text,
+  medications text,
+  accessibility_needs text,
+  dietary_restrictions text,
+  parq_status text check (parq_status in ('clear', 'refer', 'not_completed')),
+  parq_completed_at timestamptz,
+  
+  -- HIA-Specific Consent
+  health_data_consent boolean not null default false,
+  health_consent_granted_at timestamptz,
+  health_consent_ip text,
+  health_consent_user_agent text,
+  
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Consent Events Audit Trail (PIPA Compliance)
+create table if not exists public.consent_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  actor text not null check (actor in ('youth', 'guardian', 'staff', 'system')),
+  event_type text not null check (event_type in ('granted', 'revoked', 'updated', 'requested', 'verified')),
+  consent_key text,
+  old_value boolean,
+  new_value boolean,
+  ip_address text,
+  user_agent text,
+  evidence_ref text,
+  notes text,
+  occurred_at timestamptz not null default now()
+);
+create index if not exists consent_events_user_idx on public.consent_events (user_id, occurred_at desc);
+
+-- Breach Notification Table (Alberta PIPA 72-hour requirement)
+create table if not exists public.breach_events (
+  id uuid primary key default gen_random_uuid(),
+  breach_type text not null check (breach_type in ('unauthorized_access', 'data_loss', 'ransomware', 'insider_threat', 'accidental_disclosure', 'other')),
+  severity text not null check (severity in ('low', 'medium', 'high', 'critical')),
+  affected_user_count int,
+  affected_user_ids uuid[],
+  description text not null,
+  
+  -- OIPC Notification Tracking (72-hour requirement)
+  oipc_notification_required boolean not null default false,
+  oipc_notified_at timestamptz,
+  oipc_notification_method text,
+  oipc_reference_number text,
+  
+  -- Individual Notification Tracking
+  individuals_notified_at timestamptz,
+  notification_method text,
+  guardians_notified_at timestamptz,
+  
+  -- Remediation
+  remediation_steps text,
+  remediation_completed_at timestamptz,
+  
+  discovered_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists breach_events_discovered_idx on public.breach_events (discovered_at desc);
 
 create table if not exists public.crisis_supports (
   id uuid primary key default gen_random_uuid(),
