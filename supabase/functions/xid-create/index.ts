@@ -1,120 +1,144 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
-
-    // Get the authenticated user
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+        JSON.stringify({ ok: false, error: "Not authenticated" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Check if user already has an XID
-    const { data: existingXid } = await supabaseClient
-      .from('xids')
-      .select('id, xid_hash, checksum')
-      .eq('user_id', user.id)
-      .is('tombstoned_at', null)
-      .single()
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Invalid authentication" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if user already has an active XID
+    const { data: existingXid } = await supabase
+      .from("xids")
+      .select("id, xid_hash, checksum")
+      .eq("user_id", user.id)
+      .is("tombstoned_at", null)
+      .single();
 
     if (existingXid) {
-      // Return existing XID info (hash only for security - Fix for R-01: XID Re-identification Risk)
       return new Response(
         JSON.stringify({
+          ok: true,
           xid_id: existingXid.id,
           xid_hash: existingXid.xid_hash,
           checksum: existingXid.checksum,
-          message: 'XID already exists'
+          message: "XID already exists"
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Generate a new XID (8-character alphanumeric)
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let rawXid = ''
-    for (let i = 0; i < 8; i++) {
-      rawXid += chars.charAt(Math.floor(Math.random() * chars.length))
+    // Generate salt (32 bytes for strong security)
+    const saltBytes = new Uint8Array(32);
+    crypto.getRandomValues(saltBytes);
+    const salt = btoa(String.fromCharCode(...saltBytes));
+
+    // Generate XID hash using database function (with pepper from environment)
+    const { data: xidHash, error: hashError } = await supabase
+      .rpc("generate_xid_hash", {
+        user_id: user.id,
+        salt: salt
+      });
+
+    if (hashError) {
+      console.error("Error generating XID hash:", hashError);
+      throw new Error("Failed to generate XID hash");
     }
 
-    // Create checksum (first 4 chars of SHA-256)
-    const encoder = new TextEncoder()
-    const data = encoder.encode(rawXid)
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-    const hashArray = new Uint8Array(hashBuffer)
-    const checksum = Array.from(hashArray.slice(0, 2))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
-      .toUpperCase()
+    // Generate checksum (SHA-256 of hash, first 8 chars)
+    const checksumBytes = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(xidHash)
+    );
+    const checksum = btoa(String.fromCharCode(...new Uint8Array(checksumBytes)))
+      .substring(0, 8);
 
-    // Hash the XID with server-side secret for storage (Fix for R-01: XID Re-identification Risk)
-    const secret = Deno.env.get('XID_HASH_SECRET') ?? 'default-secret-change-in-production'
-    const saltedXid = rawXid + secret
-    const saltedData = encoder.encode(saltedXid)
-    const saltedHashBuffer = await crypto.subtle.digest('SHA-256', saltedData)
-    const saltedHashArray = new Uint8Array(saltedHashBuffer)
-    const xidHash = Array.from(saltedHashArray)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
+    // Tombstone old XIDs (for rotation)
+    await supabase
+      .from("xids")
+      .update({ tombstoned_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .is("tombstoned_at", null);
 
-    // Store the hashed XID in database
-    const { data: newXid, error: insertError } = await supabaseClient
-      .from('xids')
+    // Create new XID
+    const { data: xid, error: xidError } = await supabase
+      .from("xids")
       .insert({
         user_id: user.id,
         xid_hash: xidHash,
+        salt: salt,
         checksum: checksum
       })
-      .select('id')
-      .single()
+      .select()
+      .single();
 
-    if (insertError) {
-      console.error('Error creating XID:', insertError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to create XID' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (xidError) {
+      console.error("Error creating XID:", xidError);
+      throw new Error("Failed to create XID");
     }
 
-    // Return the raw XID to the user (shown once only - Fix for R-01: XID Re-identification Risk)
-    return new Response(
-      JSON.stringify({
-        xid_id: newXid.id,
-        raw_xid: rawXid, // Only returned once during creation
-        checksum: checksum,
-        message: 'XID created successfully. Please save this XID as it will not be shown again.'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    // Log audit trail
+    await supabase.from("audit_trail").insert({
+      user_id: user.id,
+      action: "INSERT",
+      table_name: "xids",
+      record_id: xid.id,
+      ip_address: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip"),
+      user_agent: req.headers.get("user-agent"),
+      result: "success"
+    });
 
-  } catch (error) {
-    console.error('Unexpected error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({ 
+        ok: true, 
+        xid_id: xid.id,
+        xid_hash: xid.xid_hash,
+        checksum: xid.checksum,
+        message: "XID created successfully"
+      }),
+      { 
+        status: 201, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+  } catch (e) {
+    console.error("XID creation error:", e);
+    return new Response(
+      JSON.stringify({ ok: false, error: String(e) }),
+      { 
+        status: 400, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
   }
-})
+});
+
