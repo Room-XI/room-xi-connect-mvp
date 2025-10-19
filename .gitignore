@@ -113,7 +113,6 @@ temp/
 # Supabase
 .branches
 .temp
-.env.example
 
 # Testing
 coverage/
