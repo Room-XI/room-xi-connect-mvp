@@ -1,15 +1,25 @@
-# Room XI Connect - MVP-Lite
+# Room XI Connect
 
 A safe space for youth to connect, explore, and grow. Room XI Connect is a trauma-informed mental health application designed specifically for young people, featuring mood tracking, program discovery, and crisis support resources.
 
+**Version 2.0** - Edmonton Multi-Organization Expansion (Frontend Integrated ✅)
+
 ## 🌟 Features
 
-### Core Functionality
+### Core Functionality (v1.0 - Live)
 - **Mood Check-ins**: Interactive mood tracking with the cosmic "Mood Orb"
 - **Program Discovery**: Find and explore youth programs and activities
 - **QR Code Check-ins**: Attendance tracking for program participation
 - **Crisis Support**: Immediate access to crisis resources and support contacts
 - **Offline Mode**: Full functionality without internet connection
+
+### v2.0 Features (Integrated, Pending Backend Deployment)
+- **Living Journal**: Write alone or talk with Ximi AI companion
+- **Organization Portal**: Dashboard for youth workers and program managers
+- **Warm Referrals**: Consent-based referrals between organizations
+- **Guardian Portal**: Digital consent forms with email verification
+- **Coping Skills Library**: 30+ evidence-based coping strategies
+- **Enhanced Security**: Case note encryption, audit logging, CSRF protection
 
 ### Design & Experience
 - **Cosmic Garden Design System**: Calm, tranquil aesthetic with cosmic elements
@@ -249,6 +259,13 @@ npm run lint
 - **User Agency**: Users maintain control over their experience
 
 ## 📚 Documentation
+
+### v2.0 Documentation
+- **[V2 Deployment Guide](./V2_DEPLOYMENT_GUIDE.md)**: Complete deployment instructions
+- **[Upgrade Guide](./UPGRADE_GUIDE.md)**: Migration from v1.0 to v2.0
+- **[Final App Spec](./FINAL_APP_SPEC.md)**: Technical specification
+- **[Placeholders Checklist](./PLACEHOLDERS_CHECKLIST.md)**: Pre-launch checklist
+- **[Implementation Roadmap](./IMPLEMENTATION_ROADMAP.md)**: 12-week launch timeline
 
 ### API Documentation
 - **Supabase Schema**: Database structure and relationships

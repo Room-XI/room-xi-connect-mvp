@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { Users, FileText, ArrowRight, TrendingUp, Calendar } from 'lucide-react';
 
 interface DashboardStats {

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import MoodOrb from '@/ui/home/MoodOrb';
 import CheckInForm from '@/ui/home/CheckInForm';
 import SuggestedPrograms from '@/ui/home/SuggestedPrograms';
+import QuickActions from '@/ui/home/QuickActions';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/session';
 
@@ -207,6 +208,15 @@ export default function Home() {
             </div>
           </motion.div>
         )}
+
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+        >
+          <QuickActions />
+        </motion.div>
 
         {/* Suggested Programs */}
         <motion.div

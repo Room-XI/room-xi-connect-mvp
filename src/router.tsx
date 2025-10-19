@@ -16,6 +16,9 @@ import UpdatePassword from './routes/auth/UpdatePassword';
 import SafetyProfile from './routes/SafetyProfile';
 import About from './routes/About';
 import ErrorBoundary from './ui/ErrorBoundary';
+import Journal from './routes/Journal';
+import VerifyConsent from './routes/VerifyConsent';
+import OrgDashboard from './routes/org/Dashboard';
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +37,9 @@ export const router = createBrowserRouter([
       { path: 'settings', element: <Settings /> },
       { path: 'admin', element: <Admin /> },
       { path: 'about', element: <About /> },
+      { path: 'journal', element: <Journal /> },
+      { path: 'verify-consent/:token', element: <VerifyConsent /> },
+      { path: 'org/dashboard', element: <OrgDashboard /> },
       { path: 'auth/login', element: <Login /> },
       { path: 'auth/register', element: <Register /> },
       { path: 'auth/signup', element: <Signup /> },
@@ -42,4 +48,13 @@ export const router = createBrowserRouter([
       { path: '*', element: <NotFound /> }
     ]
   }
-]);
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+    v7_fetcherPersist: true,
+    v7_normalizeFormMethod: true,
+    v7_partialHydration: true,
+    v7_skipActionErrorRevalidation: true
+  }
+});
