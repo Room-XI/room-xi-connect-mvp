@@ -15,13 +15,13 @@ import {
   Smartphone
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/session';
+import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { clearQueue } from '@/lib/queue';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut } = useSession();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
@@ -38,17 +38,7 @@ export default function Settings() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user!.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading profile:', error);
-        return;
-      }
-
+      const { data } = await api.profile.get();
       setProfile(data);
     } catch (error) {
       console.error('Unexpected error loading profile:', error);
@@ -74,8 +64,8 @@ export default function Settings() {
     }
 
     try {
-      // Call the user deletion edge function
-      const { error } = await supabase.functions.invoke('user-delete');
+      // Delete account via API
+      const { error } = await api.auth.deleteAccount('DELETE_MY_ACCOUNT');
       
       if (error) {
         console.error('Error deleting account:', error);

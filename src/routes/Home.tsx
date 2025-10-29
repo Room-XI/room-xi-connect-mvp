@@ -4,8 +4,8 @@ import MoodOrb from '@/ui/home/MoodOrb';
 import CheckInForm from '@/ui/home/CheckInForm';
 import SuggestedPrograms from '@/ui/home/SuggestedPrograms';
 import QuickActions from '@/ui/home/QuickActions';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/session';
+import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 
 interface CheckIn {
   id: string;
@@ -21,7 +21,7 @@ interface Profile {
 }
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user } = useSession();
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<CheckIn | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -37,28 +37,19 @@ export default function Home() {
     try {
       setLoading(true);
       
-      // Load last check-in
-      const { data: checkInData } = await supabase
-        .from('checkins')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (checkInData) {
-        setLastCheckIn(checkInData);
+      // Load check-ins
+      const { data: checkInsData } = await api.checkins.list();
+      if (checkInsData && checkInsData.length > 0) {
+        setLastCheckIn(checkInsData[0]);
       }
 
       // Load profile for streak info
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('streak_count, last_checkin_date')
-        .eq('user_id', user!.id)
-        .single();
-
+      const { data: profileData } = await api.profile.get();
       if (profileData) {
-        setProfile(profileData);
+        setProfile({
+          streak_count: profileData.streakCount || 0,
+          last_checkin_date: profileData.lastCheckinDate,
+        });
       }
     } catch (error) {
       console.error('Error loading user data:', error);

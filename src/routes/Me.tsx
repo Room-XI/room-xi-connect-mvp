@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink } from 'lucide-react';
 import Sparkline from '@/ui/me/Sparkline';
-import { supabase } from '@/lib/supabase';
-import { getAttendanceHistory, getAttendanceCount } from '@/lib/attendance';
-import { useAuth } from '@/lib/session';
+import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { useQueue } from '@/lib/queue';
 
 interface CheckIn {
@@ -35,7 +34,7 @@ interface Profile {
 }
 
 export default function Me() {
-  const { user } = useAuth();
+  const { user } = useSession();
   const { itemCount } = useQueue();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -54,34 +53,25 @@ export default function Me() {
       setLoading(true);
       
       // Load recent check-ins for sparkline
-      const { data: checkInData } = await supabase
-        .from('checkins')
-        .select('id, timestamp, mood_level_1_6, affect_tags, note')
-        .eq('user_id', user!.id)
-        .order('timestamp', { ascending: false })
-        .limit(30); // Last 30 check-ins for sparkline
-
-      if (checkInData) {
-        setCheckIns(checkInData);
+      const { data: checkInsData } = await api.checkins.list();
+      if (checkInsData) {
+        setCheckIns(checkInsData.slice(0, 30));
       }
 
       // Load attendance history
-      const attendanceData = await getAttendanceHistory();
-      setAttendance(attendanceData);
-
-      // Load total attendance count
-      const count = await getAttendanceCount();
-      setAttendanceCount(count);
+      const { data: attendanceData } = await api.xid.getAttendance();
+      if (attendanceData) {
+        setAttendance(attendanceData as any);
+        setAttendanceCount(attendanceData.length);
+      }
 
       // Load profile for streak info
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('streak_count, last_checkin_date')
-        .eq('user_id', user!.id)
-        .single();
-
+      const { data: profileData } = await api.profile.get();
       if (profileData) {
-        setProfile(profileData);
+        setProfile({
+          streak_count: profileData.streakCount || 0,
+          last_checkin_date: profileData.lastCheckinDate,
+        });
       }
     } catch (error) {
       console.error('Error loading user data:', error);

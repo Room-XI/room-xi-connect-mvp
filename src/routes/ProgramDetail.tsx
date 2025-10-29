@@ -16,8 +16,8 @@ import {
   Home,
   TreePine
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/session';
+import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { addToQueue } from '@/lib/queue';
 
 interface Program {
@@ -48,7 +48,7 @@ interface Program {
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useSession();
   const [program, setProgram] = useState<Program | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
@@ -70,18 +70,14 @@ export default function ProgramDetail() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('programs')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data, error } = await api.programs.get(id!);
 
       if (error) {
         console.error('Error loading program:', error);
         return;
       }
 
-      setProgram(data);
+      setProgram(data as any);
     } catch (error) {
       console.error('Unexpected error loading program:', error);
     } finally {
@@ -91,14 +87,9 @@ export default function ProgramDetail() {
 
   const checkIfSaved = async () => {
     try {
-      const { data } = await supabase
-        .from('saved_programs')
-        .select('program_id')
-        .eq('user_id', user!.id)
-        .eq('program_id', program!.id)
-        .single();
-
-      setIsSaved(!!data);
+      const { data } = await api.programs.saved.list();
+      const savedPrograms = data || [];
+      setIsSaved(savedPrograms.some((p: any) => p.id === program!.id));
     } catch (error) {
       setIsSaved(false);
     }
@@ -113,11 +104,7 @@ export default function ProgramDetail() {
       if (isSaved) {
         if (navigator.onLine) {
           try {
-            await supabase
-              .from('saved_programs')
-              .delete()
-              .eq('user_id', user.id)
-              .eq('program_id', program.id);
+            await api.programs.saved.remove(program.id);
           } catch (error) {
             await addToQueue('unsave_program', {
               user_id: user.id,
@@ -134,12 +121,7 @@ export default function ProgramDetail() {
       } else {
         if (navigator.onLine) {
           try {
-            await supabase
-              .from('saved_programs')
-              .insert({
-                user_id: user.id,
-                program_id: program.id,
-              });
+            await api.programs.saved.add(program.id);
           } catch (error) {
             await addToQueue('save_program', {
               user_id: user.id,
