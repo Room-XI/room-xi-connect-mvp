@@ -60,13 +60,19 @@ export const checkins = pgTable("checkins", {
   checkinDate: date("checkin_date").notNull(),
   dimension: text("dimension").notNull(),
   moodLevel16: integer("mood_level_1_6").notNull(),
+  moodType: text("mood_type"),
   affectTags: text("affect_tags").array().notNull().default(sql`'{}'`),
+  wellnessDimensions: text("wellness_dimensions").array().default(sql`'{}'`),
   note: text("note"),
   localTz: text("local_tz"),
+  crisisFlags: jsonb("crisis_flags"),
+  crisisFlagged: boolean("crisis_flagged").default(false),
+  crisisResolvedAt: timestamp("crisis_resolved_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   oneDayIdx: uniqueIndex("checkins_one_per_day_idx").on(table.userId, table.checkinDate),
   userTsIdx: index("checkins_user_ts_idx").on(table.userId, table.timestamp.desc()),
+  crisisIdx: index("checkins_crisis_idx").on(table.crisisFlagged, table.timestamp.desc()),
 }));
 
 export const profiles = pgTable("profiles", {
@@ -85,6 +91,7 @@ export const profiles = pgTable("profiles", {
   dateOfBirth: date("date_of_birth"),
   city: text("city"),
   postalCode: text("postal_code"),
+  timezone: text("timezone").default("America/Edmonton"),
   
   // Layer 2: Safety Profile
   legalFirstName: text("legal_first_name"),
@@ -104,6 +111,10 @@ export const profiles = pgTable("profiles", {
   
   // XP system
   xpPoints: integer("xp_points").default(0),
+  
+  // Ximi AI preferences
+  ximiConsent: boolean("ximi_consent").default(false),
+  ximiMode: text("ximi_mode").default("sibling"),
   
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -378,4 +389,22 @@ export const auditTrail = pgTable("audit_trail", {
   userIdx: index("idx_audit_trail_user").on(table.userId, table.timestamp.desc()),
   tableIdx: index("idx_audit_trail_table").on(table.tableName, table.timestamp.desc()),
   actionIdx: index("idx_audit_trail_action").on(table.action, table.result, table.timestamp.desc()),
+}));
+
+// Ximi AI Companion
+export const ximiConversations = pgTable("ximi_conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  checkinId: uuid("checkin_id").references(() => checkins.id, { onDelete: "set null" }),
+  mode: text("mode").notNull().default("sibling"),
+  userMessage: text("user_message").notNull(),
+  ximiResponse: text("ximi_response").notNull(),
+  moodContext: text("mood_context"),
+  dimensionsContext: text("dimensions_context").array().default(sql`'{}'`),
+  crisisDetected: boolean("crisis_detected").default(false),
+  crisisKeywords: text("crisis_keywords").array().default(sql`'{}'`),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("idx_ximi_user").on(table.userId, table.createdAt.desc()),
+  crisisIdx: index("idx_ximi_crisis").on(table.crisisDetected, table.createdAt.desc()),
 }));
