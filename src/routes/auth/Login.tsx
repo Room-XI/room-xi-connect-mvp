@@ -28,15 +28,20 @@ export default function Login() {
 
       if (error) {
         setError(error);
+        setLoading(false);
         return;
       }
 
-      // Reload the page to update session context
-      window.location.href = '/';
+      if (data?.user) {
+        // Successful login - go to home page
+        window.location.href = '/home';
+      } else {
+        setError('Login failed. Please try again.');
+        setLoading(false);
+      }
     } catch (error) {
       console.error('Login error:', error);
       setError('An unexpected error occurred. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
