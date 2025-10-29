@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Cloud, CloudRain, Sun, Zap, Moon, CloudSnow } from 'lucide-react';
 import { addToQueue } from '@/lib/queue';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 
 interface CheckInFormProps {
   isOpen: boolean;
@@ -43,23 +43,19 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
       const checkInData = {
         timestamp: new Date().toISOString(),
         dimension: 'mood',
-        mood_level_1_6: selectedMood,
-        affect_tags: selectedAffects,
-        note: note.trim() || null,
-        local_tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        moodLevel16: selectedMood,
+        affectTags: selectedAffects,
+        note: note.trim() || undefined,
+        localTz: Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
       
       // Try to submit immediately if online
       if (navigator.onLine) {
         try {
-          await supabase.rpc('create_or_update_checkin', {
-            p_timestamp: checkInData.timestamp,
-            p_dimension: checkInData.dimension,
-            p_mood_level_1_6: checkInData.mood_level_1_6,
-            p_affect_tags: checkInData.affect_tags,
-            p_note: checkInData.note,
-            p_local_tz: checkInData.local_tz,
-          });
+          const { error } = await api.checkins.create(checkInData);
+          if (error) {
+            throw new Error(error);
+          }
         } catch (error) {
           // If immediate submission fails, queue it
           console.log('Immediate submission failed, queuing for later:', error);

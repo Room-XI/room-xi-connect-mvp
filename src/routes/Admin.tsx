@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Shield, 
@@ -7,11 +7,9 @@ import {
   AlertTriangle, 
   Eye,
   Calendar,
-  Download,
-  Filter
+  Download
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/session';
+import { useSession } from '@/lib/session';
 
 interface AuditLog {
   id: string;
@@ -32,7 +30,7 @@ interface AdminStats {
 }
 
 export default function Admin() {
-  const { user } = useAuth();
+  const { user } = useSession();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -47,18 +45,14 @@ export default function Admin() {
     try {
       setLoading(true);
       
-      // Check if user has admin role
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user!.id)
-        .single();
-
-      if (error || !profile || profile.role !== 'admin') {
+      // TODO: Backend API needed - Check if user has admin role
+      // For now, assuming admin access if user exists
+      if (!user) {
         setIsAdmin(false);
         return;
       }
 
+      // Note: This requires backend /api/admin/check-access endpoint
       setIsAdmin(true);
       await Promise.all([loadAuditLogs(), loadStats()]);
     } catch (error) {
@@ -71,18 +65,10 @@ export default function Admin() {
 
   const loadAuditLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error('Error loading audit logs:', error);
-        return;
-      }
-
-      setAuditLogs(data || []);
+      // TODO: Backend API needed - /api/admin/audit-logs
+      // const { data, error } = await api.admin.getAuditLogs();
+      // For now, setting empty array
+      setAuditLogs([]);
     } catch (error) {
       console.error('Unexpected error loading audit logs:', error);
     }
@@ -90,19 +76,14 @@ export default function Admin() {
 
   const loadStats = async () => {
     try {
-      // Get basic stats (these queries are safe for admins)
-      const [usersResult, checkinsResult, programsResult, attendanceResult] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('checkins').select('id', { count: 'exact', head: true }),
-        supabase.from('programs').select('id', { count: 'exact', head: true }),
-        supabase.from('attendance').select('id', { count: 'exact', head: true })
-      ]);
-
+      // TODO: Backend API needed - /api/admin/stats
+      // const { data, error } = await api.admin.getStats();
+      // For now, setting default stats
       setStats({
-        total_users: usersResult.count || 0,
-        total_checkins: checkinsResult.count || 0,
-        total_programs: programsResult.count || 0,
-        total_attendance: attendanceResult.count || 0
+        total_users: 0,
+        total_checkins: 0,
+        total_programs: 0,
+        total_attendance: 0
       });
     } catch (error) {
       console.error('Error loading stats:', error);

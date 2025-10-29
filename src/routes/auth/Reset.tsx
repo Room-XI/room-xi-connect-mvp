@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 
 export default function Reset() {
   const [email, setEmail] = useState('');
@@ -22,12 +22,10 @@ export default function Reset() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
+      const { error } = await api.auth.resetPassword(email.trim());
 
       if (error) {
-        setError(error.message);
+        setError(error);
         return;
       }
 

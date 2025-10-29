@@ -50,6 +50,16 @@ export const api = {
         method: 'POST',
       }),
     getUser: () => fetchApi('/auth/me'),
+    resetPassword: (email: string) =>
+      fetchApi('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    updatePassword: (newPassword: string) =>
+      fetchApi('/auth/update-password', {
+        method: 'POST',
+        body: JSON.stringify({ newPassword }),
+      }),
     deleteAccount: (confirm: string) =>
       fetchApi('/auth/account', {
         method: 'DELETE',
@@ -124,6 +134,7 @@ export const api = {
   // Crisis supports
   crisis: {
     list: () => fetchApi('/crisis'),
+    getResources: () => fetchApi('/crisis'),
   },
 };
 

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, MessageSquare, MapPin, ExternalLink } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 
 interface CrisisSheetProps {
   open: boolean;
@@ -34,11 +34,7 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
   const loadCrisisSupports = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('crisis_supports')
-        .select('*')
-        .order('region', { ascending: true })
-        .order('category', { ascending: true });
+      const { data, error } = await api.crisis.getResources();
 
       if (error) {
         console.error('Error loading crisis supports:', error);

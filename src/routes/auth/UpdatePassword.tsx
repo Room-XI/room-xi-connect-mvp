@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, AlertCircle, CheckCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 
 export default function UpdatePassword() {
   const navigate = useNavigate();
@@ -14,13 +15,14 @@ export default function UpdatePassword() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const { user } = useSession();
+
   useEffect(() => {
-    // Check if user came from a valid reset link
-    const { data: { session } } = supabase.auth.getSession();
-    if (!session) {
+    // Check if user is authenticated
+    if (!user) {
       navigate('/auth/login');
     }
-  }, [navigate]);
+  }, [user, navigate]);
 
   const validatePassword = (password: string) => {
     if (password.length < 8) {
@@ -61,12 +63,10 @@ export default function UpdatePassword() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
+      const { error } = await api.auth.updatePassword(password);
 
       if (error) {
-        setError(error.message);
+        setError(error);
         return;
       }
 

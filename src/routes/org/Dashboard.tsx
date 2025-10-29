@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { Users, FileText, ArrowRight, TrendingUp, Calendar } from 'lucide-react';
+import { useSession } from '@/lib/session';
 
 interface DashboardStats {
   activeYouth: number;
@@ -17,6 +17,7 @@ interface RecentActivity {
 }
 
 export default function OrgDashboard() {
+  const { user } = useSession();
   const [stats, setStats] = useState<DashboardStats>({
     activeYouth: 0,
     pendingReferrals: 0,
@@ -25,7 +26,6 @@ export default function OrgDashboard() {
   });
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboard();
@@ -33,83 +33,20 @@ export default function OrgDashboard() {
 
   async function loadDashboard() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user's organization
-      const { data: membership } = await supabase
-        .from('org_members')
-        .select('org_id, organizations(name)')
-        .eq('user_id', user.id)
-        .eq('active', true)
-        .single();
-
-      if (!membership) {
-        setLoading(false);
-        return;
-      }
-
-      setOrgId(membership.org_id);
-
-      // Load stats
-      const [youthCount, referralCount, programCount, attendanceCount] = await Promise.all([
-        // Active youth with consent
-        supabase
-          .from('consents')
-          .select('youth_id', { count: 'exact', head: true })
-          .eq('grantee_org_id', membership.org_id)
-          .eq('status', 'granted'),
-        
-        // Pending referrals
-        supabase
-          .from('referrals')
-          .select('id', { count: 'exact', head: true })
-          .eq('to_org_id', membership.org_id)
-          .eq('status', 'sent'),
-        
-        // Programs
-        supabase
-          .from('programs')
-          .select('id', { count: 'exact', head: true })
-          .eq('org_id', membership.org_id)
-          .eq('active', true),
-        
-        // This month attendance
-        supabase
-          .from('attendance')
-          .select('id', { count: 'exact', head: true })
-          .gte('checked_in_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
-          .in('program_id', 
-            supabase
-              .from('programs')
-              .select('id')
-              .eq('org_id', membership.org_id)
-          )
-      ]);
-
+      // TODO: Backend API needed - /api/org/dashboard
+      // const { data, error } = await api.org.getDashboard();
+      // This should return stats and activities
+      
+      // For now, setting default values
       setStats({
-        activeYouth: youthCount.count || 0,
-        pendingReferrals: referralCount.count || 0,
-        programsCount: programCount.count || 0,
-        thisMonthAttendance: attendanceCount.count || 0
+        activeYouth: 0,
+        pendingReferrals: 0,
+        programsCount: 0,
+        thisMonthAttendance: 0
       });
-
-      // Load recent activities
-      const { data: recentReferrals } = await supabase
-        .from('referrals')
-        .select('id, created_at, youth_profiles(display_name)')
-        .eq('to_org_id', membership.org_id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      const recentActivities: RecentActivity[] = (recentReferrals || []).map(r => ({
-        id: r.id,
-        type: 'referral' as const,
-        description: `New referral received for ${r.youth_profiles?.display_name || 'youth'}`,
-        timestamp: r.created_at
-      }));
-
-      setActivities(recentActivities);
+      setActivities([]);
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {

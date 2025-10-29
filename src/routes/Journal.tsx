@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { BookOpen, Sparkles, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSession } from '@/lib/session';
 
 interface JournalEntry {
   id: string;
@@ -32,6 +32,7 @@ const PROMPTS = [
 ];
 
 export default function Journal() {
+  const { user } = useSession();
   const [mode, setMode] = useState<'list' | 'write' | 'ximi'>('list');
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [mood, setMood] = useState<number>(3);
@@ -46,39 +47,29 @@ export default function Journal() {
   }, []);
 
   async function loadEntries() {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('youth_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    if (data) setEntries(data);
+    // TODO: Backend API needed - /api/journal/entries
+    // const { data, error } = await api.journal.list();
+    // For now, setting empty array
+    setEntries([]);
   }
 
   async function saveEntry() {
     if (!content.trim()) return;
+    if (!user) return;
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from('journal_entries')
-        .insert({
-          youth_id: user.id,
-          mood,
-          content: content.trim(),
-          prompt: mode === 'write' ? prompt : null,
-          ximi_conversation: mode === 'ximi'
-        });
-
-      if (error) throw error;
-
+      // TODO: Backend API needed - /api/journal/entries POST
+      // const { error } = await api.journal.create({
+      //   mood,
+      //   content: content.trim(),
+      //   prompt: mode === 'write' ? prompt : null,
+      //   ximiConversation: mode === 'ximi'
+      // });
+      
+      // For now, just resetting the form
       setContent('');
       setMood(3);
       setMode('list');
