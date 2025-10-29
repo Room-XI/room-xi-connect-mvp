@@ -1,142 +1,246 @@
 # Room XI Connect
 
-A safe space for youth to connect, explore, and grow. Room XI Connect is a trauma-informed mental health application designed specifically for young people, featuring mood tracking, program discovery, and crisis support resources.
-
-**Version 2.0** - Edmonton Multi-Organization Expansion (Frontend Integrated ✅)
+A youth mental health and wellness platform for ages 13-25, providing daily check-ins, local program discovery, and crisis support resources. Room XI Connect helps young people feel seen, build capacity, and find community.
 
 ## 🌟 Features
 
-### Core Functionality (v1.0 - Live)
-- **Mood Check-ins**: Interactive mood tracking with the cosmic "Mood Orb"
-- **Program Discovery**: Find and explore youth programs and activities
-- **QR Code Check-ins**: Attendance tracking for program participation
-- **Crisis Support**: Immediate access to crisis resources and support contacts
-- **Offline Mode**: Full functionality without internet connection
+### For Youth (Ages 13-25)
+- **Daily Check-ins**: Track your mood and emotions with the cosmic "Mood Orb"
+- **Program Discovery**: Browse free and low-cost programs in Edmonton (no login required)
+- **Crisis Support**: Quick access to mental health resources and helplines  
+- **Personal Dashboard**: View your check-in history, streaks, and program attendance
+- **Save Programs**: Bookmark programs you're interested in
+- **QR Code Check-in**: Easy attendance tracking at in-person programs
+- **Offline Support**: Core features work offline with automatic sync
 
-### v2.0 Features (Integrated, Pending Backend Deployment)
-- **Living Journal**: Write alone or talk with Ximi AI companion
-- **Organization Portal**: Dashboard for youth workers and program managers
-- **Warm Referrals**: Consent-based referrals between organizations
-- **Guardian Portal**: Digital consent forms with email verification
-- **Coping Skills Library**: 30+ evidence-based coping strategies
-- **Enhanced Security**: Case note encryption, audit logging, CSRF protection
+### Privacy & Compliance
+- **PIPA & HIA Compliant**: Alberta privacy legislation compliance for youth data
+- **Granular Consent**: Separate consent for health data, photos, and program participation
+- **Data Sovereignty**: Optional Indigenous self-identification with OCAP principles
+- **Breach Notification**: 72-hour OIPC notification system (Alberta requirement)
+- **Non-Identifying XID**: Privacy-first identifiers for program attendance
 
 ### Design & Experience
 - **Cosmic Garden Design System**: Calm, tranquil aesthetic with cosmic elements
 - **Trauma-Informed UX**: Safe, non-judgmental interface design
 - **Progressive Web App**: Install on any device, works like a native app
-- **Accessibility First**: WCAG 2.1 AA compliant with comprehensive accessibility features
+- **Accessibility First**: WCAG 2.1 AA compliant
 
-### Security & Privacy
-- **Healthcare-Grade Security**: End-to-end encryption and secure data handling
-- **GDPR/PHIPA Compliant**: Full privacy compliance for sensitive health data
-- **Row-Level Security**: Database-level access controls
-- **Audit Logging**: Comprehensive activity tracking for compliance
-
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Supabase account and project
-- Modern web browser
+- Node.js 20+ (installed via Replit)
+- PostgreSQL database (Replit Neon instance)
 
 ### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd room-xi-connect
-   ```
+```bash
+git clone <your-repo-url>
+cd room-xi-connect
+```
 
 2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-3. **Configure environment**
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your Supabase credentials
-   ```
+3. **Set up environment variables**
 
-4. **Set up database**
-   ```bash
-   # Run the SQL files in supabase/ directory in your Supabase dashboard
-   # 1. schema.sql - Database structure
-   # 2. policies.sql - Row Level Security policies
-   # 3. seeds/ - Sample data (optional)
-   ```
+Create a `.env` file or use Replit Secrets:
+```env
+# Database (auto-configured on Replit)
+DATABASE_URL=postgresql://...
 
-5. **Deploy edge functions**
-   ```bash
-   # Deploy the Supabase edge functions
-   supabase functions deploy xid-create
-   supabase functions deploy user-delete
-   ```
+# Session secret (auto-generated if not set)
+SESSION_SECRET=your-secret-key-here
 
-6. **Start development server**
-   ```bash
-   npm run dev
-   ```
+# Optional: Custom map tiles
+VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+VITE_MAP_ATTRIBUTION=&copy; OpenStreetMap contributors
 
-## 🏗️ Architecture
+# Feature flags (optional)
+VITE_ENABLE_PWA=true
+VITE_ENABLE_OFFLINE=true
+```
 
-### Frontend Stack
-- **React 18** with TypeScript
-- **Vite** for build tooling
-- **Tailwind CSS** for styling
-- **Framer Motion** for animations
-- **React Router** for navigation
-- **Recharts** for data visualization
+4. **Initialize the database**
+```bash
+npm run db:push
+```
 
-### Backend & Database
-- **Supabase** (PostgreSQL with real-time subscriptions)
-- **Row Level Security** for data protection
-- **Edge Functions** for server-side logic
-- **Real-time subscriptions** for live updates
+5. **Seed the database** (optional, adds sample programs)
+```bash
+npm run db:seed
+```
 
-### Key Components
+6. **Start the development server**
+```bash
+npm run dev
+```
 
-#### Mood Orb
-The central feature - a breathing, interactive orb that visualizes mood state:
-- Color-coded mood representation
-- Accessibility patterns for color-blind users
-- Trauma-informed design (no red/alarm colors)
-- Smooth animations with reduced-motion support
+The app will be available at http://localhost:5000
 
-#### Offline Queue System
-Robust offline functionality with encrypted local storage:
-- Automatic sync when connection restored
-- Visual indicators for pending sync
-- Encrypted sensitive data storage
-- Retry logic with exponential backoff
+### Test Account
+For development/testing:
+- Email: `test@example.com`
+- Password: `test123`
 
-#### Ximi AI Companion
-Local heuristic AI system for basic conversation and crisis detection:
-- Rule-based responses (no external API calls)
-- Crisis keyword detection
-- Privacy-preserving (no data sent externally)
-- Contextual program suggestions
+## 📦 Tech Stack
 
-## 🔒 Security Features
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite 5** - Build tool and dev server
+- **React Router v6** - Client-side routing
+- **Tailwind CSS** - Styling
+- **Framer Motion** - Animations
+- **Leaflet** - Interactive maps
+- **Recharts** - Data visualization
 
-### Data Protection
-- **Encryption at Rest**: All sensitive data encrypted in database
-- **Encryption in Transit**: HTTPS/WSS for all communications
-- **Local Encryption**: Offline queue data encrypted with Web Crypto API
-- **XID System**: Anonymous identifiers for attendance tracking
+### Backend
+- **Express.js** - HTTP server
+- **Drizzle ORM** - Type-safe database queries
+- **PostgreSQL** (Neon) - Database
+- **Express Session** - Session-based authentication
+- **bcrypt** - Password hashing
+- **connect-pg-simple** - PostgreSQL session store
 
-### Access Controls
-- **Row Level Security**: Database-level access restrictions
-- **JWT Authentication**: Secure session management
-- **Role-Based Access**: Admin, user, and guest roles
-- **Audit Logging**: All data changes tracked
+### PWA & Offline
+- **vite-plugin-pwa** - Progressive Web App support
+- **IndexedDB** (idb) - Client-side storage
+- **Service Worker** - Offline caching
 
-### Privacy Compliance
-- **Data Minimization**: Only collect necessary data
-- **Consent Management**: Granular privacy controls
-- **Right to Deletion**: Complete data removal capability
-- **Data Portability**: Export user data functionality
+## 🏗️ Project Structure
+
+```
+room-xi-connect/
+├── server/                 # Backend Express server
+│   ├── index.js           # Main server entry point
+│   ├── schema.ts          # Drizzle database schema
+│   ├── seed.ts            # Database seeding script
+│   └── routes/            # API route handlers
+│       ├── auth.js        # Authentication endpoints
+│       ├── profile.js     # User profile management
+│       ├── checkins.js    # Daily check-in endpoints
+│       ├── programs.js    # Program discovery
+│       ├── xid.js         # Privacy-preserving IDs
+│       └── crisis.js      # Crisis resources
+├── src/                   # Frontend React app
+│   ├── lib/               # Utilities and helpers
+│   │   ├── api.ts         # API client
+│   │   ├── session.tsx    # Session management
+│   │   └── queue.ts       # Offline sync queue
+│   ├── routes/            # Page components
+│   │   ├── Home.tsx       # Dashboard with check-ins
+│   │   ├── Me.tsx         # User profile
+│   │   ├── Settings.tsx   # User settings
+│   │   ├── Explore.tsx    # Program browser
+│   │   ├── Journal.tsx    # Check-in history
+│   │   └── auth/          # Auth pages
+│   ├── ui/                # Reusable UI components
+│   │   ├── home/          # Home page components
+│   │   ├── explore/       # Program discovery UI
+│   │   ├── crisis/        # Crisis support sheet
+│   │   └── me/            # Profile components
+│   └── shell/             # App shell (nav, layout)
+├── public/                # Static assets
+├── package.json           # Dependencies
+└── vite.config.ts         # Vite configuration
+```
+
+## 🔐 Authentication & Security
+
+### Session-Based Authentication
+Room XI Connect uses secure session-based authentication:
+
+- Sessions stored in PostgreSQL with `connect-pg-simple`
+- httpOnly cookies prevent XSS attacks
+- SameSite cookies for CSRF protection
+- Secure cookies in production (HTTPS only)
+- 7-day session expiration with sliding window
+
+### Password Security
+- bcrypt hashing with salt rounds = 10
+- Minimum 6-character password requirement
+- Account deletion with password confirmation
+
+### Privacy Features
+- Non-identifying XIDs for program attendance
+- Granular consent management (5 separate photo/media consents)
+- Health data separated with HIA-compliant consent tracking
+- Audit trails for all consent changes
+- Breach notification system
+
+## 📱 API Endpoints
+
+### Authentication
+```
+POST   /api/auth/register       - Create new account
+POST   /api/auth/login          - Sign in
+POST   /api/auth/logout         - Sign out
+POST   /api/auth/reset-password - Request password reset
+POST   /api/auth/update-password- Update password
+DELETE /api/auth/delete-account - Delete account
+GET    /api/auth/session        - Check session status
+```
+
+### Profile
+```
+GET    /api/profile             - Get user profile
+PUT    /api/profile             - Update profile
+```
+
+### Check-ins
+```
+POST   /api/checkins            - Create check-in
+GET    /api/checkins            - List user's check-ins
+```
+
+### Programs
+```
+GET    /api/programs            - List all programs
+GET    /api/programs/:id        - Get program details
+GET    /api/programs/saved      - List saved programs
+POST   /api/programs/saved      - Save a program
+DELETE /api/programs/saved/:id  - Unsave a program
+```
+
+### XID (Privacy IDs)
+```
+GET    /api/xid                 - Get user's XID
+GET    /api/xid/attendance      - Get attendance history
+```
+
+### Crisis Support
+```
+GET    /api/crisis              - Get crisis resources
+```
+
+## 🗄️ Database Schema
+
+### Core Tables
+- **users** - Authentication and credentials
+- **profiles** - User profile data, streaks, XP
+- **consents** - Granular consent tracking
+- **consent_events** - Audit trail for consent changes
+- **health_profiles** - HIA-compliant health data storage
+- **guardian_verifications** - Guardian approval tracking
+
+### Program Tables
+- **programs** - Program/activity catalog
+- **saved_programs** - User bookmarks
+- **attendance** - QR check-in records
+
+### Check-in Tables
+- **checkins** - Daily mood tracking
+- **journal_entries** - Extended journal entries
+
+### Compliance Tables
+- **breach_events** - Privacy breach tracking
+- **session** - Express session storage
+
+See `server/schema.ts` for complete schema definitions.
 
 ## 🎨 Design System - "Cosmic Garden"
 
@@ -154,103 +258,98 @@ Local heuristic AI system for basic conversation and crisis detection:
 - **Body**: Inter (body text)
 - **Monospace**: System monospace (code)
 
-### Components
-- **Cosmic Cards**: Elevated surfaces with subtle shadows
-- **Breathing Animations**: Gentle, calming motion
-- **Gradient Backgrounds**: Subtle cosmic gradients
-- **Soft Shadows**: Layered shadow system
+### Key Components
 
-## 📱 Progressive Web App
+#### Mood Orb
+The central feature - a breathing, interactive orb that visualizes mood state:
+- Color-coded mood representation
+- Accessibility patterns for color-blind users
+- Trauma-informed design (no red/alarm colors)
+- Smooth animations with reduced-motion support
 
-### PWA Features
-- **Installable**: Add to home screen on any device
-- **Offline First**: Core functionality works without internet
-- **Background Sync**: Automatic data synchronization
-- **Push Notifications**: Crisis alerts and reminders (future)
-
-### Performance
-- **Code Splitting**: Lazy-loaded routes and components
-- **Asset Optimization**: Compressed images and fonts
-- **Caching Strategy**: Service worker with cache-first approach
-- **Bundle Analysis**: Optimized bundle sizes
+#### Offline Queue System
+Robust offline functionality with encrypted local storage:
+- Automatic sync when connection restored
+- Visual indicators for pending sync
+- Encrypted sensitive data storage
+- Retry logic with exponential backoff
 
 ## 🧪 Testing
 
-### Test Coverage
-- **Unit Tests**: Component and utility testing
-- **Integration Tests**: API and database interactions
-- **E2E Tests**: Full user journey testing
-- **Accessibility Tests**: Automated a11y validation
-
-### Security Testing
-- **Penetration Testing**: Regular security audits
-- **Dependency Scanning**: Automated vulnerability checks
-- **OWASP Compliance**: Security best practices
-- **Privacy Impact Assessment**: Regular privacy reviews
-
-## 🚀 Deployment
-
-### Build Process
 ```bash
-# Production build
-npm run build
+# Run tests
+npm test
 
-# Preview production build
-npm run preview
-
-# Type checking
-npm run type-check
-
-# Linting
-npm run lint
+# Run tests with UI
+npm run test:ui
 ```
 
-### Environment Setup
-1. **Staging Environment**
-   - Copy `.env.example` to `.env.staging`
-   - Configure staging Supabase project
-   - Deploy with staging settings
+## 🚢 Deployment
 
-2. **Production Environment**
-   - Copy `.env.example` to `.env.production`
-   - Configure production Supabase project
-   - Enable all security features
-   - Set up monitoring and alerts
+### Replit Deployment (Autoscale)
 
-### Deployment Platforms
-- **Vercel** (recommended for frontend)
-- **Netlify** (alternative frontend hosting)
-- **Supabase** (backend and database)
+1. **Configure deployment**
+```bash
+# Already configured in .replit
+deployment_target = "autoscale"
+```
 
-## 📊 Monitoring & Analytics
+2. **Build the app**
+```bash
+npm run build
+```
 
-### Application Monitoring
-- **Error Tracking**: Comprehensive error logging
-- **Performance Monitoring**: Core Web Vitals tracking
-- **User Analytics**: Privacy-compliant usage analytics
-- **Health Checks**: Automated system monitoring
+3. **Deploy**
+Click the "Deploy" button in Replit or use the CLI
 
-### Privacy-First Analytics
-- **No Personal Data**: Only aggregate, anonymous metrics
-- **Opt-in Only**: Users control analytics participation
-- **Local Processing**: Client-side analytics where possible
-- **GDPR Compliant**: Full privacy regulation compliance
+### Environment Variables for Production
+Ensure these are set in Replit Secrets:
+- `DATABASE_URL` - Production database connection
+- `SESSION_SECRET` - Secret key for session encryption
+- All `VITE_*` variables for runtime configuration
+
+### Database Migrations
+When schema changes:
+```bash
+# Push schema changes to database
+npm run db:push
+
+# Force push if there are conflicts
+npm run db:push --force
+```
+
+## 📊 Database Seeding
+
+The seed script (`npm run db:seed`) creates:
+- 1 test user (test@example.com / test123)
+- 10 sample programs across Edmonton
+- Crisis support resources (phone, chat, text lines)
+
+## 🌐 Environment Variables
+
+### Required
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - Session encryption key (auto-generated if not set)
+
+### Optional
+- `VITE_MAP_TILES_URL` - Custom map tile server
+- `VITE_MAP_ATTRIBUTION` - Map attribution text
+- `VITE_ENABLE_PWA` - Enable PWA features (default: true)
+- `VITE_ENABLE_OFFLINE` - Enable offline mode (default: true)
 
 ## 🤝 Contributing
 
 ### Development Workflow
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+1. Create a feature branch
+2. Make your changes
+3. Test thoroughly (auth, programs, check-ins)
+4. Submit a pull request
 
 ### Code Standards
-- **TypeScript**: Strict type checking enabled
-- **ESLint**: Consistent code formatting
-- **Prettier**: Automated code formatting
-- **Conventional Commits**: Standardized commit messages
+- TypeScript for type safety
+- Tailwind CSS for styling
+- camelCase for API responses
+- snake_case for database columns
 
 ### Trauma-Informed Development
 - **Safety First**: All features reviewed for emotional safety
@@ -260,23 +359,8 @@ npm run lint
 
 ## 📚 Documentation
 
-### v2.0 Documentation
-- **[V2 Deployment Guide](./V2_DEPLOYMENT_GUIDE.md)**: Complete deployment instructions
-- **[Upgrade Guide](./UPGRADE_GUIDE.md)**: Migration from v1.0 to v2.0
-- **[Final App Spec](./FINAL_APP_SPEC.md)**: Technical specification
-- **[Placeholders Checklist](./PLACEHOLDERS_CHECKLIST.md)**: Pre-launch checklist
-- **[Implementation Roadmap](./IMPLEMENTATION_ROADMAP.md)**: 12-week launch timeline
-
-### API Documentation
-- **Supabase Schema**: Database structure and relationships
-- **Edge Functions**: Server-side function documentation
-- **Authentication**: Auth flow and security measures
-
-### User Guides
-- **Getting Started**: New user onboarding
-- **Feature Guides**: Detailed feature explanations
-- **Crisis Resources**: Emergency support information
-- **Privacy Guide**: Data handling and privacy controls
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)**: Complete component and data flow documentation
+- **[replit.md](./replit.md)**: Project summary and preferences
 
 ## 🆘 Crisis Support
 
@@ -288,30 +372,36 @@ Room XI Connect includes comprehensive crisis support features:
 - **Local Resources**: Location-based support services
 - **Emergency Contacts**: Quick access to emergency services
 
-### AI Crisis Detection
-- **Keyword Monitoring**: Automatic detection of crisis language
-- **Escalation Protocols**: Immediate connection to support resources
-- **Safety Planning**: Tools for crisis prevention and management
-
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright © 2025 Room 11 Foundation. All rights reserved.
 
 ## 🙏 Acknowledgments
 
-- **Youth Mental Health Organizations**: For guidance on trauma-informed design
-- **Accessibility Community**: For inclusive design principles
-- **Open Source Community**: For the amazing tools and libraries
-- **Mental Health Professionals**: For clinical guidance and review
+**Partners & Supporters:**
+- CanManDan
+- JumpStart
+- Allendale Community League
+- Duggan Community League
+- YMCA of Northern Alberta
+- OTB Basketball
+
+**Technology:**
+- OpenStreetMap for map tiles
+- Replit for hosting infrastructure
+- Neon for PostgreSQL database
 
 ## 📞 Support
 
-For technical support or questions:
-- **Documentation**: Check the docs/ directory
-- **Issues**: Create a GitHub issue
-- **Security**: Email security@roomxi.connect
-- **General**: Email support@roomxi.connect
+### For Youth
+- Crisis support available 24/7 within the app
+- Email: support@room11foundation.org
+
+### For Developers
+- Documentation: See `ARCHITECTURE.md` for detailed component/data flow docs
+- Issues: Submit via GitHub issues
+- Contact: tech@room11foundation.org
 
 ---
 
-**Room XI Connect** - Empowering youth through technology, community, and compassionate care.
+Built with ❤️ for youth mental health and wellness
