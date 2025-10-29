@@ -64,7 +64,6 @@ export const checkins = pgTable("checkins", {
   localTz: text("local_tz"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
-  oneDayIdx: uniqueIndex("checkins_one_per_day_idx").on(sql`${table.userId}, (${table.timestamp} at time zone 'America/Edmonton')::date`),
   userTsIdx: index("checkins_user_ts_idx").on(table.userId, table.timestamp.desc()),
 }));
 

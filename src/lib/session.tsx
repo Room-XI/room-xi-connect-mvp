@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import api from './api';
+
+interface User {
+  id: string;
+  email: string;
+  [key: string]: any;
+}
 
 interface SessionContextType {
   user: User | null;
@@ -20,24 +25,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    api.auth.getUser().then(({ data, error }) => {
+      if (!error && data?.user) {
+        setUser(data.user);
+      }
       setLoading(false);
     });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await api.auth.logout();
+    setUser(null);
   };
 
   return (
@@ -61,19 +59,12 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    api.auth.getUser().then(({ data, error }) => {
+      if (!error && data?.user) {
+        setUser(data.user);
+      }
       setLoading(false);
     });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   return { user, loading };
