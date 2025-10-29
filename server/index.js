@@ -1,12 +1,16 @@
 import express from 'express';
 import session from 'express-session';
+import pgSession from 'connect-pg-simple';
 import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { pool } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const PgStore = pgSession(session);
 
 async function createServer() {
   const app = express();
@@ -14,6 +18,10 @@ async function createServer() {
   app.use(express.json());
   app.use(cookieParser());
   app.use(session({
+    store: new PgStore({
+      pool,
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || 'room-xi-connect-secret-change-in-production',
     resave: false,
     saveUninitialized: false,

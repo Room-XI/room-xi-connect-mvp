@@ -57,6 +57,7 @@ export const checkins = pgTable("checkins", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
+  checkinDate: date("checkin_date").notNull(),
   dimension: text("dimension").notNull(),
   moodLevel16: integer("mood_level_1_6").notNull(),
   affectTags: text("affect_tags").array().notNull().default(sql`'{}'`),
@@ -64,6 +65,7 @@ export const checkins = pgTable("checkins", {
   localTz: text("local_tz"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
+  oneDayIdx: uniqueIndex("checkins_one_per_day_idx").on(table.userId, table.checkinDate),
   userTsIdx: index("checkins_user_ts_idx").on(table.userId, table.timestamp.desc()),
 }));
 

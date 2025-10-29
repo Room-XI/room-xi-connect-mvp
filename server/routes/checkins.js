@@ -58,7 +58,7 @@ router.post('/', async (req, res) => {
       .where(
         and(
           eq(checkins.userId, req.session.userId),
-          sql`(${checkins.timestamp} at time zone 'America/Edmonton')::date = ${dateStr}::date`
+          eq(checkins.checkinDate, dateStr)
         )
       );
 
@@ -68,6 +68,7 @@ router.post('/', async (req, res) => {
       [result] = await db.update(checkins)
         .set({
           timestamp: checkinTimestamp,
+          checkinDate: dateStr,
           dimension,
           moodLevel16,
           affectTags: affectTags || [],
@@ -82,6 +83,7 @@ router.post('/', async (req, res) => {
         .values({
           userId: req.session.userId,
           timestamp: checkinTimestamp,
+          checkinDate: dateStr,
           dimension,
           moodLevel16,
           affectTags: affectTags || [],
