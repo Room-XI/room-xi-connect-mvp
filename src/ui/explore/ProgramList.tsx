@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FilterBar from './FilterBar';
 import ProgramCard from './ProgramCard';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 
 interface Program {
   id: string;
@@ -44,12 +44,7 @@ export default function ProgramList() {
     try {
       setLoading(true);
       
-      // Fix for R-06: Unauthenticated Endpoint Exposure - limit query size
-      const { data, error } = await supabase
-        .from('programs')
-        .select('*')
-        .limit(50) // Prevent accidentally fetching thousands of records
-        .order('next_start', { ascending: true, nullsLast: true });
+      const { data, error } = await api.programs.list();
 
       if (error) {
         console.error('Error loading programs:', error);
