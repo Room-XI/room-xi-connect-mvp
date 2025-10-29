@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bookmark, Heart, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProgramCard from './ProgramCard';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/session';
+import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 
 interface SavedProgram {
   program_id: string;
@@ -27,7 +27,7 @@ interface SavedProgram {
 }
 
 export default function SavedList() {
-  const { user } = useAuth();
+  const { user } = useSession();
   const [savedPrograms, setSavedPrograms] = useState<SavedProgram[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,38 +43,21 @@ export default function SavedList() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('saved_programs')
-        .select(`
-          program_id,
-          created_at,
-          programs (
-            id,
-            title,
-            description,
-            tags,
-            free,
-            indoor,
-            outdoor,
-            cost_cents,
-            location_name,
-            organizer,
-            accessibility_notes,
-            next_start,
-            next_end
-          )
-        `)
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await api.programs.saved.list();
 
       if (error) {
         console.error('Error loading saved programs:', error);
         return;
       }
 
-      // Filter out any saved programs where the program was deleted
-      const validSavedPrograms = (data || []).filter(saved => saved.programs);
-      setSavedPrograms(validSavedPrograms);
+      // Transform API response to match component expectations
+      const savedPrograms = (data || []).map((program: any) => ({
+        program_id: program.id,
+        created_at: program.createdAt || new Date().toISOString(),
+        programs: program
+      }));
+      
+      setSavedPrograms(savedPrograms);
     } catch (error) {
       console.error('Unexpected error loading saved programs:', error);
     } finally {

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { MapPin, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default markers in react-leaflet
@@ -51,24 +51,19 @@ export default function ProgramMap() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('programs')
-        .select('id, title, description, organizer, location_name, address, lat, lng, tags, free')
-        .not('lat', 'is', null)
-        .not('lng', 'is', null)
-        .limit(50); // Prevent large fetches
+      const { data, error } = await api.programs.list();
 
       if (error) {
         console.error('Error loading programs with location:', error);
         return;
       }
 
-      // Filter out programs with invalid coordinates
-      const validPrograms = (data || []).filter(program => {
-        const lat = parseFloat(program.lat!);
-        const lng = parseFloat(program.lng!);
+      // Filter programs with valid coordinates
+      const validPrograms = (data || []).filter((program: any) => {
+        const lat = program.lat ? parseFloat(program.lat) : NaN;
+        const lng = program.lng ? parseFloat(program.lng) : NaN;
         return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-      });
+      }).slice(0, 50); // Limit to 50 programs
 
       setPrograms(validPrograms);
     } catch (error) {

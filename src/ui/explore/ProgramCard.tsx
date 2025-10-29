@@ -11,8 +11,8 @@ import {
   TreePine,
   Accessibility
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/session';
+import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { addToQueue } from '@/lib/queue';
 
 interface Program {
@@ -36,7 +36,7 @@ interface ProgramCardProps {
 }
 
 export default function ProgramCard({ program }: ProgramCardProps) {
-  const { user } = useAuth();
+  const { user } = useSession();
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -49,16 +49,10 @@ export default function ProgramCard({ program }: ProgramCardProps) {
 
   const checkIfSaved = async () => {
     try {
-      const { data } = await supabase
-        .from('saved_programs')
-        .select('program_id')
-        .eq('user_id', user!.id)
-        .eq('program_id', program.id)
-        .single();
-
-      setIsSaved(!!data);
+      const { data } = await api.programs.saved.list();
+      const savedPrograms = data || [];
+      setIsSaved(savedPrograms.some((p: any) => p.id === program.id));
     } catch (error) {
-      // Not saved (expected for new programs)
       setIsSaved(false);
     }
   };
@@ -81,20 +75,14 @@ export default function ProgramCard({ program }: ProgramCardProps) {
         // Unsave program
         if (navigator.onLine) {
           try {
-            await supabase
-              .from('saved_programs')
-              .delete()
-              .eq('user_id', user.id)
-              .eq('program_id', program.id);
+            await api.programs.saved.remove(program.id);
           } catch (error) {
-            // Queue for offline sync
             await addToQueue('unsave_program', {
               user_id: user.id,
               program_id: program.id,
             });
           }
         } else {
-          // Offline - queue the action
           await addToQueue('unsave_program', {
             user_id: user.id,
             program_id: program.id,
@@ -105,21 +93,14 @@ export default function ProgramCard({ program }: ProgramCardProps) {
         // Save program
         if (navigator.onLine) {
           try {
-            await supabase
-              .from('saved_programs')
-              .insert({
-                user_id: user.id,
-                program_id: program.id,
-              });
+            await api.programs.saved.add(program.id);
           } catch (error) {
-            // Queue for offline sync
             await addToQueue('save_program', {
               user_id: user.id,
               program_id: program.id,
             });
           }
         } else {
-          // Offline - queue the action
           await addToQueue('save_program', {
             user_id: user.id,
             program_id: program.id,

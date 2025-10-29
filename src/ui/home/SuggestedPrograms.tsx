@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { MapPin, Clock, DollarSign, ArrowRight } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 
 interface Program {
   id: string;
@@ -25,19 +25,16 @@ export default function SuggestedPrograms() {
 
   const loadSuggestedPrograms = async () => {
     try {
-      // Load a few featured programs (Fix for R-06: limit query to prevent large fetches)
-      const { data, error } = await supabase
-        .from('programs')
-        .select('id, title, description, tags, free, location_name, organizer, next_start')
-        .limit(3)
-        .order('created_at', { ascending: false });
+      // Load a few featured programs
+      const { data, error } = await api.programs.list();
 
       if (error) {
         console.error('Error loading programs:', error);
         return;
       }
 
-      setPrograms(data || []);
+      // Take first 3 programs as suggestions
+      setPrograms((data || []).slice(0, 3));
     } catch (error) {
       console.error('Unexpected error loading programs:', error);
     } finally {
