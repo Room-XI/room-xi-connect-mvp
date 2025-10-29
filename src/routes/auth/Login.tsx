@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,17 +24,15 @@ export default function Login() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      const { data, error } = await api.auth.login(email.trim(), password);
 
       if (error) {
-        setError(error.message);
+        setError(error);
         return;
       }
 
-      navigate('/');
+      // Reload the page to update session context
+      window.location.href = '/';
     } catch (error) {
       console.error('Login error:', error);
       setError('An unexpected error occurred. Please try again.');
