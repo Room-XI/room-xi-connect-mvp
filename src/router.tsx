@@ -18,6 +18,7 @@ import About from './routes/About';
 import ErrorBoundary from './ui/ErrorBoundary';
 import Journal from './routes/Journal';
 import VerifyConsent from './routes/VerifyConsent';
+import GuardianVerify from './routes/GuardianVerify';
 import OrgDashboard from './routes/org/Dashboard';
 
 export const router = createBrowserRouter([
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: 'about', element: <About /> },
       { path: 'journal', element: <Journal /> },
       { path: 'verify-consent/:token', element: <VerifyConsent /> },
+      { path: 'guardian/verify/:token', element: <GuardianVerify /> },
       { path: 'org/dashboard', element: <OrgDashboard /> },
       { path: 'auth/login', element: <Login /> },
       { path: 'auth/register', element: <Register /> },

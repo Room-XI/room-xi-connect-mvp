@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink } from 'lucide-react';
 import Sparkline from '@/ui/me/Sparkline';
+import PrivacyDashboard from '@/ui/me/PrivacyDashboard';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useQueue } from '@/lib/queue';
@@ -304,6 +305,15 @@ export default function Me() {
             </Link>
           </div>
         )}
+      </motion.div>
+
+      {/* Privacy Dashboard */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
+      >
+        <PrivacyDashboard />
       </motion.div>
 
       {/* Offline Status */}
