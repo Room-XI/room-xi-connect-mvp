@@ -1,10 +1,60 @@
 # Room XI Connect - Complete Build Documentation
 
-**Version:** 1.0.0  
-**Last Updated:** October 29, 2025  
+**Version:** 1.1.0  
+**Last Updated:** October 30, 2025  
 **Architecture:** Express.js + React + Drizzle ORM + PostgreSQL (Neon)
 
 This document contains **everything** about Room XI Connect: database schemas, wireframes, source code, API documentation, and implementation details.
+
+---
+
+## Changelog
+
+### Version 1.1.0 (October 30, 2025)
+
+**Major Features:**
+
+1. **New 6-Level Mood System** - Replaced 16-level system with valence/arousal scale:
+   - Cold ❄️ (h:210, s:40%, l:70%) - Low valence, low arousal
+   - Stormy ⛈️ (h:250, s:70%, l:40%) - Low valence, high arousal
+   - Foggy 🌫️ (h:220, s:10%, l:75%) - Neutral valence, low arousal
+   - Clear ☀️ (h:48, s:95%, l:55%) - High valence, low arousal
+   - Breezy ⚡ (h:52, s:98%, l:58%) - High valence, medium arousal
+   - Aurora 🌌 (h:285, s:70%, l:60%) - High valence, high arousal
+
+2. **SAMHSA Wellness Dimensions** - Replaced 18 affect tags with 8 evidence-based dimensions:
+   - Emotional, Physical, Social, Spiritual, Intellectual, Environmental, Financial, Purpose
+   - Users select 1-3 affected dimensions per check-in
+
+3. **DST-Safe Streak Logic** - Fixed March/November timezone bugs:
+   - Using Luxon library for calendar-day comparison
+   - Timezone-aware streak calculation based on user's `localTz` profile field
+   - Handles daylight saving time transitions correctly
+
+4. **Ximi AI Companion** - Trauma-informed chatbot using Replit AI (OpenAI-compatible):
+   - Dual personality modes: Little Sibling (default) and Peer Guide (optional)
+   - Crisis keyword detection (20+ keywords) with immediate safety resource routing
+   - Mood-aware responses based on check-in data
+   - Consent-gated (requires user approval before activation)
+
+5. **Enhanced Crisis Detection** - Multi-layer safety system:
+   - Real-time keyword scanning in check-in notes and Ximi conversations
+   - Crisis flag stored in database for follow-up
+   - Automatic escalation to crisis support resources
+
+**Database Changes:**
+- New tables: `wellness_dimensions`, `ximi_conversations`
+- Updated `profiles`: Added `timezone`, `ximiConsent`, `ximiMode` fields
+- Updated `checkins`: Added `moodType`, `wellnessDimensionIds`, `crisisDetected` fields
+
+**API Changes:**
+- New endpoints: `/api/ximi/chat`, `/api/ximi/conversations`, `/api/ximi/toggle-mode`, `/api/ximi/consent`, `/api/ximi/follow-up`
+- Updated `/api/checkins` to accept `moodType` and `wellnessDimensions`
+
+**Migration Notes:**
+- Existing check-ins remain compatible (old `moodLevel16` and `affectTags` fields preserved for backward compatibility)
+- Ximi is opt-in (default disabled, requires consent in profile settings)
+- All users need to set timezone in profile for accurate streak calculations
 
 ---
 
