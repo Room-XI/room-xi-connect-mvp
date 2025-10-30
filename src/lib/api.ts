@@ -131,6 +131,25 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ consentType, value, grantedBy }),
       }),
+    myConsents: () => fetchApi('/consent/my-consents'),
+    requestGuardianVerification: (guardianContactType: string, guardianContactValue: string) =>
+      fetchApi('/consent/guardian/request-verification', {
+        method: 'POST',
+        body: JSON.stringify({ guardianContactType, guardianContactValue }),
+      }),
+    verifyGuardian: (token: string, pin: string, guardianName: string) =>
+      fetchApi(`/consent/guardian/verify/${token}`, {
+        method: 'POST',
+        body: JSON.stringify({ pin, guardianName }),
+      }),
+    guardianStatus: () => fetchApi('/consent/guardian/status'),
+    auditTrail: () => fetchApi('/consent/audit-trail'),
+    exportData: () => fetchApi('/consent/export-data'),
+    deleteAccount: (confirmation: string) =>
+      fetchApi('/consent/delete-account', {
+        method: 'POST',
+        body: JSON.stringify({ confirmation }),
+      }),
   },
 
   // Crisis supports

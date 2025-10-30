@@ -2,6 +2,14 @@ import express from 'express';
 import { db } from '../db.js';
 import { consents, consentEvents } from '../schema.js';
 import { eq, and } from 'drizzle-orm';
+import {
+  generateGuardianToken,
+  verifyGuardianWithPIN,
+  checkGuardianVerificationStatus,
+  getConsentAuditTrail,
+  exportUserData,
+  deleteUserData,
+} from '../services/consent.js';
 
 const router = express.Router();
 
@@ -18,6 +26,29 @@ router.get('/', async (req, res) => {
     res.json(userConsents);
   } catch (error) {
     console.error('Get consents error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user's consents as a map (for Privacy Dashboard)
+router.get('/my-consents', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userConsents = await db.select().from(consents)
+      .where(eq(consents.userId, req.session.userId));
+
+    // Convert array to map of consentType -> value
+    const consentsMap = userConsents.reduce((acc, consent) => {
+      acc[consent.consentType] = consent.value;
+      return acc;
+    }, {});
+
+    res.json({ data: consentsMap });
+  } catch (error) {
+    console.error('Get consents map error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -104,6 +135,142 @@ router.post('/', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Update consent error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Guardian verification - request
+router.post('/guardian/request-verification', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { guardianContactType, guardianContactValue } = req.body;
+    
+    if (!guardianContactType || !guardianContactValue) {
+      return res.status(400).json({ error: 'Guardian contact information required' });
+    }
+    
+    const token = await generateGuardianToken({
+      userId: req.session.userId,
+      guardianContactType,
+      guardianContactValue,
+    });
+    
+    const verificationLink = `${req.protocol}://${req.get('host')}/guardian/verify/${token}`;
+    
+    // TODO: Send verification link via email/SMS to guardian
+    // For now, this is a security placeholder - the token should ONLY be sent
+    // to the guardian through a secure channel (email/SMS), not returned to the youth
+    // This prevents youth from self-approving by accessing the verification link
+    console.log('Guardian verification link (TODO: send via email/SMS):', verificationLink);
+    
+    res.json({
+      message: 'Guardian verification request created. A verification link will be sent to your guardian.',
+      pending: true,
+    });
+  } catch (error) {
+    console.error('Guardian verification request error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Guardian verification - verify with PIN
+router.post('/guardian/verify/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { pin, guardianName } = req.body;
+    
+    if (!pin || !guardianName) {
+      return res.status(400).json({ error: 'PIN and guardian name required' });
+    }
+    
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    await verifyGuardianWithPIN(token, pin, guardianName, ipAddress);
+    
+    res.json({ message: 'Guardian verification completed successfully' });
+  } catch (error) {
+    console.error('Guardian verification error:', error);
+    res.status(400).json({ error: error.message || 'Failed to verify guardian' });
+  }
+});
+
+// Guardian verification - check status
+router.get('/guardian/status', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const status = await checkGuardianVerificationStatus(req.session.userId);
+    
+    res.json({ data: status });
+  } catch (error) {
+    console.error('Guardian status check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Privacy - audit trail
+router.get('/audit-trail', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const events = await getConsentAuditTrail(req.session.userId);
+    
+    res.json({ data: events });
+  } catch (error) {
+    console.error('Audit trail error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Privacy - export data (PIPA compliance)
+router.get('/export-data', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const data = await exportUserData(req.session.userId);
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="room-xi-data-export-${req.session.userId}.json"`);
+    res.json(data);
+  } catch (error) {
+    console.error('Data export error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Privacy - delete account
+router.post('/delete-account', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { confirmation } = req.body;
+    
+    if (confirmation !== 'DELETE MY ACCOUNT') {
+      return res.status(400).json({ error: 'Confirmation text must match exactly: DELETE MY ACCOUNT' });
+    }
+    
+    await deleteUserData(req.session.userId);
+    
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destroy error:', err);
+      }
+    });
+    
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Account deletion error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
