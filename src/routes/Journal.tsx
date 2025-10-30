@@ -1,17 +1,9 @@
-import { useState, useEffect } from 'react';
-import { BookOpen, Sparkles, Send } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { BookOpen, Sparkles, Send, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSession } from '@/lib/session';
-
-interface JournalEntry {
-  id: string;
-  mood: number;
-  content: string;
-  prompt?: string;
-  ximi_conversation: boolean;
-  ximi_summary?: string;
-  created_at: string;
-}
+import api from '@/lib/api';
+import CrisisSheet from '@/ui/crisis/CrisisSheet';
 
 const MOOD_OPTIONS = [
   { value: 1, label: 'Struggling', emoji: '😔' },
@@ -31,49 +23,157 @@ const PROMPTS = [
   "What would make tomorrow better?"
 ];
 
+interface Message {
+  id: string;
+  text: string;
+  isUser: boolean;
+  timestamp: Date;
+}
+
 export default function Journal() {
   const { user } = useSession();
-  const [mode, setMode] = useState<'list' | 'write' | 'ximi'>('list');
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [mode, setMode] = useState<'alone' | 'peer'>('alone');
   const [mood, setMood] = useState<number>(3);
   const [content, setContent] = useState('');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [crisisOpen, setCrisisOpen] = useState(false);
+  
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadEntries();
-    // Set random prompt
     setPrompt(PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
   }, []);
 
-  async function loadEntries() {
-    if (!user) return;
+  useEffect(() => {
+    if (mode === 'peer' && messages.length === 0) {
+      setMessages([
+        {
+          id: '1',
+          text: "Hey, I'm here to journal with you as your peer guide. What's been on your mind lately?",
+          isUser: false,
+          timestamp: new Date(),
+        }
+      ]);
+    }
+  }, [mode]);
 
-    // TODO: Backend API needed - /api/journal/entries
-    // const { data, error } = await api.journal.list();
-    // For now, setting empty array
-    setEntries([]);
-  }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  async function saveEntry() {
+  const handleModeChange = async (newMode: 'alone' | 'peer') => {
+    if (newMode === 'peer') {
+      try {
+        await api.ximi.toggleMode('peer');
+      } catch (error) {
+        console.error('Failed to set peer mode:', error);
+      }
+    } else {
+      try {
+        await api.ximi.toggleMode('sibling');
+      } catch (error) {
+        console.error('Failed to reset sibling mode:', error);
+      }
+    }
+    setMode(newMode);
+    setContent('');
+    setInputText('');
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || isTyping) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: inputText.trim(),
+      isUser: true,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    const messageText = inputText.trim();
+    setInputText('');
+    setIsTyping(true);
+
+    try {
+      const { data, error } = await api.ximi.chat({ message: messageText });
+      
+      if (error) {
+        const errorResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: "I'm having trouble processing that right now. Please try again.",
+          isUser: false,
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, errorResponse]);
+        setIsTyping(false);
+        return;
+      }
+
+      if (data.crisisDetected) {
+        const crisisResponse: Message = {
+          id: data.id.toString(),
+          text: data.ximiResponse,
+          isUser: false,
+          timestamp: new Date(data.createdAt),
+        };
+        
+        setMessages(prev => [...prev, crisisResponse]);
+        setIsTyping(false);
+        
+        setTimeout(() => {
+          setCrisisOpen(true);
+        }, 1000);
+        return;
+      }
+
+      const aiResponse: Message = {
+        id: data.id.toString(),
+        text: data.ximiResponse,
+        isUser: false,
+        timestamp: new Date(data.createdAt),
+      };
+      
+      setMessages(prev => [...prev, aiResponse]);
+      setIsTyping(false);
+
+    } catch (error) {
+      console.error('Error processing message:', error);
+      
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm having trouble processing that right now. Please try again.",
+        isUser: false,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, errorResponse]);
+      setIsTyping(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  async function saveAloneEntry() {
     if (!content.trim()) return;
     if (!user) return;
 
     setLoading(true);
     try {
-      // TODO: Backend API needed - /api/journal/entries POST
-      // const { error } = await api.journal.create({
-      //   mood,
-      //   content: content.trim(),
-      //   prompt: mode === 'write' ? prompt : null,
-      //   ximiConversation: mode === 'ximi'
-      // });
-      
-      // For now, just resetting the form
+      alert('Entry saved! (Journal backend API coming soon)');
       setContent('');
       setMood(3);
-      setMode('list');
-      loadEntries();
+      setPrompt(PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
     } catch (error) {
       console.error('Error saving entry:', error);
       alert('Failed to save entry. Please try again.');
@@ -82,101 +182,63 @@ export default function Journal() {
     }
   }
 
-  if (mode === 'list') {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-cosmic-midnight flex items-center gap-3">
-            <BookOpen className="w-8 h-8 text-cosmic-teal" />
-            Living Journal
-          </h1>
-        </div>
-
-        {/* Entry Mode Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setMode('write')}
-            className="p-6 bg-gradient-to-br from-cosmic-teal to-cosmic-purple text-white rounded-2xl shadow-lg text-left"
-            style={{
-              backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence baseFrequency=\'0.04\' numOctaves=\'5\' /%3E%3CfeColorMatrix values=\'0 0 0 0 0.9, 0 0 0 0 0.9, 0 0 0 0 0.9, 0 0 0 0.05 0\'/%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23paper)\' /%3E%3C/svg%3E")'
-            }}
-          >
-            <BookOpen className="w-10 h-10 mb-3" />
-            <h2 className="text-2xl font-bold mb-2">Write Alone</h2>
-            <p className="text-white/90">Private reflection, just for you</p>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setMode('ximi')}
-            className="p-6 bg-gradient-to-br from-cosmic-purple to-cosmic-rose text-white rounded-2xl shadow-lg text-left relative overflow-hidden"
-          >
-            <Sparkles className="w-10 h-10 mb-3 relative z-10" />
-            <h2 className="text-2xl font-bold mb-2 relative z-10">Talk with Ximi</h2>
-            <p className="text-white/90 relative z-10">Your AI companion listens</p>
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
-          </motion.button>
-        </div>
-
-        {/* Past Entries */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-cosmic-midnight mb-4">Past Entries</h2>
-          {entries.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-xl">
-              <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No entries yet. Start writing!</p>
-            </div>
-          ) : (
-            entries.map(entry => (
-              <EntryCard key={entry.id} entry={entry} />
-            ))
-          )}
-        </div>
-      </div>
-    );
+  async function finishPeerSession() {
+    if (messages.length <= 1) return;
+    
+    setLoading(true);
+    try {
+      alert('Session saved! (Journal backend API coming soon)');
+      await api.ximi.toggleMode('sibling');
+      setMessages([]);
+      setMode('alone');
+      setMood(3);
+    } catch (error) {
+      console.error('Error saving session:', error);
+      alert('Failed to save session. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="bg-white rounded-2xl shadow-xl p-8"
-        style={{
-          backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence baseFrequency=\'0.04\' numOctaves=\'5\' /%3E%3CfeColorMatrix values=\'0 0 0 0 0.98, 0 0 0 0 0.98, 0 0 0 0 0.98, 0 0 0 0.02 0\'/%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23paper)\' /%3E%3C/svg%3E")',
-          backgroundSize: '200px 200px'
-        }}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-cosmic-midnight flex items-center gap-2">
-            {mode === 'ximi' ? (
-              <>
-                <Sparkles className="w-6 h-6 text-cosmic-purple" />
-                Talk with Ximi
-              </>
-            ) : (
-              <>
-                <BookOpen className="w-6 h-6 text-cosmic-teal" />
-                Write Alone
-              </>
-            )}
-          </h2>
-          <button
-            onClick={() => setMode('list')}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            Cancel
-          </button>
+    <>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-cosmic-midnight flex items-center gap-3 mb-6">
+            <BookOpen className="w-8 h-8 text-cosmic-teal" />
+            Living Journal
+          </h1>
+
+          <div className="flex gap-2 bg-gray-100 p-1 rounded-xl mb-6">
+            <button
+              onClick={() => handleModeChange('alone')}
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                mode === 'alone'
+                  ? 'bg-white text-cosmic-teal shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                <span>Write Alone</span>
+              </div>
+            </button>
+            <button
+              onClick={() => handleModeChange('peer')}
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                mode === 'peer'
+                  ? 'bg-white text-cosmic-purple shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                <span>Peer Guide</span>
+              </div>
+            </button>
+          </div>
         </div>
 
-        {/* Prompt */}
-        {mode === 'write' && (
-          <div className="mb-6 p-4 bg-cosmic-teal/10 rounded-lg border-l-4 border-cosmic-teal">
-            <p className="text-cosmic-midnight italic">{prompt}</p>
-          </div>
-        )}
-
-        {/* Mood Selector */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-3">
             How are you feeling?
@@ -199,69 +261,154 @@ export default function Journal() {
           </div>
         </div>
 
-        {/* Text Area */}
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={mode === 'ximi' ? "Start chatting with Ximi..." : "Start writing..."}
-          className="w-full h-64 p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:border-cosmic-teal font-serif text-lg"
-          style={{ fontFamily: "'Merriweather', serif" }}
-        />
-
-        {/* Character Count */}
-        <div className="flex items-center justify-between mt-4">
-          <span className="text-sm text-gray-500">
-            {content.length} / 5000 characters
-          </span>
-          <button
-            onClick={saveEntry}
-            disabled={loading || !content.trim()}
-            className="px-6 py-3 bg-cosmic-teal text-white rounded-xl hover:bg-cosmic-teal/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        {mode === 'alone' ? (
+          <div className="bg-white rounded-2xl shadow-xl p-8"
+            style={{
+              backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence baseFrequency=\'0.04\' numOctaves=\'5\' /%3E%3CfeColorMatrix values=\'0 0 0 0 0.98, 0 0 0 0 0.98, 0 0 0 0 0.98, 0 0 0 0.02 0\'/%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23paper)\' /%3E%3C/svg%3E")',
+              backgroundSize: '200px 200px'
+            }}
           >
-            <Send className="w-4 h-4" />
-            {loading ? 'Saving...' : 'Save Entry'}
-          </button>
-        </div>
+            <div className="mb-6 p-4 bg-cosmic-teal/10 rounded-lg border-l-4 border-cosmic-teal">
+              <p className="text-cosmic-midnight italic">{prompt}</p>
+            </div>
+
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Start writing..."
+              className="w-full h-64 p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:border-cosmic-teal font-serif text-lg"
+              style={{ fontFamily: "'Merriweather', serif" }}
+              maxLength={5000}
+            />
+
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-sm text-gray-500">
+                {content.length} / 5000 characters
+              </span>
+              <button
+                onClick={saveAloneEntry}
+                disabled={loading || !content.trim()}
+                className="px-6 py-3 bg-cosmic-teal text-white rounded-xl hover:bg-cosmic-teal/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+              >
+                <Send className="w-4 h-4" />
+                {loading ? 'Saving...' : 'Save Entry'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden"
+            style={{
+              backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence baseFrequency=\'0.04\' numOctaves=\'5\' /%3E%3CfeColorMatrix values=\'0 0 0 0 0.98, 0 0 0 0 0.98, 0 0 0 0 0.98, 0 0 0 0.02 0\'/%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23paper)\' /%3E%3C/svg%3E")',
+              backgroundSize: '200px 200px'
+            }}
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-cosmic-purple/5 to-cosmic-rose/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-cosmic-purple to-cosmic-rose rounded-full flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-cosmic-midnight">Ximi - Peer Guide</h3>
+                  <p className="text-xs text-gray-600">Here to journal with you</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4 h-96 overflow-y-auto">
+              {messages.map(message => (
+                <motion.div
+                  key={message.id}
+                  className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div
+                    className={`max-w-[80%] px-4 py-3 rounded-2xl ${
+                      message.isUser
+                        ? 'bg-cosmic-teal text-white'
+                        : 'bg-cosmic-purple/10 text-cosmic-midnight border border-cosmic-purple/20'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                  </div>
+                </motion.div>
+              ))}
+              
+              {isTyping && (
+                <motion.div
+                  className="flex justify-start"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="bg-cosmic-purple/10 text-cosmic-midnight px-4 py-3 rounded-2xl border border-cosmic-purple/20">
+                    <div className="flex space-x-1">
+                      {[...Array(3)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          className="w-2 h-2 bg-cosmic-purple rounded-full"
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            delay: i * 0.2,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="p-6 border-t border-gray-200 bg-gray-50/50">
+              <div className="flex space-x-3 mb-4">
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Share what's on your mind..."
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-cosmic-purple transition-colors"
+                  disabled={isTyping}
+                  maxLength={500}
+                />
+                
+                <motion.button
+                  onClick={handleSendMessage}
+                  disabled={!inputText.trim() || isTyping}
+                  className={`px-4 py-3 rounded-xl transition-all duration-200 ${
+                    inputText.trim() && !isTyping
+                      ? 'bg-cosmic-purple text-white hover:bg-cosmic-purple/90'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                  whileHover={inputText.trim() && !isTyping ? { scale: 1.05 } : {}}
+                  whileTap={inputText.trim() && !isTyping ? { scale: 0.95 } : {}}
+                >
+                  <Send className="w-5 h-5" />
+                </motion.button>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  {inputText.length} / 500 characters
+                </p>
+                <button
+                  onClick={finishPeerSession}
+                  disabled={loading || messages.length <= 1}
+                  className="px-4 py-2 bg-cosmic-teal text-white text-sm rounded-lg hover:bg-cosmic-teal/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {loading ? 'Saving...' : 'Finish Session'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+
+      <CrisisSheet open={crisisOpen} onClose={() => setCrisisOpen(false)} />
+    </>
   );
 }
-
-function EntryCard({ entry }: { entry: JournalEntry }) {
-  const moodOption = MOOD_OPTIONS.find(m => m.value === entry.mood);
-  
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          {entry.ximi_conversation && (
-            <Sparkles className="w-5 h-5 text-cosmic-purple" />
-          )}
-          <span className="text-2xl">{moodOption?.emoji}</span>
-          <span className="text-sm text-gray-500">
-            {new Date(entry.created_at).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            })}
-          </span>
-        </div>
-      </div>
-      {entry.prompt && (
-        <p className="text-sm text-gray-600 italic mb-2">{entry.prompt}</p>
-      )}
-      <p className="text-gray-800 whitespace-pre-wrap">{entry.content}</p>
-      {entry.ximi_summary && (
-        <div className="mt-4 p-3 bg-cosmic-purple/10 rounded-lg">
-          <p className="text-sm text-cosmic-purple font-medium">Ximi's reflection:</p>
-          <p className="text-sm text-gray-700 mt-1">{entry.ximi_summary}</p>
-        </div>
-      )}
-    </motion.div>
-  );
-}
-

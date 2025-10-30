@@ -50,14 +50,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Note too long: maximum 140 characters' });
     }
 
-    const checkinTimestamp = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
+    const checkinTimestamp = timestamp ? new Date(timestamp) : new Date();
     
     // Get user timezone from profile (fallback to local timezone or Edmonton)
     const [profile] = await db.select().from(profiles).where(eq(profiles.userId, req.session.userId)).limit(1);
     const userTimezone = profile?.timezone || localTz || 'America/Edmonton';
     
     // Use Luxon-based date string calculation
-    const dateStr = getLocalDateString(checkinTimestamp, userTimezone);
+    const dateStr = getLocalDateString(checkinTimestamp.toISOString(), userTimezone);
 
     // Check for existing checkin on same date
     const existingCheckins = await db.select().from(checkins)

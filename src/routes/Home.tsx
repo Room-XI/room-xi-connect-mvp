@@ -4,6 +4,8 @@ import MoodOrb from '@/ui/home/MoodOrb';
 import CheckInForm from '@/ui/home/CheckInForm';
 import SuggestedPrograms from '@/ui/home/SuggestedPrograms';
 import QuickActions from '@/ui/home/QuickActions';
+import XimiDock from '@/ui/explore/XimiDock';
+import CrisisSheet from '@/ui/crisis/CrisisSheet';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 
@@ -23,6 +25,7 @@ interface Profile {
 export default function Home() {
   const { user } = useSession();
   const [checkInOpen, setCheckInOpen] = useState(false);
+  const [crisisOpen, setCrisisOpen] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<CheckIn | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -217,6 +220,9 @@ export default function Home() {
         >
           <SuggestedPrograms />
         </motion.div>
+
+        {/* Spacer for floating dock */}
+        <div className="h-32" />
       </div>
 
       {/* Check-in Form */}
@@ -225,6 +231,12 @@ export default function Home() {
         onClose={() => setCheckInOpen(false)}
         onSuccess={handleCheckInSuccess}
       />
+
+      {/* Ximi Dock - Floating AI assistant (authenticated users only) */}
+      {user && <XimiDock onCrisis={() => setCrisisOpen(true)} />}
+
+      {/* Crisis Support Sheet */}
+      <CrisisSheet open={crisisOpen} onClose={() => setCrisisOpen(false)} />
     </>
   );
 }

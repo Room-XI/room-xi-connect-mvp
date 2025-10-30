@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
-import { analyzeMessage } from '@/ximi/heuristic';
+import api from '@/lib/api';
 
 interface XimiDockProps {
   onCrisis: () => void;
@@ -27,6 +27,50 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
+  // Load conversation history on component mount
+  useEffect(() => {
+    const loadConversationHistory = async () => {
+      try {
+        const { data, error } = await api.ximi.getConversations();
+        
+        if (error) {
+          console.error('Failed to load conversation history:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          // Convert API conversations to Message format
+          const historyMessages: Message[] = [];
+          
+          data.forEach((conv: any) => {
+            // Add user message
+            historyMessages.push({
+              id: `${conv.id}-user`,
+              text: conv.userMessage,
+              isUser: true,
+              timestamp: new Date(conv.createdAt),
+            });
+            
+            // Add Ximi response
+            historyMessages.push({
+              id: `${conv.id}-ximi`,
+              text: conv.ximiResponse,
+              isUser: false,
+              timestamp: new Date(conv.createdAt),
+            });
+          });
+          
+          // Update messages with history, keeping the initial greeting first
+          setMessages(prev => [prev[0], ...historyMessages]);
+        }
+      } catch (error) {
+        console.error('Error loading conversation history:', error);
+      }
+    };
+
+    loadConversationHistory();
+  }, []);
+
   const handleSendMessage = async () => {
     if (!inputText.trim() || isTyping) return;
 
@@ -38,20 +82,35 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageText = inputText.trim();
     setInputText('');
     setIsTyping(true);
 
     try {
-      // Analyze the message using our local heuristic
-      const analysis = analyzeMessage(inputText.trim());
+      // Call the real Ximi AI API
+      const { data, error } = await api.ximi.chat({ message: messageText });
       
-      // If crisis keywords detected, trigger crisis support
-      if (analysis.isCrisis) {
-        const crisisResponse: Message = {
+      if (error) {
+        // Handle API error
+        const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: "I'm concerned about what you've shared. Let me connect you with immediate support resources that can help.",
+          text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
           isUser: false,
           timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, errorResponse]);
+        setIsTyping(false);
+        return;
+      }
+
+      // Check if crisis was detected
+      if (data.crisisDetected) {
+        const crisisResponse: Message = {
+          id: data.id.toString(),
+          text: data.ximiResponse,
+          isUser: false,
+          timestamp: new Date(data.createdAt),
         };
         
         setMessages(prev => [...prev, crisisResponse]);
@@ -64,33 +123,16 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         return;
       }
 
-      // Generate response based on analysis
-      let responseText = '';
+      // Add AI response to messages
+      const aiResponse: Message = {
+        id: data.id.toString(),
+        text: data.ximiResponse,
+        isUser: false,
+        timestamp: new Date(data.createdAt),
+      };
       
-      if (analysis.category === 'programs') {
-        responseText = "I can help you find programs! Based on what you're looking for, I'd recommend checking out the Programs tab where you can filter by your interests. Would you like me to suggest some specific categories?";
-      } else if (analysis.category === 'mood') {
-        responseText = "It sounds like you're thinking about your mood or feelings. The mood check-in feature on the Home tab is a great way to track how you're doing. Have you tried checking in today?";
-      } else if (analysis.category === 'support') {
-        responseText = "I'm here to support you. If you're looking for resources or someone to talk to, there are several options available. Would you like me to share some support resources?";
-      } else if (analysis.category === 'greeting') {
-        responseText = "Hello! It's great to meet you. I'm here to help you navigate the app and find what you need. Is there something specific you'd like to explore?";
-      } else {
-        responseText = "That's interesting! I'm still learning, but I'm here to help however I can. You might find what you're looking for in the Explore section, or feel free to ask me anything else.";
-      }
-
-      // Add a small delay to simulate thinking
-      setTimeout(() => {
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: responseText,
-          isUser: false,
-          timestamp: new Date(),
-        };
-        
-        setMessages(prev => [...prev, aiResponse]);
-        setIsTyping(false);
-      }, 1000 + Math.random() * 1000); // 1-2 second delay
+      setMessages(prev => [...prev, aiResponse]);
+      setIsTyping(false);
 
     } catch (error) {
       console.error('Error processing message:', error);
@@ -277,7 +319,7 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                 </div>
                 
                 <p className="text-xs text-textSecondaryLight mt-2 text-center">
-                  Ximi uses local AI and doesn't store your conversations
+                  Ximi is your AI companion in Little Sibling mode
                 </p>
               </div>
             </motion.div>
