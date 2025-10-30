@@ -59,4 +59,4 @@ I prefer simple language. I want iterative development. Ask before making major 
 - **CanManDan, JumpStart, Allendale Community, Duggan Community, YMCA of Northern Alberta, OTB Basketball:** Partner organizations.
 
 ## Notes for Future Development
-- **Guardian Verification SMS/Email:** User declined Twilio integration. For production deployment, you'll need to manually integrate an email/SMS service (Twilio, SendGrid, Resend) or use alternative method. Current implementation logs verification link to console (NOT production-safe). See DEVELOPER_HANDOFF.md "Known Issues" section for details.
+- **Guardian Verification Email:** Implemented using Gmail SMTP (nodemailer). Guardian verification links are sent via email to guardians when youth under 16 sign up. Requires GMAIL_USER and GMAIL_APP_PASSWORD environment variables. See DEVELOPER_HANDOFF.md for setup instructions.
