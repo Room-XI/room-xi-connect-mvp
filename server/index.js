@@ -6,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from './db.js';
+import { verifyEmailConfig } from './services/email.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,9 @@ const PgStore = pgSession(session);
 
 async function createServer() {
   const app = express();
+  
+  // Verify email configuration on startup
+  await verifyEmailConfig();
   
   app.use(express.json());
   app.use(cookieParser());

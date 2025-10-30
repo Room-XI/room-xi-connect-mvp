@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db.js';
-import { consents, consentEvents } from '../schema.js';
+import { consents, consentEvents, profiles } from '../schema.js';
 import { eq, and } from 'drizzle-orm';
 import {
   generateGuardianToken,
@@ -10,6 +10,7 @@ import {
   exportUserData,
   deleteUserData,
 } from '../services/consent.js';
+import { sendGuardianVerificationEmail } from '../services/email.js';
 
 const router = express.Router();
 
@@ -152,6 +153,25 @@ router.post('/guardian/request-verification', async (req, res) => {
       return res.status(400).json({ error: 'Guardian contact information required' });
     }
     
+    // Validate contact type
+    if (guardianContactType !== 'email') {
+      return res.status(400).json({ error: 'Only email verification is supported at this time' });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(guardianContactValue)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+    
+    // Get youth's name for email personalization
+    const [profile] = await db.select().from(profiles)
+      .where(eq(profiles.id, req.session.userId))
+      .limit(1);
+    
+    const youthName = profile?.name || 'A youth';
+    
+    // Generate verification token
     const token = await generateGuardianToken({
       userId: req.session.userId,
       guardianContactType,
@@ -160,19 +180,22 @@ router.post('/guardian/request-verification', async (req, res) => {
     
     const verificationLink = `${req.protocol}://${req.get('host')}/guardian/verify/${token}`;
     
-    // TODO: Send verification link via email/SMS to guardian
-    // For now, this is a security placeholder - the token should ONLY be sent
-    // to the guardian through a secure channel (email/SMS), not returned to the youth
-    // This prevents youth from self-approving by accessing the verification link
-    console.log('Guardian verification link (TODO: send via email/SMS):', verificationLink);
+    // Send verification email to guardian
+    await sendGuardianVerificationEmail({
+      guardianEmail: guardianContactValue,
+      youthName,
+      verificationLink,
+    });
     
     res.json({
-      message: 'Guardian verification request created. A verification link will be sent to your guardian.',
+      message: 'Guardian verification email sent successfully. Please check your guardian\'s inbox.',
       pending: true,
     });
   } catch (error) {
     console.error('Guardian verification request error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Failed to send verification email. Please try again or contact support.' 
+    });
   }
 });
 

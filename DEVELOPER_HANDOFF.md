@@ -134,6 +134,10 @@ SESSION_SECRET=your-secret-key-change-in-production
 AI_INTEGRATIONS_OPENAI_API_KEY=your-api-key
 AI_INTEGRATIONS_OPENAI_BASE_URL=https://api.openai.com/v1  # Or Replit AI endpoint
 
+# Email (Gmail SMTP for guardian verification)
+GMAIL_USER=roomxi.ent@gmail.com
+GMAIL_APP_PASSWORD=your-gmail-app-password
+
 # Optional: Map tiles
 VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 VITE_MAP_ATTRIBUTION=&copy; OpenStreetMap contributors
@@ -152,6 +156,25 @@ VITE_MAP_ATTRIBUTION=&copy; OpenStreetMap contributors
 2. Add `AI_INTEGRATIONS_OPENAI_API_KEY` to environment variables
 3. Add `AI_INTEGRATIONS_OPENAI_BASE_URL` (optional - defaults to OpenAI endpoint)
 4. The server uses these credentials in `server/services/ximi.ts`
+
+### Email Setup (Gmail SMTP)
+
+Guardian verification emails are sent via Gmail SMTP when youth under 16 sign up:
+
+1. **Gmail Account**: roomxi.ent@gmail.com (or create your own)
+2. **App Password**: Generate at https://myaccount.google.com/apppasswords
+   - Go to Google Account → Security → 2-Step Verification → App passwords
+   - Generate new app password for "Mail"
+   - Copy the 16-character password
+3. **Environment Variables**:
+   ```bash
+   GMAIL_USER=roomxi.ent@gmail.com
+   GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+   ```
+4. **Implementation**: `server/services/email.js` uses `nodemailer` with Gmail SMTP
+5. **Verification**: Server logs "✅ Email service ready (Gmail SMTP)" on startup
+
+**Security Note**: Never commit app passwords to version control. Store in Replit Secrets or `.env` (gitignored).
 
 ---
 
@@ -1929,35 +1952,24 @@ run = ["npm", "run", "start"]
 
 ### Current Limitations
 
-1. **Guardian Verification Delivery (CRITICAL - BLOCKS PRODUCTION)**
-   - Guardian verification tokens are generated but NOT sent to guardians
-   - Current implementation logs the link to console (INSECURE for production)
-   - **Required Action:** Integrate email/SMS delivery service
-   - **Available Integrations:**
-     - **Twilio** (connector:ccfg_twilio_01K69QJTED9YTJFE2SJ7E4SY08) - SMS delivery (recommended for fast response)
-     - **SendGrid** (connector:ccfg_sendgrid_01K69QKAPBPJ4SWD8GQHGY03D5) - Email delivery
-     - **Resend** (connector:ccfg_resend_01K69QKYK789WN202XSE3QS17V) - Email delivery
-   - **Implementation Location:** `server/routes/consent.js` line 166-170
-   - **Status:** Placeholder TODO comment exists
-
-2. **Journal Persistence**
+1. **Journal Persistence**
    - Journal save/finish buttons are stubbed
    - Need to implement `/api/journal` endpoints
    - Schema: `journal_entries` table
 
-3. **Program Search**
+2. **Program Search**
    - No text search yet (only filter by tags)
    - Should add full-text search
 
-4. **Ximi Conversation History**
+3. **Ximi Conversation History**
    - Conversations stored but not displayed in UI
    - Add conversation history view in Journal
 
-5. **Crisis Escalation**
+4. **Crisis Escalation**
    - Crisis detection works, but no staff notification system
    - Need admin dashboard for crisis alerts
 
-6. **PWA Install Prompt**
+5. **PWA Install Prompt**
    - Service worker configured but install prompt not implemented
    - Add beforeinstallprompt event handler
 
