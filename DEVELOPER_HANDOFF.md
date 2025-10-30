@@ -1929,46 +1929,62 @@ run = ["npm", "run", "start"]
 
 ### Current Limitations
 
-1. **Journal Persistence**
+1. **Guardian Verification Delivery (CRITICAL - BLOCKS PRODUCTION)**
+   - Guardian verification tokens are generated but NOT sent to guardians
+   - Current implementation logs the link to console (INSECURE for production)
+   - **Required Action:** Integrate email/SMS delivery service
+   - **Available Integrations:**
+     - **Twilio** (connector:ccfg_twilio_01K69QJTED9YTJFE2SJ7E4SY08) - SMS delivery (recommended for fast response)
+     - **SendGrid** (connector:ccfg_sendgrid_01K69QKAPBPJ4SWD8GQHGY03D5) - Email delivery
+     - **Resend** (connector:ccfg_resend_01K69QKYK789WN202XSE3QS17V) - Email delivery
+   - **Implementation Location:** `server/routes/consent.js` line 166-170
+   - **Status:** Placeholder TODO comment exists
+
+2. **Journal Persistence**
    - Journal save/finish buttons are stubbed
    - Need to implement `/api/journal` endpoints
    - Schema: `journal_entries` table
 
-2. **Program Search**
+3. **Program Search**
    - No text search yet (only filter by tags)
    - Should add full-text search
 
-3. **Ximi Conversation History**
+4. **Ximi Conversation History**
    - Conversations stored but not displayed in UI
    - Add conversation history view in Journal
 
-4. **Crisis Escalation**
+5. **Crisis Escalation**
    - Crisis detection works, but no staff notification system
    - Need admin dashboard for crisis alerts
 
-5. **PWA Install Prompt**
+6. **PWA Install Prompt**
    - Service worker configured but install prompt not implemented
    - Add beforeinstallprompt event handler
 
 ### Future Features
 
 **Phase 1 (Next Sprint):**
+- [x] **COMPLETED:** Guardian consent system for under-18 (PIPA/FOIP compliant)
+- [ ] **URGENT:** Implement email/SMS delivery for guardian verification links
 - [ ] Implement journal persistence API
 - [ ] Add conversation history view
 - [ ] Program text search
 - [ ] PWA install prompt
 
 **Phase 2:**
+- [ ] Partner consent and RLS policies (scoped data access for organizations)
+- [ ] Admin consent status dashboard and audit exports
+- [ ] 30-day auto-deletion for non-synced emotional data
 - [ ] Admin dashboard for crisis monitoring
 - [ ] Staff view of youth check-ins (with consent)
 - [ ] Program recommendation engine
 - [ ] Push notifications for check-in reminders
 
 **Phase 3:**
-- [ ] Guardian consent system for under-18
 - [ ] Group programs/events
 - [ ] Peer connections (find friends at programs)
 - [ ] Achievements & XP system
+- [ ] Text-to-speech for consent cards (accessibility)
 
 ---
 
