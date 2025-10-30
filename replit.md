@@ -57,3 +57,6 @@ I prefer simple language. I want iterative development. Ask before making major 
 - **Luxon:** JavaScript library for date and time handling (specifically for DST-safe streak logic).
 - **Zeffy:** Donation platform, linked via a fixed "Donate" button.
 - **CanManDan, JumpStart, Allendale Community, Duggan Community, YMCA of Northern Alberta, OTB Basketball:** Partner organizations.
+
+## Notes for Future Development
+- **Guardian Verification SMS/Email:** User declined Twilio integration. For production deployment, you'll need to manually integrate an email/SMS service (Twilio, SendGrid, Resend) or use alternative method. Current implementation logs verification link to console (NOT production-safe). See DEVELOPER_HANDOFF.md "Known Issues" section for details.
