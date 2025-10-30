@@ -1,5 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
+import { getMoodByScore } from '@/lib/moodConfig';
 
 interface MoodOrbProps {
   size?: number;
@@ -8,38 +8,35 @@ interface MoodOrbProps {
   className?: string;
 }
 
-// Mood-specific colors and gradients for the Cosmic Garden design
+// Helper function to convert HSL to gradient and glow
+function getMoodStyle(score: number) {
+  const mood = getMoodByScore(score);
+  if (!mood) return null;
+  
+  const { h, s, l } = mood.color;
+  
+  // Create gradient with the base color
+  const baseColor = `hsl(${h}, ${s}%, ${l}%)`;
+  const darkerColor = `hsl(${h}, ${s}%, ${Math.max(l - 20, 10)}%)`;
+  const darkestColor = `hsl(${h}, ${s}%, ${Math.max(l - 30, 5)}%)`;
+  const lighterColor = `hsl(${h}, ${s}%, ${Math.min(l + 15, 95)}%)`;
+  
+  return {
+    gradient: `radial-gradient(circle at 30% 30%, ${baseColor}, ${darkerColor}, ${darkestColor})`,
+    glow: `hsl(${h}, ${s}%, ${l}%, 0.4)`,
+    particles: lighterColor,
+  };
+}
+
+// Mood-specific colors using the new 6-level system
+// 1: Cold, 2: Stormy, 3: Foggy, 4: Clear, 5: Breezy, 6: Aurora
 const moodStyles = {
-  1: { // Stormy
-    gradient: 'radial-gradient(circle at 30% 30%, #64748b, #475569, #334155)',
-    glow: 'rgba(100, 116, 139, 0.4)',
-    particles: '#94a3b8',
-  },
-  2: { // Foggy
-    gradient: 'radial-gradient(circle at 30% 30%, #94a3b8, #64748b, #475569)',
-    glow: 'rgba(148, 163, 184, 0.4)',
-    particles: '#cbd5e1',
-  },
-  3: { // Overcast
-    gradient: 'radial-gradient(circle at 30% 30%, #cbd5e1, #94a3b8, #64748b)',
-    glow: 'rgba(203, 213, 225, 0.4)',
-    particles: '#e2e8f0',
-  },
-  4: { // Calm
-    gradient: 'radial-gradient(circle at 30% 30%, #fbbf24, #f59e0b, #d97706)',
-    glow: 'rgba(251, 191, 36, 0.4)',
-    particles: '#fcd34d',
-  },
-  5: { // Upbeat
-    gradient: 'radial-gradient(circle at 30% 30%, #f59e0b, #d97706, #b45309)',
-    glow: 'rgba(245, 158, 11, 0.4)',
-    particles: '#fbbf24',
-  },
-  6: { // Aurora
-    gradient: 'radial-gradient(circle at 30% 30%, #8b5cf6, #7c3aed, #6d28d9)',
-    glow: 'rgba(139, 92, 246, 0.4)',
-    particles: '#a78bfa',
-  },
+  1: getMoodStyle(1), // Cold ❄️ - h:210, s:40, l:70
+  2: getMoodStyle(2), // Stormy ⛈️ - h:250, s:70, l:40
+  3: getMoodStyle(3), // Foggy 🌫️ - h:220, s:10, l:75
+  4: getMoodStyle(4), // Clear ☀️ - h:48, s:95, l:55
+  5: getMoodStyle(5), // Breezy ⚡ - h:52, s:98, l:58
+  6: getMoodStyle(6), // Aurora 🌌 - h:285, s:70, l:60
 };
 
 // Default cosmic gradient when no mood is set
@@ -55,7 +52,7 @@ export default function MoodOrb({
   onClick, 
   className = '' 
 }: MoodOrbProps) {
-  const style = mood ? moodStyles[mood as keyof typeof moodStyles] : defaultStyle;
+  const style = (mood && moodStyles[mood as keyof typeof moodStyles]) || defaultStyle;
   
   return (
     <motion.div

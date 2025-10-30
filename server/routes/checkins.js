@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../db.js';
 import { checkins, profiles } from '../schema.js';
 import { eq, and, sql } from 'drizzle-orm';
+import { calculateStreak, getLocalDateString } from '../services/streak.ts';
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.post('/', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { timestamp, dimension, moodLevel16, affectTags, note, localTz } = req.body;
+    const { timestamp, dimension, moodLevel16, moodType, wellnessDimensions, affectTags, note, localTz } = req.body;
 
     // Validate inputs
     if (!dimension || !moodLevel16) {
@@ -49,9 +50,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Note too long: maximum 140 characters' });
     }
 
-    const checkinTimestamp = timestamp ? new Date(timestamp) : new Date();
-    const edmDate = new Date(checkinTimestamp.toLocaleString('en-US', { timeZone: 'America/Edmonton' }));
-    const dateStr = edmDate.toISOString().split('T')[0];
+    const checkinTimestamp = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
+    
+    // Get user timezone from profile (fallback to local timezone or Edmonton)
+    const [profile] = await db.select().from(profiles).where(eq(profiles.userId, req.session.userId)).limit(1);
+    const userTimezone = profile?.timezone || localTz || 'America/Edmonton';
+    
+    // Use Luxon-based date string calculation
+    const dateStr = getLocalDateString(checkinTimestamp, userTimezone);
 
     // Check for existing checkin on same date
     const existingCheckins = await db.select().from(checkins)
@@ -71,6 +77,8 @@ router.post('/', async (req, res) => {
           checkinDate: dateStr,
           dimension,
           moodLevel16,
+          moodType: moodType || null,
+          wellnessDimensions: wellnessDimensions || [],
           affectTags: affectTags || [],
           note: note || null,
           localTz: localTz || null,
@@ -86,6 +94,8 @@ router.post('/', async (req, res) => {
           checkinDate: dateStr,
           dimension,
           moodLevel16,
+          moodType: moodType || null,
+          wellnessDimensions: wellnessDimensions || [],
           affectTags: affectTags || [],
           note: note || null,
           localTz: localTz || null,
@@ -93,27 +103,19 @@ router.post('/', async (req, res) => {
         .returning();
     }
 
-    // Update profile streak
-    const [profile] = await db.select().from(profiles).where(eq(profiles.userId, req.session.userId)).limit(1);
-    
+    // Update profile streak using DST-safe Luxon calculation
     if (profile) {
-      let newStreakCount = 1;
-      if (profile.lastCheckinDate) {
-        const lastDate = new Date(profile.lastCheckinDate);
-        const currentDate = new Date(dateStr);
-        const dayDiff = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
-        
-        if (dayDiff === 1) {
-          newStreakCount = (profile.streakCount || 0) + 1;
-        } else if (dayDiff === 0) {
-          newStreakCount = profile.streakCount || 1;
-        }
-      }
+      const streakResult = calculateStreak(
+        profile.lastCheckinDate,
+        profile.streakCount || 0,
+        userTimezone,
+        checkinTimestamp
+      );
 
       await db.update(profiles)
         .set({
           lastCheckinDate: dateStr,
-          streakCount: newStreakCount,
+          streakCount: streakResult.newStreak,
         })
         .where(eq(profiles.userId, req.session.userId));
     }

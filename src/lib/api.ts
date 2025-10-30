@@ -85,8 +85,10 @@ export const api = {
     list: () => fetchApi('/checkins'),
     create: (data: {
       timestamp?: string;
-      dimension: string;
-      moodLevel16: number;
+      dimension?: string;
+      moodLevel16?: number;
+      moodType?: string; // New 6-level mood system (cold, stormy, foggy, clear, breezy, aurora)
+      wellnessDimensions?: string[]; // SAMHSA wellness dimensions (emotional, physical, social, etc.)
       affectTags?: string[];
       note?: string;
       localTz?: string;
@@ -135,6 +137,31 @@ export const api = {
   crisis: {
     list: () => fetchApi('/crisis'),
     getResources: () => fetchApi('/crisis'),
+  },
+
+  // Ximi AI
+  ximi: {
+    getConversations: () => fetchApi('/ximi/conversations'),
+    chat: (data: { message: string; checkinId?: string; moodType?: string; wellnessDimensions?: string[] }) =>
+      fetchApi('/ximi/chat', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getFollowUp: (checkinId: string) =>
+      fetchApi('/ximi/follow-up', {
+        method: 'POST',
+        body: JSON.stringify({ checkinId }),
+      }),
+    toggleMode: (mode: 'sibling' | 'peer') =>
+      fetchApi('/ximi/toggle-mode', {
+        method: 'POST',
+        body: JSON.stringify({ mode }),
+      }),
+    setConsent: (consent: boolean) =>
+      fetchApi('/ximi/consent', {
+        method: 'POST',
+        body: JSON.stringify({ consent }),
+      }),
   },
 };
 
