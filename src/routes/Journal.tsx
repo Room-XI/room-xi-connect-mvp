@@ -4,14 +4,7 @@ import { motion } from 'framer-motion';
 import { useSession } from '@/lib/session';
 import api from '@/lib/api';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
-
-const MOOD_OPTIONS = [
-  { value: 1, label: 'Struggling', emoji: '😔' },
-  { value: 2, label: 'Not Great', emoji: '😕' },
-  { value: 3, label: 'Okay', emoji: '😐' },
-  { value: 4, label: 'Good', emoji: '🙂' },
-  { value: 5, label: 'Great', emoji: '😊' }
-];
+import { MOODS, type MoodKey } from '@/lib/moodConfig';
 
 const PROMPTS = [
   "What's one thing that made you smile today?",
@@ -33,7 +26,7 @@ interface Message {
 export default function Journal() {
   const { user } = useSession();
   const [mode, setMode] = useState<'alone' | 'peer'>('alone');
-  const [mood, setMood] = useState<number>(3);
+  const [mood, setMood] = useState<MoodKey>('clear');
   const [content, setContent] = useState('');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,8 +51,10 @@ export default function Journal() {
           timestamp: new Date(),
         }
       ]);
+    } else if (mode === 'alone') {
+      setMessages([]);
     }
-  }, [mode]);
+  }, [mode, messages.length]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -172,7 +167,7 @@ export default function Journal() {
     try {
       alert('Entry saved! (Journal backend API coming soon)');
       setContent('');
-      setMood(3);
+      setMood('clear');
       setPrompt(PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
     } catch (error) {
       console.error('Error saving entry:', error);
@@ -191,7 +186,7 @@ export default function Journal() {
       await api.ximi.toggleMode('sibling');
       setMessages([]);
       setMode('alone');
-      setMood(3);
+      setMood('clear');
     } catch (error) {
       console.error('Error saving session:', error);
       alert('Failed to save session. Please try again.');
@@ -243,19 +238,20 @@ export default function Journal() {
           <label className="block text-sm font-medium text-gray-700 mb-3">
             How are you feeling?
           </label>
-          <div className="flex gap-2 justify-between">
-            {MOOD_OPTIONS.map(option => (
+          <div className="grid grid-cols-6 gap-2">
+            {MOODS.map(moodOption => (
               <button
-                key={option.value}
-                onClick={() => setMood(option.value)}
-                className={`flex-1 p-3 rounded-xl border-2 transition ${
-                  mood === option.value
+                key={moodOption.key}
+                onClick={() => setMood(moodOption.key)}
+                className={`p-3 rounded-xl border-2 transition ${
+                  mood === moodOption.key
                     ? 'border-cosmic-teal bg-cosmic-teal/10'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
+                title={moodOption.desc}
               >
-                <div className="text-2xl mb-1">{option.emoji}</div>
-                <div className="text-xs text-gray-600">{option.label}</div>
+                <div className="text-2xl mb-1">{moodOption.emoji}</div>
+                <div className="text-xs text-gray-600 font-medium">{moodOption.label}</div>
               </button>
             ))}
           </div>
