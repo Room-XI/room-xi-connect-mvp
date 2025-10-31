@@ -1,24 +1,25 @@
-console.warn('⚠️ DEPRECATED: supabase.ts is a temporary shim. Migrate to api.ts endpoints ASAP.');
+import { createClient } from '@supabase/supabase-js';
 
-export const supabase = {
-  auth: {
-    signUp: async () => {
-      console.error('supabase.auth.signUp is deprecated. This file needs migration to Express API.');
-      throw new Error('Authentication not configured. Please use /api/auth endpoints.');
-    },
-    getUser: async () => {
-      console.error('supabase.auth.getUser is deprecated. This file needs migration to Express API.');
-      return { data: { user: null }, error: new Error('Not implemented') };
-    },
-  },
-  from: (table: string) => {
-    console.error(`supabase.from('${table}') is deprecated. This file needs migration to Express API.`);
-    return {
-      select: () => ({ data: null, error: new Error('Not implemented') }),
-      insert: () => ({ data: null, error: new Error('Not implemented') }),
-      upsert: () => ({ data: null, error: new Error('Not implemented') }),
-      update: () => ({ data: null, error: new Error('Not implemented') }),
-      delete: () => ({ data: null, error: new Error('Not implemented') }),
-    };
-  },
-};
+console.warn('⚠️ supabase.ts is DEPRECATED but temporarily maintained for Signup/SafetyProfile.');
+console.warn('📋 TODO: Migrate Signup.tsx and SafetyProfile.tsx to Express API endpoints.');
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('CRITICAL: Supabase credentials missing. Signup and SafetyProfile will not work.');
+  console.error('This is expected - the app should use Express sessions, not Supabase auth.');
+  console.error('ACTION REQUIRED: Migrate these components to /api/auth endpoints.');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export async function isUserAdmin(userId: string): Promise<boolean> {
+  console.warn('isUserAdmin from supabase.ts is deprecated. Migrate to use the new API.');
+  return false;
+}
+
+export async function getCurrentUser() {
+  console.warn('getCurrentUser from supabase.ts is deprecated. Use api.auth.getUser() instead.');
+  return null;
+}
