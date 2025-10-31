@@ -5,10 +5,32 @@ import { useState, useEffect } from 'react';
 
 // Fix for R-03: Inadequate Offline Feedback - Enhanced queue with retry logic and status tracking
 
+interface CheckinData {
+  timestamp: string;
+  dimension: string;
+  moodLevel16: number;
+  affectTags: string[];
+  note?: string;
+  localTz?: string;
+}
+
+interface AttendanceData {
+  programId: string;
+  xidId: string;
+  timestamp: string;
+  method: 'qr' | 'manual';
+}
+
+interface ProgramData {
+  programId: string;
+}
+
+type QueueData = CheckinData | AttendanceData | ProgramData;
+
 interface QueueItem {
   id: string;
   type: 'checkin' | 'attendance' | 'save_program' | 'unsave_program';
-  data: any;
+  data: QueueData | string; // string when encrypted
   timestamp: number;
   tries: number; // Track retry attempts
   encrypted: boolean;
@@ -53,7 +75,7 @@ async function initDB(): Promise<IDBPDatabase<QueueDB>> {
  */
 export async function addToQueue(
   type: QueueItem['type'],
-  data: any
+  data: QueueData
 ): Promise<void> {
   try {
     const database = await initDB();
