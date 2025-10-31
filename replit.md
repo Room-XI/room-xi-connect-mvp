@@ -60,3 +60,15 @@ I prefer simple language. I want iterative development. Ask before making major 
 
 ## Notes for Future Development
 - **Guardian Verification Email:** Implemented using Gmail SMTP (nodemailer). Guardian verification links are sent via email to guardians when youth under 16 sign up. Requires GMAIL_USER and GMAIL_APP_PASSWORD environment variables. See DEVELOPER_HANDOFF.md for setup instructions.
+
+## Recent Technical Updates (Oct 31, 2025)
+- **Database Connection Resilience:** Added retry logic with exponential backoff in `server/db.ts` to handle transient connection failures.
+- **Offline Queue Migration:** Updated `src/lib/queue.ts` to use Express API endpoints instead of deprecated Supabase client.
+- **Admin APIs:** Created basic admin endpoints (`/api/admin/stats`, `/api/admin/audit-logs`, `/api/org/dashboard`) with session-based authentication.
+- **Error Boundaries:** Verified comprehensive error boundary coverage with ErrorBoundary component integrated in router.
+- **React Router v7:** All future flags properly configured for smooth v7 migration.
+
+## Known Technical Debt
+- **CRITICAL: Auth Flow Migration:** `Signup.tsx` and `SafetyProfile.tsx` still use Supabase client (`src/lib/supabase.ts`) for authentication and database operations. These components need full migration to Express session-based auth via `/api/auth` endpoints. The Supabase client is temporarily maintained with deprecation warnings to prevent crashes, but this is not sustainable.
+- **CSP Nonce Implementation:** Content Security Policy headers need nonce-based inline script security for production hardening.
+- **Admin API Completion:** Current admin endpoints return placeholder data; need full implementation with audit log querying and comprehensive stats aggregation.
