@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import api from '../lib/api';
 import { useSession } from '../lib/session';
 import { AlertCircle, Shield, Check } from 'lucide-react';
 

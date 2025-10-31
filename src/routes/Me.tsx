@@ -12,7 +12,7 @@ interface CheckIn {
   id: string;
   timestamp: string;
   mood_level_1_6: number;
-  affect_tags: string[];
+  affectTags: string[];
   note: string | null;
 }
 

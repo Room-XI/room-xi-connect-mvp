@@ -170,7 +170,7 @@ export type ConsentVerification = z.infer<typeof consentVerificationSchema>;
 
 export const moodCheckInSchema = z.object({
   mood: z.number().int().min(1).max(5),
-  affect_tags: z.array(z.string().max(50)).max(10).default([]),
+  affectTags: z.array(z.string().max(50)).max(10).default([]),
   notes: z.string().max(500).optional(),
   location: z.enum(['home', 'school', 'program', 'other']).optional(),
   triggers: z.array(z.string().max(50)).max(5).optional()

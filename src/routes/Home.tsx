@@ -13,7 +13,7 @@ interface CheckIn {
   id: string;
   timestamp: string;
   mood_level_1_6: number;
-  affect_tags: string[];
+  affectTags: string[];
   note: string | null;
 }
 
@@ -171,11 +171,11 @@ export default function Home() {
                   {lastCheckIn.mood_level_1_6}/6
                 </span>
               </div>
-              {lastCheckIn.affect_tags.length > 0 && (
+              {lastCheckIn.affectTags && lastCheckIn.affectTags.length > 0 && (
                 <div className="space-y-1">
                   <span className="text-sm text-textSecondaryLight">Feelings</span>
                   <div className="flex flex-wrap gap-1">
-                    {lastCheckIn.affect_tags.slice(0, 3).map(tag => (
+                    {lastCheckIn.affectTags.slice(0, 3).map(tag => (
                       <span
                         key={tag}
                         className="text-xs px-2 py-1 bg-teal/10 text-teal rounded-full"
@@ -183,9 +183,9 @@ export default function Home() {
                         {tag}
                       </span>
                     ))}
-                    {lastCheckIn.affect_tags.length > 3 && (
+                    {lastCheckIn.affectTags.length > 3 && (
                       <span className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full">
-                        +{lastCheckIn.affect_tags.length - 3} more
+                        +{lastCheckIn.affectTags.length - 3} more
                       </span>
                     )}
                   </div>

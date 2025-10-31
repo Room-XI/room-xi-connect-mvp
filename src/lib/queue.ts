@@ -1,6 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { encryptData, decryptData } from './crypto';
-import { supabase } from './supabase';
+import api from './api';
 import { useState, useEffect } from 'react';
 
 // Fix for R-03: Inadequate Offline Feedback - Enhanced queue with retry logic and status tracking
@@ -141,40 +141,36 @@ async function processQueueItem(item: QueueItem): Promise<boolean> {
     const data = item.encrypted ? await decryptData(item.data) : item.data;
     
     switch (item.type) {
-      case 'checkin':
-        await supabase.rpc('create_or_update_checkin', {
-          p_timestamp: data.timestamp,
-          p_dimension: data.dimension,
-          p_mood_level_1_6: data.mood_level_1_6,
-          p_affect_tags: data.affect_tags,
-          p_note: data.note,
-          p_local_tz: data.local_tz,
+      case 'checkin': {
+        const checkinData = data as CheckinData;
+        await api.checkins.create({
+          timestamp: checkinData.timestamp,
+          dimension: checkinData.dimension,
+          moodLevel16: checkinData.moodLevel16,
+          affectTags: checkinData.affectTags,
+          note: checkinData.note,
+          localTz: checkinData.localTz,
         });
         break;
+      }
         
-      case 'attendance':
-        await supabase.from('attendance').insert({
-          xid_id: data.xid_id,
-          program_id: data.program_id,
-          timestamp: data.timestamp,
-          method: data.method,
-          site: data.site,
-        });
+      case 'attendance': {
+        const attendanceData = data as AttendanceData;
+        await api.xid.recordAttendance(attendanceData.programId, attendanceData.method);
         break;
+      }
         
-      case 'save_program':
-        await supabase.from('saved_programs').insert({
-          user_id: data.user_id,
-          program_id: data.program_id,
-        });
+      case 'save_program': {
+        const programData = data as ProgramData;
+        await api.programs.save(programData.programId);
         break;
+      }
         
-      case 'unsave_program':
-        await supabase.from('saved_programs')
-          .delete()
-          .eq('user_id', data.user_id)
-          .eq('program_id', data.program_id);
+      case 'unsave_program': {
+        const programData = data as ProgramData;
+        await api.programs.unsave(programData.programId);
         break;
+      }
         
       default:
         console.warn('Unknown queue item type:', item.type);

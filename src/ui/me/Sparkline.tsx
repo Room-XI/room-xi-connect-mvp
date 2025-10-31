@@ -5,7 +5,7 @@ interface CheckIn {
   id: string;
   timestamp: string;
   mood_level_1_6: number;
-  affect_tags: string[];
+  affectTags: string[];
   note: string | null;
 }
 
@@ -26,7 +26,7 @@ export default function Sparkline({ data }: SparklineProps) {
         day: 'numeric',
       }),
       timestamp: checkIn.timestamp,
-      affects: checkIn.affect_tags,
+      affects: checkIn.affectTags || [],
       note: checkIn.note,
     }));
 
@@ -123,9 +123,9 @@ export default function Sparkline({ data }: SparklineProps) {
               </p>
             </div>
             
-            {data[0].affect_tags.length > 0 && (
+            {data[0].affectTags && data[0].affectTags.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {data[0].affect_tags.slice(0, 2).map(tag => (
+                {data[0].affectTags.slice(0, 2).map(tag => (
                   <span
                     key={tag}
                     className="text-xs px-2 py-1 bg-white/20 text-deepSage rounded-full"
@@ -133,9 +133,9 @@ export default function Sparkline({ data }: SparklineProps) {
                     {tag}
                   </span>
                 ))}
-                {data[0].affect_tags.length > 2 && (
+                {data[0].affectTags.length > 2 && (
                   <span className="text-xs px-2 py-1 bg-white/20 text-deepSage rounded-full">
-                    +{data[0].affect_tags.length - 2}
+                    +{data[0].affectTags.length - 2}
                   </span>
                 )}
               </div>

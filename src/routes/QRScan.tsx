@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Camera, CameraOff, Type, CheckCircle, AlertCircle } from 'lucide-react';
 import { BrowserCodeReader } from '@zxing/browser';
 import { parseProgramId } from '@/lib/qr';
-import { recordAttendance } from '@/lib/attendance';
+import api from '@/lib/api';
 
 export default function QRScan() {
   const [isScanning, setIsScanning] = useState(false);
@@ -102,7 +102,7 @@ export default function QRScan() {
         return;
       }
 
-      await recordAttendance(programId, 'qr', code);
+      await api.xid.recordAttendance(programId, 'qr');
       
       setResult({
         type: 'success',
@@ -137,7 +137,7 @@ export default function QRScan() {
         return;
       }
 
-      await recordAttendance(programId, 'manual', manualCode.trim());
+      await api.xid.recordAttendance(programId, 'manual');
       
       setResult({
         type: 'success',

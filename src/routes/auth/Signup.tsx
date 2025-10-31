@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import api from '../../lib/api';
 import { AlertCircle } from 'lucide-react';
 
 type SignupStep = 'name' | 'age' | 'location' | 'contact' | 'guardian';
