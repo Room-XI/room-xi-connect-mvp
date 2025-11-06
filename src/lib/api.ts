@@ -182,6 +182,23 @@ export const api = {
         body: JSON.stringify({ consent }),
       }),
   },
+
+  // Daily Quotes
+  quotes: {
+    getDaily: () => fetchApi('/quotes/daily'),
+    getAll: () => fetchApi('/quotes/all'),
+    add: (data: { quote: string; author?: string; category?: string }) =>
+      fetchApi('/quotes', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  // Notifications
+  notifications: {
+    getStatus: () => fetchApi('/notifications/status'),
+    testNudge: () => fetchApi('/notifications/test-nudge', { method: 'POST' }),
+  },
   
   privacy: {
     getConsents: async () => {

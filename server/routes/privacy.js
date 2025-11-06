@@ -76,6 +76,7 @@ router.get('/consents', async (req, res) => {
           reflectionsSharing: false,
           notificationsEnabled: false,
           researchParticipation: false,
+          dailyQuotesEnabled: false,
           reminderEnabled: false,
           reminderCount: 0,
         })
@@ -99,6 +100,7 @@ router.get('/consents', async (req, res) => {
         reflections: consent.reflectionsSharing,
         notifications: consent.notificationsEnabled,
         research: consent.researchParticipation,
+        dailyQuotes: consent.dailyQuotesEnabled || false,
       },
       reminder: {
         enabled: consent.reminderEnabled,
@@ -143,6 +145,7 @@ router.put('/consents', async (req, res) => {
       reflections: 'reflectionsSharing',
       notifications: 'notificationsEnabled',
       research: 'researchParticipation',
+      dailyQuotes: 'dailyQuotesEnabled',
     };
 
     // Prepare update values
@@ -198,6 +201,7 @@ router.put('/consents', async (req, res) => {
         reflections: updated.reflectionsSharing,
         notifications: updated.notificationsEnabled,
         research: updated.researchParticipation,
+        dailyQuotes: updated.dailyQuotesEnabled || false,
       },
       reminder: {
         enabled: updated.reminderEnabled,

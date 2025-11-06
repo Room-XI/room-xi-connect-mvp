@@ -6,6 +6,9 @@ import SuggestedPrograms from '@/ui/home/SuggestedPrograms';
 import QuickActions from '@/ui/home/QuickActions';
 import XimiDock from '@/ui/explore/XimiDock';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
+import StreakPerks from '@/components/StreakPerks';
+import QuoteCard from '@/components/QuoteCard';
+import MilestoneOrb from '@/components/MilestoneOrb';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 
@@ -22,12 +25,18 @@ interface Profile {
   last_checkin_date: string | null;
 }
 
+interface PrivacyConsents {
+  dailyQuotes: boolean;
+}
+
 export default function Home() {
   const { user } = useSession();
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [crisisOpen, setCrisisOpen] = useState(false);
   const [lastCheckIn, setLastCheckIn] = useState<CheckIn | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [privacyConsents, setPrivacyConsents] = useState<PrivacyConsents>({ dailyQuotes: false });
+  const [showMilestoneOrb, setShowMilestoneOrb] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +62,23 @@ export default function Home() {
           streak_count: profileData.streakCount || 0,
           last_checkin_date: profileData.lastCheckinDate,
         });
+        
+        // Check if it's a milestone (28-day or multiple)
+        if (profileData.streakCount === 28 || (profileData.streakCount > 28 && profileData.streakCount % 28 === 0)) {
+          setShowMilestoneOrb(true);
+        }
+      }
+
+      // Load privacy consents
+      try {
+        const privacyData = await api.privacy.getConsents();
+        if (privacyData && privacyData.consents) {
+          setPrivacyConsents({
+            dailyQuotes: privacyData.consents.dailyQuotes || false
+          });
+        }
+      } catch (err) {
+        console.log('Privacy consents not loaded:', err);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -118,42 +144,67 @@ export default function Home() {
           )}
         </motion.div>
 
-        {/* Mood Orb - Central Feature */}
-        <motion.div
-          className="flex flex-col items-center space-y-4"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, duration: 0.8, type: 'spring' }}
-        >
-          <MoodOrb
-            size={200}
-            mood={lastCheckIn?.mood_level_1_6}
-            onClick={() => setCheckInOpen(true)}
-            className="drop-shadow-lg"
-          />
-          
-          <div className="text-center space-y-2">
-            {hasCheckedInToday() ? (
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-deepSage">
-                  You checked in today
-                </p>
-                <p className="text-xs text-textSecondaryLight">
-                  Tap the orb to update your mood
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-deepSage">
-                  How are you feeling today?
-                </p>
-                <p className="text-xs text-textSecondaryLight">
-                  Tap the orb to check in
-                </p>
-              </div>
-            )}
-          </div>
-        </motion.div>
+        {/* Mood Orb or Milestone Orb - Central Feature */}
+        {showMilestoneOrb && profile ? (
+          <motion.div
+            className="flex flex-col items-center"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.8, type: 'spring' }}
+          >
+            <MilestoneOrb 
+              streakCount={profile.streak_count}
+              size={250}
+              onComplete={() => setShowMilestoneOrb(false)}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            className="flex flex-col items-center space-y-4"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.8, type: 'spring' }}
+          >
+            <MoodOrb
+              size={200}
+              mood={lastCheckIn?.mood_level_1_6}
+              onClick={() => setCheckInOpen(true)}
+              className="drop-shadow-lg"
+            />
+            
+            <div className="text-center space-y-2">
+              {hasCheckedInToday() ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-deepSage">
+                    You checked in today
+                  </p>
+                  <p className="text-xs text-textSecondaryLight">
+                    Tap the orb to update your mood
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-deepSage">
+                    How are you feeling today?
+                  </p>
+                  <p className="text-xs text-textSecondaryLight">
+                    Tap the orb to check in
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Daily Quote Card - Only show if opted in */}
+        {privacyConsents.dailyQuotes && user && (
+          <QuoteCard className="mb-6" />
+        )}
+
+        {/* Streak Perks - Show for users with 7+ day streaks */}
+        {profile && profile.streak_count >= 7 && (
+          <StreakPerks streakCount={profile.streak_count} className="mb-6" />
+        )}
 
         {/* Quick Stats */}
         {lastCheckIn && (

@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { captureAllWeeklySnapshots } from '../routes/orbSnapshots.js';
+import { checkMorningNudges } from '../routes/notifications.js';
 
 // Store the interval ID for the scheduler
 let schedulerInterval = null;
@@ -44,6 +45,18 @@ function msUntilNextSundaySnapshot() {
 }
 
 /**
+ * Check if current time matches 10:00 AM America/Edmonton for morning nudges
+ */
+function shouldRunMorningNudge() {
+  const now = DateTime.now().setZone('America/Edmonton');
+  const hour = now.hour;
+  const minute = now.minute;
+  
+  // Run at 10:00-10:05 to account for timing variations
+  return hour === 10 && minute >= 0 && minute < 5;
+}
+
+/**
  * Run scheduled tasks
  */
 async function runScheduledTasks() {
@@ -60,6 +73,18 @@ async function runScheduledTasks() {
         console.log('[Scheduler] Weekly snapshots completed:', result);
       } catch (error) {
         console.error('[Scheduler] Failed to capture weekly snapshots:', error);
+      }
+    }
+    
+    // Check if we should run morning nudges at 10:00 AM
+    if (shouldRunMorningNudge()) {
+      console.log('[Scheduler] Running morning nudge check...');
+      
+      try {
+        await checkMorningNudges();
+        console.log('[Scheduler] Morning nudge check completed');
+      } catch (error) {
+        console.error('[Scheduler] Failed to check morning nudges:', error);
       }
     }
   } catch (error) {

@@ -120,6 +120,10 @@ export const profiles = pgTable("profiles", {
   ximiConsent: boolean("ximi_consent").default(false),
   ximiMode: text("ximi_mode").default("sibling"),
   
+  // Daily quotes tracking
+  lastQuoteDate: date("last_quote_date"),
+  lastQuoteId: integer("last_quote_id"),
+  
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -486,6 +490,15 @@ export const consentReminders = pgTable("consent_reminders", {
   sentAt: timestamp("sent_at").defaultNow(),
   responseAt: timestamp("response_at"),
   responseAction: text("response_action"),
+});
+
+// Daily quotes table
+export const dailyQuotes = pgTable("daily_quotes", {
+  id: serial("id").primaryKey(),
+  quote: text("quote").notNull(),
+  author: text("author"),
+  category: text("category"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Weekly Orb Snapshots - captures mood orb state every Sunday at 08:00 America/Edmonton

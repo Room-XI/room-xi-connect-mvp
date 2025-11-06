@@ -18,7 +18,8 @@ import {
   Clock,
   ChevronRight,
   Info,
-  Battery
+  Battery,
+  Quote
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -28,6 +29,7 @@ interface ConsentState {
   reflections: boolean;
   notifications: boolean;
   research: boolean;
+  dailyQuotes: boolean;
   [key: string]: boolean; // Allow string indexing for API compatibility
 }
 
@@ -81,6 +83,13 @@ const CONSENT_INFO = {
     icon: FlaskConical,
     color: 'text-indigo-600',
     bgColor: 'bg-indigo-50'
+  },
+  dailyQuotes: {
+    title: 'Daily Reflective Quotes',
+    description: 'Receive inspirational quotes each day to support your wellness journey',
+    icon: Quote,
+    color: 'text-teal-600',
+    bgColor: 'bg-teal-50'
   }
 };
 
@@ -90,7 +99,8 @@ function PrivacyCenter() {
     orb: false,
     reflections: false,
     notifications: false,
-    research: false
+    research: false,
+    dailyQuotes: false
   });
   
   const [reminder, setReminder] = useState<ReminderState>({

@@ -54,6 +54,8 @@ async function createServer() {
   const { default: achievementsRoutes } = await import('./routes/achievements.js');
   const { default: kpiRoutes } = await import('./routes/kpi.js');
   const { default: orbSnapshotsRoutes } = await import('./routes/orbSnapshots.js');
+  const { default: quotesRoutes } = await import('./routes/quotes.js');
+  const { default: notificationsRoutes } = await import('./routes/notifications.js');
 
   // API routes
   app.use('/api/auth', authRoutes);
@@ -72,6 +74,8 @@ async function createServer() {
   app.use('/api/achievements', achievementsRoutes);
   app.use('/api/kpi', kpiRoutes);
   app.use('/api/orb-snapshots', orbSnapshotsRoutes);
+  app.use('/api/quotes', quotesRoutes);
+  app.use('/api/notifications', notificationsRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({
