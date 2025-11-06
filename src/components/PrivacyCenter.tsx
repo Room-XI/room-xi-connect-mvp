@@ -27,6 +27,7 @@ interface ConsentState {
   reflections: boolean;
   notifications: boolean;
   research: boolean;
+  [key: string]: boolean; // Allow string indexing for API compatibility
 }
 
 interface ReminderState {
@@ -433,3 +434,5 @@ export default function PrivacyCenter() {
     </div>
   );
 }
+
+export { PrivacyCenter };
