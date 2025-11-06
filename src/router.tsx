@@ -22,6 +22,8 @@ import GuardianVerify from './routes/GuardianVerify';
 import OrgDashboard from './routes/org/Dashboard';
 import { TransparencyDashboard } from './components/TransparencyDashboard';
 import { PrivacyCenter } from './components/PrivacyCenter';
+import { LivingJournal } from './components/LivingJournal';
+import { Achievements } from './components/Achievements';
 
 export const router = createBrowserRouter([
   {
@@ -41,11 +43,13 @@ export const router = createBrowserRouter([
       { path: 'admin', element: <Admin /> },
       { path: 'about', element: <About /> },
       { path: 'journal', element: <Journal /> },
+      { path: 'living-journal', element: <LivingJournal /> },
       { path: 'verify-consent/:token', element: <VerifyConsent /> },
       { path: 'guardian/verify/:token', element: <GuardianVerify /> },
       { path: 'org/dashboard', element: <OrgDashboard /> },
       { path: 'transparency', element: <TransparencyDashboard /> },
       { path: 'privacy-center', element: <PrivacyCenter /> },
+      { path: 'achievements', element: <Achievements /> },
       { path: 'auth/login', element: <Login /> },
       { path: 'auth/register', element: <Register /> },
       { path: 'auth/signup', element: <Signup /> },

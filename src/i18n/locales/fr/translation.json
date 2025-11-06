@@ -124,12 +124,54 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "save": "Sauvegarder",
+    "saving": "Sauvegarde...",
     "delete": "Supprimer",
     "edit": "Modifier",
     "close": "Fermer",
     "back": "Retour",
     "next": "Suivant",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "pageOf": "Page {{current}} de {{total}}"
+  },
+  "journal": {
+    "title": "Journal Vivant",
+    "newEntry": "Nouvelle entrée",
+    "totalEntries": "Entrées totales",
+    "currentStreak": "Série actuelle",
+    "totalWords": "Mots totaux",
+    "moodBoost": "Amélioration de l'humeur",
+    "entryTitle": "Titre de l'entrée (optionnel)",
+    "writeYourThoughts": "Écris tes pensées...",
+    "wordCount": "{{count}} mots",
+    "encrypt": "Chiffrer l'entrée",
+    "searchEntries": "Rechercher des entrées...",
+    "allMoods": "Toutes les humeurs",
+    "words": "mots"
+  },
+  "achievements": {
+    "title": "Accomplissements",
+    "level": "Niveau",
+    "totalPoints": "Points totaux",
+    "rank": "Rang",
+    "unlocked": "Accomplissement débloqué",
+    "unlockedOn": "Débloqué le {{date}}",
+    "points": "points",
+    "progress": "Progrès",
+    "allCategories": "Tous",
+    "streaks": "Séries",
+    "checkIns": "Check-ins",
+    "journal": "Journal",
+    "programs": "Programmes",
+    "community": "Communauté",
+    "special": "Spécial"
+  },
+  "mood": {
+    "orbVisualization": "Visualisation de l'orbe d'humeur",
+    "showColorKey": "Afficher la légende des couleurs",
+    "togglePatterns": "Activer les motifs d'accessibilité",
+    "orbInfo": "Information sur l'orbe",
+    "colorKey": "Couleurs d'humeur",
+    "ratioExplanation": "Basé sur tes {{days}} derniers jours de check-ins"
   }
 }

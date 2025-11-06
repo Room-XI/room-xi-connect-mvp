@@ -124,12 +124,54 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
+    "saving": "Saving...",
     "delete": "Delete",
     "edit": "Edit",
     "close": "Close",
     "back": "Back",
     "next": "Next",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "pageOf": "Page {{current}} of {{total}}"
+  },
+  "journal": {
+    "title": "Living Journal",
+    "newEntry": "New Entry",
+    "totalEntries": "Total Entries",
+    "currentStreak": "Current Streak",
+    "totalWords": "Total Words",
+    "moodBoost": "Mood Boost",
+    "entryTitle": "Entry Title (optional)",
+    "writeYourThoughts": "Write your thoughts...",
+    "wordCount": "{{count}} words",
+    "encrypt": "Encrypt Entry",
+    "searchEntries": "Search entries...",
+    "allMoods": "All Moods",
+    "words": "words"
+  },
+  "achievements": {
+    "title": "Achievements",
+    "level": "Level",
+    "totalPoints": "Total Points",
+    "rank": "Rank",
+    "unlocked": "Achievement Unlocked",
+    "unlockedOn": "Unlocked on {{date}}",
+    "points": "points",
+    "progress": "Progress",
+    "allCategories": "All",
+    "streaks": "Streaks",
+    "checkIns": "Check-ins",
+    "journal": "Journal",
+    "programs": "Programs",
+    "community": "Community",
+    "special": "Special"
+  },
+  "mood": {
+    "orbVisualization": "Mood Orb Visualization",
+    "showColorKey": "Show Color Key",
+    "togglePatterns": "Toggle Accessibility Patterns",
+    "orbInfo": "Orb Information",
+    "colorKey": "Mood Colors",
+    "ratioExplanation": "Based on your last {{days}} days of mood check-ins"
   }
 }

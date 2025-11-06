@@ -49,6 +49,8 @@ async function createServer() {
   const { default: orgRoutes } = await import('./routes/org.js');
   const { default: privacyRoutes } = await import('./routes/privacy.js');
   const { default: transparencyRoutes } = await import('./routes/transparency.js');
+  const { default: journalRoutes } = await import('./routes/journal.js');
+  const { default: achievementsRoutes } = await import('./routes/achievements.js');
 
   // API routes
   app.use('/api/auth', authRoutes);
@@ -63,6 +65,8 @@ async function createServer() {
   app.use('/api/org', orgRoutes);
   app.use('/api/privacy', privacyRoutes);
   app.use('/api/transparency', transparencyRoutes);
+  app.use('/api/journal', journalRoutes);
+  app.use('/api/achievements', achievementsRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({
