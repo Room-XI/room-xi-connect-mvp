@@ -51,6 +51,7 @@ async function createServer() {
   const { default: transparencyRoutes } = await import('./routes/transparency.js');
   const { default: journalRoutes } = await import('./routes/journal.js');
   const { default: achievementsRoutes } = await import('./routes/achievements.js');
+  const { default: kpiRoutes } = await import('./routes/kpi.js');
 
   // API routes
   app.use('/api/auth', authRoutes);
@@ -67,6 +68,7 @@ async function createServer() {
   app.use('/api/transparency', transparencyRoutes);
   app.use('/api/journal', journalRoutes);
   app.use('/api/achievements', achievementsRoutes);
+  app.use('/api/kpi', kpiRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({

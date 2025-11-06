@@ -7,9 +7,11 @@ import {
   AlertTriangle, 
   Eye,
   Calendar,
-  Download
+  Download,
+  BarChart
 } from 'lucide-react';
 import { useSession } from '@/lib/session';
+import { Link } from 'react-router-dom';
 
 interface AuditLog {
   id: string;
@@ -182,13 +184,36 @@ export default function Admin() {
         </p>
       </motion.div>
 
+      {/* KPI Dashboard Link */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.6 }}
+      >
+        <Link
+          to="/kpi-dashboard"
+          className="cosmic-card p-6 flex items-center space-x-4 hover:bg-sage/5 transition-colors block"
+        >
+          <div className="p-3 bg-teal/10 rounded-lg">
+            <BarChart className="w-8 h-8 text-teal" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-deepSage">KPI Dashboard</h3>
+            <p className="text-sm text-textSecondaryLight">
+              View key performance indicators and export metrics
+            </p>
+          </div>
+          <div className="text-sage">→</div>
+        </Link>
+      </motion.div>
+
       {/* Stats Grid */}
       {stats && (
         <motion.div
           className="grid grid-cols-2 gap-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.6 }}
+          transition={{ delay: 0.2, duration: 0.6 }}
         >
           <div className="cosmic-card p-4 text-center">
             <Users className="w-6 h-6 text-teal mx-auto mb-2" />

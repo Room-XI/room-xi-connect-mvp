@@ -24,6 +24,7 @@ import { TransparencyDashboard } from './components/TransparencyDashboard';
 import { PrivacyCenter } from './components/PrivacyCenter';
 import { LivingJournal } from './components/LivingJournal';
 import { Achievements } from './components/Achievements';
+import { KPIDashboard } from './components/KPIDashboard';
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: 'verify-consent/:token', element: <VerifyConsent /> },
       { path: 'guardian/verify/:token', element: <GuardianVerify /> },
       { path: 'org/dashboard', element: <OrgDashboard /> },
+      { path: 'kpi-dashboard', element: <KPIDashboard /> },
       { path: 'transparency', element: <TransparencyDashboard /> },
       { path: 'privacy-center', element: <PrivacyCenter /> },
       { path: 'achievements', element: <Achievements /> },
