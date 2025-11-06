@@ -14,6 +14,8 @@ import {
   primaryKey,
   check,
   pgEnum,
+  serial,
+  decimal,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -411,3 +413,69 @@ export const ximiConversations = pgTable("ximi_conversations", {
   userIdx: index("idx_ximi_user").on(table.userId, table.createdAt.desc()),
   crisisIdx: index("idx_ximi_crisis").on(table.crisisDetected, table.createdAt.desc()),
 }));
+
+// Privacy consent preferences table (Phase 1 upgrade)
+export const privacyConsents = pgTable("privacy_consents", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  
+  // 5 consent toggles (all default OFF)
+  locationSharing: boolean("location_sharing").default(false),
+  orbSharing: boolean("orb_sharing").default(false),
+  reflectionsSharing: boolean("reflections_sharing").default(false),
+  notificationsEnabled: boolean("notifications_enabled").default(false),
+  researchParticipation: boolean("research_participation").default(false),
+  
+  // Monthly reminder settings
+  reminderEnabled: boolean("reminder_enabled").default(false),
+  lastReminderSent: timestamp("last_reminder_sent"),
+  reminderCount: integer("reminder_count").default(0),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Consent audit log table
+export const consentAuditLog = pgTable("consent_audit_log", {
+  id: serial("id").primaryKey(),
+  userXid: text("user_xid").notNull(),
+  consentType: text("consent_type").notNull(),
+  action: text("action").notNull(),
+  previousValue: boolean("previous_value"),
+  newValue: boolean("new_value"),
+  source: text("source"),
+  ipAddressHash: text("ip_address_hash"),
+  userAgent: text("user_agent"),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+// Differential privacy metadata table
+export const dpApplications = pgTable("dp_applications", {
+  id: serial("id").primaryKey(),
+  operation: text("operation").notNull(),
+  tableName: text("table_name"),
+  queryType: text("query_type"),
+  originalCount: integer("original_count"),
+  noiseAdded: boolean("noise_added").default(true),
+  epsilon: decimal("epsilon", { precision: 3, scale: 2 }).default("0.50"),
+  mechanism: text("mechanism").default("laplace"),
+  suppressed: boolean("suppressed").default(false),
+  suppressionReason: text("suppression_reason"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Consent reminders tracking
+export const consentReminders = pgTable("consent_reminders", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  reminderType: text("reminder_type").default("monthly"),
+  sentAt: timestamp("sent_at").defaultNow(),
+  responseAt: timestamp("response_at"),
+  responseAction: text("response_action"),
+});

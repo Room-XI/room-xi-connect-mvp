@@ -47,6 +47,7 @@ async function createServer() {
   const { default: ximiRoutes } = await import('./routes/ximi.ts');
   const { default: adminRoutes } = await import('./routes/admin.js');
   const { default: orgRoutes } = await import('./routes/org.js');
+  const { default: privacyRoutes } = await import('./routes/privacy.js');
 
   // API routes
   app.use('/api/auth', authRoutes);
@@ -59,6 +60,7 @@ async function createServer() {
   app.use('/api/ximi', ximiRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/org', orgRoutes);
+  app.use('/api/privacy', privacyRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({

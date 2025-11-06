@@ -182,6 +182,80 @@ export const api = {
         body: JSON.stringify({ consent }),
       }),
   },
+  
+  privacy: {
+    getConsents: async () => {
+      const response = await fetch('/api/privacy/consents', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch privacy consents');
+      }
+      
+      return response.json();
+    },
+    
+    updateConsents: async (data: { 
+      consents: Record<string, boolean>; 
+      reminderEnabled?: boolean;
+    }) => {
+      const response = await fetch('/api/privacy/consents', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update privacy consents');
+      }
+      
+      return response.json();
+    },
+    
+    getAuditLog: async () => {
+      const response = await fetch('/api/privacy/audit-log', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch audit log');
+      }
+      
+      return response.json();
+    },
+    
+    recordReminderResponse: async (action: 'viewed' | 'updated' | 'dismissed') => {
+      const response = await fetch('/api/privacy/reminder-response', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to record reminder response');
+      }
+      
+      return response.json();
+    },
+    
+    getAggregateStats: async () => {
+      const response = await fetch('/api/privacy/aggregate-stats', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch aggregate stats');
+      }
+      
+      return response.json();
+    },
+  },
 };
 
 export default api;
