@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Menu } from 'lucide-react';
 import CrisisSheet from './crisis/CrisisSheet';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 interface HeaderProps {
   title?: string;
@@ -25,19 +26,25 @@ export default function Header({ title, showCrisis = true }: HeaderProps) {
             </h1>
           </div>
           
-          {/* Crisis Support Button - Always visible for safety */}
-          {showCrisis && (
-            <motion.button
-              onClick={() => setCrisisOpen(true)}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-coral/10 text-coral hover:bg-coral/20 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              aria-label="Get crisis support"
-            >
-              <Heart className="w-4 h-4" />
-              <span className="text-sm font-medium">Get help</span>
-            </motion.button>
-          )}
+          {/* Action buttons */}
+          <div className="flex items-center space-x-2">
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+            
+            {/* Crisis Support Button - Always visible for safety */}
+            {showCrisis && (
+              <motion.button
+                onClick={() => setCrisisOpen(true)}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-coral/10 text-coral hover:bg-coral/20 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                aria-label="Get crisis support"
+              >
+                <Heart className="w-4 h-4" />
+                <span className="text-sm font-medium">Get help</span>
+              </motion.button>
+            )}
+          </div>
         </div>
       </header>
       

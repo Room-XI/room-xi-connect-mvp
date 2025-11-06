@@ -20,6 +20,8 @@ import Journal from './routes/Journal';
 import VerifyConsent from './routes/VerifyConsent';
 import GuardianVerify from './routes/GuardianVerify';
 import OrgDashboard from './routes/org/Dashboard';
+import { TransparencyDashboard } from './components/TransparencyDashboard';
+import { PrivacyCenter } from './components/PrivacyCenter';
 
 export const router = createBrowserRouter([
   {
@@ -42,6 +44,8 @@ export const router = createBrowserRouter([
       { path: 'verify-consent/:token', element: <VerifyConsent /> },
       { path: 'guardian/verify/:token', element: <GuardianVerify /> },
       { path: 'org/dashboard', element: <OrgDashboard /> },
+      { path: 'transparency', element: <TransparencyDashboard /> },
+      { path: 'privacy-center', element: <PrivacyCenter /> },
       { path: 'auth/login', element: <Login /> },
       { path: 'auth/register', element: <Register /> },
       { path: 'auth/signup', element: <Signup /> },
