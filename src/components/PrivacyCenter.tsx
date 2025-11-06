@@ -83,7 +83,7 @@ const CONSENT_INFO = {
   }
 };
 
-export default function PrivacyCenter() {
+function PrivacyCenter() {
   const [consents, setConsents] = useState<ConsentState>({
     location: false,
     orb: false,
