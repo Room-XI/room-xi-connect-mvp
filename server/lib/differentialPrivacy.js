@@ -162,6 +162,27 @@ export function logDPApplication(operation, metadata) {
   return logEntry;
 }
 
+/**
+ * Apply differential privacy to aggregate statistics (for transparency dashboard)
+ * @param {object} stats - Object containing statistical values
+ * @param {number} sensitivity - Query sensitivity (default 1)
+ * @returns {object} - Stats with differential privacy applied
+ */
+export function applyDifferentialPrivacy(stats, sensitivity = 1) {
+  const noisyStats = {};
+  
+  for (const [key, value] of Object.entries(stats)) {
+    if (typeof value === 'number') {
+      const result = addLaplaceNoise(value, sensitivity, DP_CONFIG.epsilon);
+      noisyStats[key] = result.value;
+    } else {
+      noisyStats[key] = value;
+    }
+  }
+  
+  return noisyStats;
+}
+
 // Configuration getter for transparency
 export function getDPConfig() {
   return {
