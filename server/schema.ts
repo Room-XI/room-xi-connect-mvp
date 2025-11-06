@@ -300,13 +300,21 @@ export const journalEntries = pgTable("journal_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
   youthId: uuid("youth_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   mood: integer("mood"),
+  moodName: text("mood_name"), // Store mood name (clear, breezy, etc)
   prompt: text("prompt"),
+  title: text("title"), // Optional title for entry
   content: text("content"),
+  encrypted: boolean("encrypted").default(false),
+  encryptedContent: jsonb("encrypted_content"), // {encrypted, iv, authTag}
   ximiConversation: boolean("ximi_conversation").default(false),
   ximiSummary: text("ximi_summary"),
+  tags: jsonb("tags"), // Array of tags
+  wordCount: integer("word_count").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => ({
   youthIdx: index("idx_journal_youth").on(table.youthId, table.createdAt.desc()),
+  moodIdx: index("idx_journal_mood").on(table.mood, table.createdAt.desc()),
 }));
 
 export const copingSkills = pgTable("coping_skills", {

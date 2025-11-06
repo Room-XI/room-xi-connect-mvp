@@ -1,27 +1,10 @@
 import { Router } from 'express';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { db } from '../db.js';
-import { users, checkins } from '../schema.js';
+import { users, checkins, journalEntries } from '../schema.js';
 import crypto from 'crypto';
 
 const router = Router();
-
-// Journal entries table (we'll add this to schema later)
-const journalEntries = {
-  id: 'id',
-  userId: 'user_id',
-  date: 'date',
-  title: 'title',
-  content: 'content',
-  encrypted: 'encrypted',
-  encryptedContent: 'encrypted_content',
-  mood: 'mood',
-  moodLevel: 'mood_level',
-  tags: 'tags',
-  wordCount: 'word_count',
-  createdAt: 'created_at',
-  updatedAt: 'updated_at'
-};
 
 // Encryption helper functions
 function encrypt(text, key) {
@@ -64,37 +47,41 @@ router.get('/entries', async (req, res) => {
   }
 
   try {
-    // For now, return mock data since journal table isn't in schema yet
-    const mockEntries = [
-      {
-        id: '1',
-        date: new Date().toISOString(),
-        title: 'Feeling Clear Today',
-        content: 'Had a great day today. Spent time with friends at the park and felt really connected. The weather was perfect and I felt like myself again.',
-        mood: 'clear',
-        moodLevel: 4,
-        encrypted: false,
-        wordCount: 28,
-        tags: ['friends', 'outdoors', 'positive'],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: '2',
-        date: new Date(Date.now() - 86400000).toISOString(),
-        title: 'Stormy Thoughts',
-        content: 'Feeling overwhelmed with schoolwork. Too many assignments and not enough time. Need to find better ways to manage stress.',
-        mood: 'stormy',
-        moodLevel: 2,
-        encrypted: true,
-        wordCount: 20,
-        tags: ['school', 'stress'],
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        updatedAt: new Date(Date.now() - 86400000).toISOString()
-      }
-    ];
+    // Fetch actual entries from database
+    const entries = await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.youthId, req.session.userId))
+      .orderBy(desc(journalEntries.createdAt));
 
-    res.json({ entries: mockEntries });
+    // Decrypt encrypted entries
+    const key = getUserKey(req.session.userId);
+    const processedEntries = entries.map(entry => {
+      if (entry.encrypted && entry.encryptedContent) {
+        try {
+          // Only decrypt if it's actually encrypted
+          const decryptedContent = decrypt(entry.encryptedContent, key);
+          return {
+            ...entry,
+            content: decryptedContent,
+            date: entry.createdAt // Use createdAt as date
+          };
+        } catch (error) {
+          console.error('Error decrypting entry:', error);
+          return {
+            ...entry,
+            content: '[Decryption Error]',
+            date: entry.createdAt
+          };
+        }
+      }
+      return {
+        ...entry,
+        date: entry.createdAt // Use createdAt as date
+      };
+    });
+
+    res.json({ entries: processedEntries });
   } catch (error) {
     console.error('Error fetching journal entries:', error);
     res.status(500).json({ error: 'Failed to fetch journal entries' });
@@ -109,7 +96,7 @@ router.post('/entries', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const { title, content, tags, encrypted } = req.body;
+  const { title, content, tags, encrypted, mood: moodName } = req.body;
 
   if (!content) {
     return res.status(400).json({ error: 'Content is required' });
@@ -124,7 +111,7 @@ router.post('/entries', async (req, res) => {
     if (encrypted) {
       const key = getUserKey(req.session.userId);
       encryptedData = encrypt(content, key);
-      processedContent = '[Encrypted]';
+      processedContent = '[Encrypted]'; // Store placeholder in plain text field
     }
 
     // Get current mood from recent check-in
@@ -136,25 +123,36 @@ router.post('/entries', async (req, res) => {
       .limit(1);
 
     const mood = recentCheckin[0]?.mood || null;
+    const moodLevel = recentCheckin[0]?.moodLevel || null;
 
-    // For now, return mock saved entry
-    const newEntry = {
-      id: crypto.randomUUID(),
-      userId: req.session.userId,
-      date: new Date().toISOString(),
-      title: title || null,
-      content: processedContent,
-      encrypted,
-      encryptedData,
-      mood,
-      moodLevel: recentCheckin[0]?.moodLevel || null,
-      tags: tags || [],
-      wordCount,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    // Map mood names to levels if needed
+    const moodMap = { cold: 1, stormy: 2, foggy: 3, clear: 4, breezy: 5, aurora: 6 };
+    const calculatedMoodLevel = moodName ? moodMap[moodName.toLowerCase()] : moodLevel;
 
-    res.json(newEntry);
+    // Insert the new entry into database
+    const [newEntry] = await db
+      .insert(journalEntries)
+      .values({
+        youthId: req.session.userId,
+        title: title || null,
+        content: encrypted ? null : processedContent, // Store content only if not encrypted
+        encrypted: encrypted || false,
+        encryptedContent: encryptedData,
+        mood: calculatedMoodLevel,
+        moodName: moodName || mood,
+        tags: tags || [],
+        wordCount,
+        ximiConversation: false,
+        prompt: null
+      })
+      .returning();
+
+    // Return the entry with decrypted content if it was encrypted
+    res.json({
+      ...newEntry,
+      content: content, // Return the original content to the client
+      date: newEntry.createdAt
+    });
   } catch (error) {
     console.error('Error creating journal entry:', error);
     res.status(500).json({ error: 'Failed to create journal entry' });
@@ -235,19 +233,63 @@ router.put('/entries/:id', async (req, res) => {
   }
 
   const { id } = req.params;
-  const { title, content, tags } = req.body;
+  const { title, content, tags, encrypted, mood: moodName } = req.body;
 
   try {
-    // Mock implementation
-    const updatedEntry = {
-      id,
-      title,
-      content,
-      tags,
-      updatedAt: new Date().toISOString()
-    };
+    // First check if the entry belongs to this user
+    const [existingEntry] = await db
+      .select()
+      .from(journalEntries)
+      .where(and(
+        eq(journalEntries.id, id),
+        eq(journalEntries.youthId, req.session.userId)
+      ));
 
-    res.json(updatedEntry);
+    if (!existingEntry) {
+      return res.status(404).json({ error: 'Entry not found' });
+    }
+
+    let processedContent = content;
+    let encryptedData = null;
+    let wordCount = existingEntry.wordCount;
+
+    if (content) {
+      wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+      
+      // Handle encryption if needed
+      if (encrypted) {
+        const key = getUserKey(req.session.userId);
+        encryptedData = encrypt(content, key);
+        processedContent = null; // Don't store plain text if encrypted
+      }
+    }
+
+    // Map mood names to levels if needed
+    const moodMap = { cold: 1, stormy: 2, foggy: 3, clear: 4, breezy: 5, aurora: 6 };
+    const calculatedMoodLevel = moodName ? moodMap[moodName.toLowerCase()] : existingEntry.mood;
+
+    // Update the entry
+    const [updatedEntry] = await db
+      .update(journalEntries)
+      .set({
+        title: title !== undefined ? title : existingEntry.title,
+        content: encrypted ? null : (processedContent !== undefined ? processedContent : existingEntry.content),
+        encrypted: encrypted !== undefined ? encrypted : existingEntry.encrypted,
+        encryptedContent: encryptedData || existingEntry.encryptedContent,
+        mood: calculatedMoodLevel,
+        moodName: moodName || existingEntry.moodName,
+        tags: tags !== undefined ? tags : existingEntry.tags,
+        wordCount: wordCount,
+        updatedAt: new Date()
+      })
+      .where(eq(journalEntries.id, id))
+      .returning();
+
+    res.json({
+      ...updatedEntry,
+      content: content || updatedEntry.content, // Return the content
+      date: updatedEntry.createdAt
+    });
   } catch (error) {
     console.error('Error updating journal entry:', error);
     res.status(500).json({ error: 'Failed to update journal entry' });
@@ -265,7 +307,24 @@ router.delete('/entries/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Mock implementation
+    // Check if the entry belongs to this user
+    const [existingEntry] = await db
+      .select()
+      .from(journalEntries)
+      .where(and(
+        eq(journalEntries.id, id),
+        eq(journalEntries.youthId, req.session.userId)
+      ));
+
+    if (!existingEntry) {
+      return res.status(404).json({ error: 'Entry not found' });
+    }
+
+    // Delete the entry
+    await db
+      .delete(journalEntries)
+      .where(eq(journalEntries.id, id));
+
     res.json({ success: true, message: 'Entry deleted' });
   } catch (error) {
     console.error('Error deleting journal entry:', error);
