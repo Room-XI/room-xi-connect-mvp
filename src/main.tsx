@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { SessionProvider } from './lib/session';
+import './i18n/config'; // Initialize i18n
 import './styles.css';
 
 // Service Worker management
