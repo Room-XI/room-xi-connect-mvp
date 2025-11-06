@@ -1,0 +1,11 @@
+# Master Developer Task Checklist
+- [ ] Implement Low Power Mode per performance spec
+- [ ] Wire KPI SQL views and CSV exports
+- [ ] Add bilingual strings and toggle
+- [ ] Add dashboard footers with non diagnostic text
+- [ ] Ship Transparency Dashboard MVP
+- [ ] Complete Ximi bias audit and attach to PIA
+- [ ] Submit PIA and log receipt ID
+- [ ] Execute DSA(s) and archive in binder
+- [ ] Run youth comprehension study and update legend if needed
+- [ ] Performance test on low end Android and Chromebook
