@@ -487,3 +487,34 @@ export const consentReminders = pgTable("consent_reminders", {
   responseAt: timestamp("response_at"),
   responseAction: text("response_action"),
 });
+
+// Weekly Orb Snapshots - captures mood orb state every Sunday at 08:00 America/Edmonton
+export const weeklyOrbSnapshots = pgTable("weekly_orb_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  snapshotDate: date("snapshot_date").notNull(), // Date of the Sunday snapshot
+  weekStartDate: date("week_start_date").notNull(), // Monday of the week
+  weekEndDate: date("week_end_date").notNull(), // Sunday of the week
+  
+  // Mood ratios for the week (0.0 to 1.0)
+  coldRatio: decimal("cold_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
+  stormyRatio: decimal("stormy_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
+  foggyRatio: decimal("foggy_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
+  clearRatio: decimal("clear_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
+  breezyRatio: decimal("breezy_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
+  auroraRatio: decimal("aurora_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
+  
+  // Dominant mood and statistics
+  dominantMood: text("dominant_mood").notNull(), // The most common mood
+  totalCheckIns: integer("total_check_ins").notNull().default(0),
+  averageMoodLevel: decimal("average_mood_level", { precision: 3, scale: 2 }), // 1.00 to 6.00
+  
+  // Visual snapshot data (JSON blob for rendering)
+  visualData: jsonb("visual_data"), // Store color values, gradients, etc.
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userDateIdx: uniqueIndex("weekly_orb_snapshots_user_date_idx").on(table.userId, table.snapshotDate),
+  userIdx: index("weekly_orb_snapshots_user_idx").on(table.userId, table.createdAt.desc()),
+  dateIdx: index("weekly_orb_snapshots_date_idx").on(table.snapshotDate.desc()),
+}));

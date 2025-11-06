@@ -25,6 +25,7 @@ import { PrivacyCenter } from './components/PrivacyCenter';
 import { LivingJournal } from './components/LivingJournal';
 import { Achievements } from './components/Achievements';
 import { KPIDashboard } from './components/KPIDashboard';
+import OrbTimelapse from './components/OrbTimelapse';
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: 'transparency', element: <TransparencyDashboard /> },
       { path: 'privacy-center', element: <PrivacyCenter /> },
       { path: 'achievements', element: <Achievements /> },
+      { path: 'orb-timelapse', element: <OrbTimelapse /> },
       { path: 'auth/login', element: <Login /> },
       { path: 'auth/register', element: <Register /> },
       { path: 'auth/signup', element: <Signup /> },

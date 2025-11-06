@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from './db.js';
 import { verifyEmailConfig } from './services/email.js';
+import { initializeScheduler } from './services/scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,6 +53,7 @@ async function createServer() {
   const { default: journalRoutes } = await import('./routes/journal.js');
   const { default: achievementsRoutes } = await import('./routes/achievements.js');
   const { default: kpiRoutes } = await import('./routes/kpi.js');
+  const { default: orbSnapshotsRoutes } = await import('./routes/orbSnapshots.js');
 
   // API routes
   app.use('/api/auth', authRoutes);
@@ -69,6 +71,7 @@ async function createServer() {
   app.use('/api/journal', journalRoutes);
   app.use('/api/achievements', achievementsRoutes);
   app.use('/api/kpi', kpiRoutes);
+  app.use('/api/orb-snapshots', orbSnapshotsRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({
@@ -81,6 +84,9 @@ async function createServer() {
   const port = process.env.PORT || 5000;
   app.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://0.0.0.0:${port}`);
+    
+    // Initialize the scheduler for weekly orb snapshots
+    initializeScheduler();
   });
 }
 

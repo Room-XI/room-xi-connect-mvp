@@ -202,9 +202,17 @@ export default function Me() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.6 }}
       >
-        <div className="flex items-center space-x-2">
-          <TrendingUp className="w-5 h-5 text-teal" />
-          <h2 className="text-lg font-semibold text-deepSage">Mood History</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <TrendingUp className="w-5 h-5 text-teal" />
+            <h2 className="text-lg font-semibold text-deepSage">Mood History</h2>
+          </div>
+          <Link
+            to="/orb-timelapse"
+            className="text-sm font-medium text-teal hover:text-teal/80 transition-colors"
+          >
+            View 30-day timelapse →
+          </Link>
         </div>
         
         {checkIns.length > 0 ? (

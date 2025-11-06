@@ -15,6 +15,7 @@ interface MoodOrbProps {
   reducedMotion?: boolean;
   showPatterns?: boolean;
   lowPowerMode?: boolean;
+  lastCheckInTime?: string | null; // ISO string timestamp of last check-in
 }
 
 // Mood colors with HSL values for gradient blending
@@ -38,7 +39,8 @@ export function MoodOrb({
   highContrast = false,
   reducedMotion = false,
   showPatterns = false,
-  lowPowerMode = false
+  lowPowerMode = false,
+  lastCheckInTime = null
 }: MoodOrbProps) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,6 +57,35 @@ export function MoodOrb({
     const saved = localStorage.getItem('mood-orb-low-power');
     return saved === 'true' || lowPowerMode;
   });
+  
+  // Detect OS reduced motion preference
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return false;
+  });
+  
+  // Listen for changes in OS reduced motion setting
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+    };
+    
+    // Modern browsers
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+    // Older browsers
+    else if (mediaQuery.addListener) {
+      mediaQuery.addListener(handleChange);
+      return () => mediaQuery.removeListener(handleChange);
+    }
+  }, []);
 
   // Calculate mood ratios for the last 7 days
   const moodRatios = useMemo(() => {
@@ -106,7 +137,34 @@ export function MoodOrb({
 
   // Breathing animation parameters
   const breathingCycle = 8000; // 8 seconds
-  const settleTime = reducedMotion || localLowPowerMode ? 0 : 120000; // 2 min settle time
+  
+  // Calculate settle time based on last check-in
+  // 10-12 minutes normally, 2 minutes for reduced motion, instant for low power mode
+  const calculateSettleTime = useCallback(() => {
+    if (localLowPowerMode) return 0;
+    if (reducedMotion || prefersReducedMotion) return 120000; // 2 minutes for reduced motion
+    
+    // Default to 11 minutes (middle of 10-12 minute range)
+    const defaultSettleTime = 11 * 60 * 1000; // 11 minutes in ms
+    
+    // If we have a last check-in time, calculate time since check-in
+    if (lastCheckInTime) {
+      const timeSinceCheckIn = Date.now() - new Date(lastCheckInTime).getTime();
+      // If less than settle time has passed, continue settling
+      if (timeSinceCheckIn < defaultSettleTime) {
+        return defaultSettleTime - timeSinceCheckIn;
+      }
+    }
+    
+    return defaultSettleTime;
+  }, [localLowPowerMode, reducedMotion, prefersReducedMotion, lastCheckInTime]);
+  
+  const settleTime = calculateSettleTime();
+  
+  // Easing function for smooth settle animation (ease-in-out cubic)
+  const easeInOutCubic = (t: number): number => {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  };
 
   // Create gradient with caching
   const createCachedGradient = useCallback((
