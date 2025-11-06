@@ -114,3 +114,9 @@ export function blendMoodColors(
 
   return `hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`;
 }
+
+// Export MOOD_COLORS for compatibility with OrbTimelapse
+export const MOOD_COLORS = MOODS.reduce((acc, mood) => {
+  acc[mood.label] = mood.color;
+  return acc;
+}, {} as Record<string, { h: number; s: number; l: number }>);
