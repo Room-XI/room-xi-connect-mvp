@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink } from 'lucide-react';
+import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink, Shield, Eye } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Sparkline from '@/ui/me/Sparkline';
 import PrivacyDashboard from '@/ui/me/PrivacyDashboard';
 import api from '@/lib/api';
@@ -37,6 +38,7 @@ interface Profile {
 export default function Me() {
   const { user } = useSession();
   const { itemCount } = useQueue();
+  const { t } = useTranslation();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [attendanceCount, setAttendanceCount] = useState(0);
@@ -307,11 +309,50 @@ export default function Me() {
         )}
       </motion.div>
 
+      {/* Privacy & Transparency Links */}
+      <motion.div
+        className="cosmic-card p-6 space-y-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
+      >
+        <h2 className="text-lg font-semibold text-deepSage">Privacy & Transparency</h2>
+        <div className="space-y-3">
+          <Link
+            to="/privacy-center"
+            className="flex items-center justify-between p-4 bg-surface rounded-lg border border-borderMutedLight/50 hover:bg-sage/10 transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              <Shield className="w-5 h-5 text-teal" />
+              <div>
+                <div className="font-medium text-deepSage">{t('privacy.title')}</div>
+                <div className="text-sm text-textSecondaryLight">{t('privacy.subtitle')}</div>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-textSecondaryLight" />
+          </Link>
+          
+          <Link
+            to="/transparency"
+            className="flex items-center justify-between p-4 bg-surface rounded-lg border border-borderMutedLight/50 hover:bg-sage/10 transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              <Eye className="w-5 h-5 text-gold" />
+              <div>
+                <div className="font-medium text-deepSage">{t('transparency.title')}</div>
+                <div className="text-sm text-textSecondaryLight">{t('transparency.subtitle')}</div>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-textSecondaryLight" />
+          </Link>
+        </div>
+      </motion.div>
+
       {/* Privacy Dashboard */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.6 }}
+        transition={{ delay: 0.5, duration: 0.6 }}
       >
         <PrivacyDashboard />
       </motion.div>
