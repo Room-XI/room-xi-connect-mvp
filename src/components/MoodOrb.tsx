@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Info, Palette, Accessibility } from 'lucide-react';
+import { Info, Palette, Accessibility, Battery } from 'lucide-react';
 
 interface MoodData {
   date: string;
@@ -14,6 +14,7 @@ interface MoodOrbProps {
   highContrast?: boolean;
   reducedMotion?: boolean;
   showPatterns?: boolean;
+  lowPowerMode?: boolean;
 }
 
 // Mood colors with HSL values for gradient blending
@@ -26,19 +27,34 @@ const MOOD_COLORS = {
   aurora: { h: 340, s: 80, l: 60, hex: '#eb5c85' },  // Pink-red
 };
 
+// Performance constants
+const TARGET_FPS = 30;
+const FRAME_DURATION = 1000 / TARGET_FPS;
+const GRADIENT_CACHE_SIZE = 6;
+
 export function MoodOrb({ 
   moodData, 
   streakCount = 0, 
   highContrast = false,
   reducedMotion = false,
-  showPatterns = false
+  showPatterns = false,
+  lowPowerMode = false
 }: MoodOrbProps) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const gradientCacheRef = useRef<Map<string, CanvasGradient>>(new Map());
+  const lastFrameTimeRef = useRef<number>(0);
+  const staticImageRef = useRef<string | null>(null);
   const [showColorKey, setShowColorKey] = useState(false);
   const [dominantMood, setDominantMood] = useState<string>('clear');
-  const [isAnimating, setIsAnimating] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(!lowPowerMode);
+  const [localLowPowerMode, setLocalLowPowerMode] = useState(() => {
+    // Load Low Power Mode preference from localStorage
+    const saved = localStorage.getItem('mood-orb-low-power');
+    return saved === 'true' || lowPowerMode;
+  });
 
   // Calculate mood ratios for the last 7 days
   const moodRatios = useMemo(() => {
@@ -71,12 +87,110 @@ export function MoodOrb({
     return ratios;
   }, [moodData]);
 
+  // Update Low Power Mode effect
+  useEffect(() => {
+    const effectiveLowPower = lowPowerMode || localLowPowerMode;
+    setIsAnimating(!effectiveLowPower);
+    localStorage.setItem('mood-orb-low-power', effectiveLowPower.toString());
+  }, [lowPowerMode, localLowPowerMode]);
+
+  // Toggle Low Power Mode locally
+  const toggleLowPowerMode = useCallback(() => {
+    setLocalLowPowerMode(prev => {
+      const newValue = !prev;
+      localStorage.setItem('mood-orb-low-power', newValue.toString());
+      setIsAnimating(!newValue);
+      return newValue;
+    });
+  }, []);
+
   // Breathing animation parameters
   const breathingCycle = 8000; // 8 seconds
-  const settleTime = reducedMotion ? 0 : (isAnimating ? 600000 : 120000); // 10 min initial, 2 min after
+  const settleTime = reducedMotion || localLowPowerMode ? 0 : 120000; // 2 min settle time
 
-  // Draw the mood orb with gradient layers
-  const drawOrb = (ctx: CanvasRenderingContext2D, time: number) => {
+  // Create gradient with caching
+  const createCachedGradient = useCallback((
+    ctx: CanvasRenderingContext2D,
+    mood: string,
+    centerX: number,
+    centerY: number,
+    radius: number,
+    opacity: number
+  ): CanvasGradient => {
+    const cacheKey = `${mood}-${radius.toFixed(0)}-${opacity.toFixed(2)}`;
+    
+    if (gradientCacheRef.current.has(cacheKey)) {
+      return gradientCacheRef.current.get(cacheKey)!;
+    }
+
+    const color = MOOD_COLORS[mood as keyof typeof MOOD_COLORS];
+    const gradient = ctx.createRadialGradient(
+      centerX, centerY, 0,
+      centerX, centerY, radius
+    );
+    
+    gradient.addColorStop(0, `hsla(${color.h}, ${color.s}%, ${color.l}%, ${opacity})`);
+    gradient.addColorStop(0.5, `hsla(${color.h}, ${color.s}%, ${color.l}%, ${opacity * 0.7})`);
+    gradient.addColorStop(1, `hsla(${color.h}, ${color.s}%, ${color.l}%, 0)`);
+
+    // Limit cache size
+    if (gradientCacheRef.current.size >= GRADIENT_CACHE_SIZE * 3) {
+      const firstKey = gradientCacheRef.current.keys().next().value;
+      gradientCacheRef.current.delete(firstKey);
+    }
+
+    gradientCacheRef.current.set(cacheKey, gradient);
+    return gradient;
+  }, []);
+
+  // Pre-bake static layers on offscreen canvas
+  const prebakeStaticLayers = useCallback((
+    width: number,
+    height: number,
+    dominantColor: any,
+    moodRatios: Record<string, number>,
+    radius: number
+  ) => {
+    if (!offscreenCanvasRef.current) {
+      offscreenCanvasRef.current = document.createElement('canvas');
+    }
+    
+    const offscreen = offscreenCanvasRef.current;
+    offscreen.width = width;
+    offscreen.height = height;
+    const offCtx = offscreen.getContext('2d')!;
+    
+    const centerX = width / 2;
+    const centerY = height / 2;
+    
+    // Clear offscreen canvas
+    offCtx.clearRect(0, 0, width, height);
+    
+    // Draw ambient background
+    offCtx.fillStyle = `hsla(${dominantColor.h}, ${dominantColor.s}%, ${dominantColor.l}%, 0.25)`;
+    offCtx.fillRect(0, 0, width, height);
+    
+    // Enable screen blending
+    offCtx.globalCompositeOperation = 'screen';
+    
+    // Draw mood layers
+    Object.entries(moodRatios).forEach(([mood, ratio]) => {
+      if (ratio > 0) {
+        const opacity = Math.min(0.9, Math.max(0.3, 0.3 + ratio * 0.6));
+        const gradient = createCachedGradient(offCtx, mood, centerX, centerY, radius, opacity);
+        offCtx.fillStyle = gradient;
+        offCtx.fillRect(0, 0, width, height);
+      }
+    });
+    
+    // Reset composite operation
+    offCtx.globalCompositeOperation = 'source-over';
+    
+    return offscreen;
+  }, [createCachedGradient]);
+
+  // Optimized draw function
+  const drawOrb = useCallback((ctx: CanvasRenderingContext2D, time: number, forceStatic: boolean = false) => {
     const width = ctx.canvas.width;
     const height = ctx.canvas.height;
     const centerX = width / 2;
@@ -86,41 +200,39 @@ export function MoodOrb({
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Breathing effect
-    const breathScale = reducedMotion ? 1 : 1 + Math.sin(time / breathingCycle * Math.PI * 2) * 0.05;
+    // Calculate breathing effect or use static scale
+    const breathScale = (forceStatic || localLowPowerMode || reducedMotion) 
+      ? 1 
+      : 1 + Math.sin(time / breathingCycle * Math.PI * 2) * 0.05;
     const radius = baseRadius * breathScale;
 
-    // Draw ambient background (25% opacity of dominant mood)
     const dominantColor = MOOD_COLORS[dominantMood as keyof typeof MOOD_COLORS];
-    ctx.fillStyle = `hsla(${dominantColor.h}, ${dominantColor.s}%, ${dominantColor.l}%, 0.25)`;
-    ctx.fillRect(0, 0, width, height);
-
-    // Enable screen blending for gradient layers
-    ctx.globalCompositeOperation = 'screen';
-
-    // Draw each mood layer
-    Object.entries(moodRatios).forEach(([mood, ratio]) => {
-      if (ratio > 0) {
-        const color = MOOD_COLORS[mood as keyof typeof MOOD_COLORS];
-        const opacity = Math.min(0.9, Math.max(0.3, 0.3 + ratio * 0.6));
-        
-        // Create radial gradient for this mood
-        const gradient = ctx.createRadialGradient(
-          centerX, centerY, 0,
-          centerX, centerY, radius
-        );
-        
-        gradient.addColorStop(0, `hsla(${color.h}, ${color.s}%, ${color.l}%, ${opacity})`);
-        gradient.addColorStop(0.5, `hsla(${color.h}, ${color.s}%, ${color.l}%, ${opacity * 0.7})`);
-        gradient.addColorStop(1, `hsla(${color.h}, ${color.s}%, ${color.l}%, 0)`);
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-      }
-    });
-
-    // Reset composite operation
-    ctx.globalCompositeOperation = 'source-over';
+    
+    // For Low Power Mode, use pre-baked static image
+    if (forceStatic || localLowPowerMode) {
+      const prebaked = prebakeStaticLayers(width, height, dominantColor, moodRatios, radius);
+      ctx.drawImage(prebaked, 0, 0);
+    } else {
+      // Dynamic rendering with gradient caching
+      ctx.fillStyle = `hsla(${dominantColor.h}, ${dominantColor.s}%, ${dominantColor.l}%, 0.25)`;
+      ctx.fillRect(0, 0, width, height);
+      
+      // Enable screen blending
+      ctx.globalCompositeOperation = 'screen';
+      
+      // Draw mood layers with cached gradients
+      Object.entries(moodRatios).forEach(([mood, ratio]) => {
+        if (ratio > 0) {
+          const opacity = Math.min(0.9, Math.max(0.3, 0.3 + ratio * 0.6));
+          const gradient = createCachedGradient(ctx, mood, centerX, centerY, radius, opacity);
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, width, height);
+        }
+      });
+      
+      // Reset composite operation
+      ctx.globalCompositeOperation = 'source-over';
+    }
 
     // Draw orb circle outline
     ctx.strokeStyle = highContrast ? '#000' : 'rgba(255, 255, 255, 0.3)';
@@ -177,44 +289,93 @@ export function MoodOrb({
       
       ctx.restore();
     }
-  };
+  }, [dominantMood, highContrast, moodRatios, showPatterns, streakCount, localLowPowerMode, createCachedGradient, prebakeStaticLayers]);
 
-  // Animation loop
+  // Optimized animation loop with frame rate limiting
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { 
+      alpha: true,
+      desynchronized: true // Hint to browser for better performance
+    });
     if (!ctx) return;
 
-    // Set canvas size
-    canvas.width = 300;
-    canvas.height = 300;
+    // Set canvas size with devicePixelRatio for sharpness
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for performance
+    canvas.width = 300 * dpr;
+    canvas.height = 300 * dpr;
+    canvas.style.width = '300px';
+    canvas.style.height = '300px';
+    ctx.scale(dpr, dpr);
 
     let startTime = Date.now();
+    let lastDrawTime = 0;
+    let frameCount = 0;
+    let isStatic = false;
+    
+    // For Low Power Mode, draw once and stop
+    if (localLowPowerMode) {
+      drawOrb(ctx, 0, true);
+      // Generate static image for efficiency
+      staticImageRef.current = canvas.toDataURL();
+      return;
+    }
     
     const animate = () => {
-      const time = Date.now() - startTime;
-      drawOrb(ctx, time);
+      const currentTime = Date.now();
+      const timeSinceStart = currentTime - startTime;
+      
+      // Frame rate limiting - skip frame if too soon
+      if (currentTime - lastDrawTime < FRAME_DURATION) {
+        animationRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      
+      // Settle to static after settle time
+      if (settleTime > 0 && timeSinceStart > settleTime && !isStatic) {
+        isStatic = true;
+        drawOrb(ctx, timeSinceStart, true);
+        staticImageRef.current = canvas.toDataURL();
+        setIsAnimating(false);
+        return; // Stop animation loop
+      }
+      
+      // Draw frame
+      drawOrb(ctx, timeSinceStart, isStatic);
+      lastDrawTime = currentTime;
+      frameCount++;
+      
+      // Log performance metrics every 60 frames (roughly 2 seconds)
+      if (frameCount % 60 === 0) {
+        const fps = Math.round(1000 / (currentTime - lastFrameTimeRef.current) * 60);
+        lastFrameTimeRef.current = currentTime;
+        if (fps < 25) {
+          console.warn('MoodOrb: Low FPS detected:', fps);
+        }
+      }
       
       // Continue animation
-      animationRef.current = requestAnimationFrame(animate);
+      if (!isStatic && isAnimating) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
     };
 
-    animate();
-
-    // Settle animation after specified time
-    const settleTimeout = setTimeout(() => {
-      setIsAnimating(false);
-    }, settleTime);
+    if (isAnimating) {
+      animate();
+    } else {
+      // Draw static frame when not animating
+      drawOrb(ctx, 0, true);
+      staticImageRef.current = canvas.toDataURL();
+    }
 
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-      clearTimeout(settleTimeout);
     };
-  }, [moodRatios, dominantMood, streakCount, highContrast, showPatterns, reducedMotion]);
+  }, [moodRatios, dominantMood, streakCount, highContrast, showPatterns, reducedMotion, localLowPowerMode, isAnimating, settleTime, drawOrb]);
 
   return (
     <div className="relative">
@@ -251,6 +412,18 @@ export function MoodOrb({
           aria-label={t('mood.togglePatterns')}
         >
           <Accessibility className="w-5 h-5" />
+        </button>
+        <button
+          onClick={toggleLowPowerMode}
+          className={`p-2 rounded-lg transition-colors ${
+            localLowPowerMode 
+              ? 'bg-green-100 dark:bg-green-800 hover:bg-green-200 dark:hover:bg-green-700' 
+              : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+          aria-label={localLowPowerMode ? t('mood.disableLowPowerMode') : t('mood.enableLowPowerMode')}
+          title={localLowPowerMode ? 'Low Power Mode: ON' : 'Low Power Mode: OFF'}
+        >
+          <Battery className={`w-5 h-5 ${localLowPowerMode ? 'text-green-600' : ''}`} />
         </button>
         <button
           className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"

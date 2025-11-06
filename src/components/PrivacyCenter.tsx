@@ -17,7 +17,8 @@ import {
   X,
   Clock,
   ChevronRight,
-  Info
+  Info,
+  Battery
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -98,6 +99,12 @@ function PrivacyCenter() {
     count: 0
   });
   
+  const [lowPowerMode, setLowPowerMode] = useState<boolean>(() => {
+    // Load Low Power Mode preference from localStorage
+    const saved = localStorage.getItem('mood-orb-low-power');
+    return saved === 'true';
+  });
+  
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -174,6 +181,13 @@ function PrivacyCenter() {
       setError('Failed to update reminder setting.');
       setSaving(false);
     }
+  }
+
+  function updateLowPowerMode(enabled: boolean) {
+    setLowPowerMode(enabled);
+    localStorage.setItem('mood-orb-low-power', enabled.toString());
+    // Reload any MoodOrb components by dispatching a custom event
+    window.dispatchEvent(new CustomEvent('lowPowerModeChange', { detail: enabled }));
   }
 
   if (loading) {
@@ -335,6 +349,65 @@ function PrivacyCenter() {
               `}
             />
           </button>
+        </div>
+      </div>
+
+      {/* Low Power Mode Setting */}
+      <div className="cosmic-card p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="p-2 rounded-lg bg-green-50 flex-shrink-0">
+              <Battery className="w-5 h-5 text-green-600" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-medium text-deepSage">
+                Low Power Mode
+              </h3>
+              <p className="text-sm text-textSecondaryLight">
+                Disable Mood Orb animations to save battery and reduce CPU usage
+              </p>
+              <p className="text-xs text-textSecondaryLight">
+                Target: 30fps on budget devices, CPU &lt; 25%, Memory &lt; 200MB
+              </p>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => updateLowPowerMode(!lowPowerMode)}
+            className={`
+              relative inline-flex h-6 w-11 items-center rounded-full
+              transition-colors duration-200 focus:outline-none focus:ring-2
+              focus:ring-sage focus:ring-offset-2
+              ${lowPowerMode ? 'bg-green-600' : 'bg-gray-300'}
+            `}
+            disabled={saving}
+          >
+            <span className="sr-only">
+              {lowPowerMode ? 'Disable' : 'Enable'} Low Power Mode
+            </span>
+            <span
+              className={`
+                inline-block h-4 w-4 transform rounded-full bg-white
+                transition-transform duration-200
+                ${lowPowerMode ? 'translate-x-6' : 'translate-x-1'}
+              `}
+            />
+          </button>
+        </div>
+        
+        {/* Status Indicator */}
+        <div className="mt-3 flex items-center gap-2">
+          {lowPowerMode ? (
+            <span className="text-xs text-green-600 flex items-center gap-1">
+              <Check className="w-3 h-3" />
+              Animations Disabled - Static Mode Active
+            </span>
+          ) : (
+            <span className="text-xs text-textSecondaryLight flex items-center gap-1">
+              <X className="w-3 h-3" />
+              Full Animations Enabled
+            </span>
+          )}
         </div>
       </div>
 
