@@ -95,33 +95,97 @@ WHAT TO AVOID:
 - Don't ask multiple questions at once`,
 };
 
-// Mood-specific opening lines based on dialogue pack
-const MOOD_OPENERS: Record<MoodKey, Record<XimiMode, string>> = {
+// Complete mood-specific dialogue responses based on dialogue pack
+interface MoodDialogue {
+  opening: string;
+  followUp: string;
+  encouragement: string;
+}
+
+const MOOD_RESPONSES: Record<MoodKey, Record<XimiMode, MoodDialogue>> = {
   cold: {
-    sibling: "That sounds like a rough one. I know those days.",
-    peer: "Sounds like things feel pretty numb today. You showed up anyway.",
+    sibling: {
+      opening: "That sounds like a rough one. I know those days.",
+      followUp: "What's been weighing you down the most today?",
+      encouragement: "Even when everything feels frozen, you're still here. That takes strength. Let's find something small to help you thaw out a bit.",
+    },
+    peer: {
+      opening: "Sounds like things feel pretty numb today. You showed up anyway.",
+      followUp: "What usually helps when you feel disconnected like this?",
+      encouragement: "You've pushed through tough days before. Let's find one small thing that might bring back some feeling.",
+    },
   },
   stormy: {
-    sibling: "That sounds like a rough one. I know those days.",
-    peer: "Sounds like things got heavy today. You showed up anyway, and that matters.",
+    sibling: {
+      opening: "That sounds like a rough one. I know those days.",
+      followUp: "What's been weighing you down the most today?",
+      encouragement: "I read a story once that said storms don't last forever. I believe it, because the sun always comes back. Let's find something to help you breathe.",
+    },
+    peer: {
+      opening: "Sounds like things got heavy today. You showed up anyway, and that matters.",
+      followUp: "What's one small thing that could make today a little easier?",
+      encouragement: "You've handled hard things before. Let's figure out what kind of support helps most right now.",
+    },
   },
   foggy: {
-    sibling: "Foggy days can make everything feel far away, huh?",
-    peer: "It's one of those unclear days. That's okay, happens to everyone.",
+    sibling: {
+      opening: "Foggy days can make everything feel far away, huh?",
+      followUp: "If the fog cleared a little, what's the first thing you'd want to see?",
+      encouragement: "You don't need the whole map today, just one next step. Let's start there.",
+    },
+    peer: {
+      opening: "It's one of those unclear days. That's okay, happens to everyone.",
+      followUp: "What usually helps you feel focused again — quiet, music, moving around?",
+      encouragement: "Let's find something light to help you reset, like a walk or a short playlist.",
+    },
   },
   clear: {
-    sibling: "Feels calm today, nice. I like this version of you.",
-    peer: "Calm energy today, that's solid.",
+    sibling: {
+      opening: "Feels calm today, nice. I like this version of you.",
+      followUp: "What's been keeping things steady lately?",
+      encouragement: "Maybe write that down — could help you remember what works on tough days.",
+    },
+    peer: {
+      opening: "Calm energy today, that's solid.",
+      followUp: "Anything you want to keep building from this place?",
+      encouragement: "When you're grounded, it's the best time to plan your next move. Want to look at upcoming programs?",
+    },
   },
   breezy: {
-    sibling: "Okayyy, I see that energy! What's got you hyped today?",
-    peer: "You're in a good flow today. Love that.",
+    sibling: {
+      opening: "Okayyy, I see that energy! What's got you hyped today?",
+      followUp: "Wanna use some of that energy for something fun?",
+      encouragement: "Let's see what's going on — maybe a music or sports event near you.",
+    },
+    peer: {
+      opening: "You're in a good flow today. Love that.",
+      followUp: "What's something you could start while this energy's high?",
+      encouragement: "Let's channel that into something solid — a new project, or a program that fits your vibe.",
+    },
   },
   aurora: {
-    sibling: "Whoa, you're glowing today! What's lighting you up?",
-    peer: "Everything's clicking today, huh? Feels good.",
+    sibling: {
+      opening: "Whoa, you're glowing today! What's lighting you up?",
+      followUp: "If you could bottle this feeling, what would you call it?",
+      encouragement: "Let's save this in your journal so Future You remembers how strong this feels.",
+    },
+    peer: {
+      opening: "Everything's clicking today, huh? Feels good.",
+      followUp: "What's something you learned this week that you'd teach someone else?",
+      encouragement: "That's leadership right there. Let's mark that win and keep it going.",
+    },
   },
 };
+
+// Helper function to get appropriate response based on conversation stage
+export function getMoodResponse(
+  mood: MoodKey,
+  mode: XimiMode,
+  stage: 'opening' | 'followUp' | 'encouragement'
+): string {
+  return MOOD_RESPONSES[mood]?.[mode]?.[stage] || 
+    "I'm here if you want to talk more.";
+}
 
 export async function generateXimiResponse(
   userMessage: string,
@@ -143,8 +207,24 @@ export async function generateXimiResponse(
   // Build context-aware user message
   let enhancedMessage = userMessage;
   
-  if (context.moodType && MOOD_OPENERS[context.moodType]) {
-    const opener = MOOD_OPENERS[context.moodType][mode];
+  if (context.moodType && MOOD_RESPONSES[context.moodType]) {
+    const moodDialogue = MOOD_RESPONSES[context.moodType][mode];
+    
+    // Determine which dialogue stage to use based on context
+    let contextualResponse = moodDialogue.opening;
+    
+    // If this seems like a follow-up conversation, use follow-up
+    if (userMessage.length > 50 || userMessage.includes('?')) {
+      contextualResponse = moodDialogue.followUp;
+    }
+    
+    // If they're looking for support or encouragement
+    if (userMessage.toLowerCase().includes('help') || 
+        userMessage.toLowerCase().includes('what should') ||
+        userMessage.toLowerCase().includes('advice')) {
+      contextualResponse = moodDialogue.encouragement;
+    }
+    
     enhancedMessage = `User just checked in with mood: ${context.moodType}.\n`;
     
     if (context.wellnessDimensions && context.wellnessDimensions.length > 0) {
@@ -155,7 +235,7 @@ export async function generateXimiResponse(
       enhancedMessage += `Their note: "${context.recentNote}"\n\n`;
     }
     
-    enhancedMessage += `Respond to them using this opening as inspiration: "${opener}"\n\nUser message: ${userMessage}`;
+    enhancedMessage += `Respond to them using this tone as inspiration: "${contextualResponse}"\n\nUser message: ${userMessage}`;
   }
 
   try {
@@ -208,6 +288,15 @@ export async function generateXimiResponse(
   }
 }
 
+// Generate contextual Ximi message based on mood and stage
+export function generateContextualMessage(
+  moodType: MoodKey,
+  mode: XimiMode = 'sibling',
+  stage: 'opening' | 'followUp' | 'encouragement' = 'opening'
+): string {
+  return getMoodResponse(moodType, mode, stage);
+}
+
 // Generate follow-up prompt after check-in
 export async function generateFollowUpPrompt(
   moodType: MoodKey,
@@ -215,17 +304,56 @@ export async function generateFollowUpPrompt(
   note: string | null,
   mode: XimiMode = 'sibling'
 ): Promise<string> {
-  const context: XimiContext = {
-    moodType,
-    wellnessDimensions,
-    recentNote: note || undefined,
-    mode,
-  };
+  // If there's a note, we might want to provide more targeted support
+  const hasNote = note && note.trim().length > 0;
+  
+  // Determine which stage to use
+  let stage: 'opening' | 'followUp' | 'encouragement' = 'opening';
+  
+  if (hasNote) {
+    // Check if they're expressing need for help or direction
+    const noteLower = note!.toLowerCase();
+    if (noteLower.includes('help') || noteLower.includes('don\'t know') || 
+        noteLower.includes('confused') || noteLower.includes('lost')) {
+      stage = 'encouragement';
+    } else if (noteLower.includes('?') || noteLower.length > 30) {
+      stage = 'followUp';
+    }
+  } else {
+    // For mood-only check-ins, use opening by default
+    stage = 'opening';
+  }
+  
+  // For very positive moods, sometimes jump to follow-up
+  if ((moodType === 'breezy' || moodType === 'aurora') && !hasNote) {
+    stage = 'followUp';
+  }
+  
+  // Get the appropriate dialogue
+  const baseResponse = getMoodResponse(moodType, mode, stage);
+  
+  // If using AI, enhance with context
+  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+    const context: XimiContext = {
+      moodType,
+      wellnessDimensions,
+      recentNote: note || undefined,
+      mode,
+    };
 
-  const prompt = note 
-    ? `The user just shared: "${note}". What would you say?`
-    : "The user just checked in. What would you say to them?";
+    const prompt = note 
+      ? `The user just shared: "${note}". Respond with warmth and understanding.`
+      : "The user just checked in. Offer a brief, supportive response.";
 
-  const response = await generateXimiResponse(prompt, context);
-  return response.message;
+    try {
+      const response = await generateXimiResponse(prompt, context);
+      return response.message;
+    } catch (error) {
+      console.error('Failed to generate AI response, using scripted response:', error);
+      return baseResponse;
+    }
+  }
+  
+  // Fallback to scripted response if no AI available
+  return baseResponse;
 }
