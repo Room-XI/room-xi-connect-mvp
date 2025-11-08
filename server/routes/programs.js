@@ -9,28 +9,8 @@ const router = express.Router();
 // Get all programs
 router.get('/', async (req, res) => {
   try {
-    const isAuthenticated = !!req.session.userId;
-    
-    let allPrograms;
-    
-    if (!isAuthenticated) {
-      // Guest users: only show programs happening today in America/Edmonton timezone
-      const edmontonNow = DateTime.now().setZone('America/Edmonton');
-      const todayStart = edmontonNow.startOf('day').toJSDate();
-      const todayEnd = edmontonNow.endOf('day').toJSDate();
-      
-      // Filter programs where next_start is within today
-      allPrograms = await db.select().from(programs)
-        .where(
-          and(
-            gte(programs.nextStart, todayStart),
-            lte(programs.nextStart, todayEnd)
-          )
-        );
-    } else {
-      // Authenticated users: show all programs
-      allPrograms = await db.select().from(programs);
-    }
+    // Programs-first approach: Both guests and authenticated users can browse all programs
+    const allPrograms = await db.select().from(programs);
     
     res.json(allPrograms);
   } catch (error) {
@@ -48,24 +28,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Program not found' });
     }
 
-    // For guest users, verify the program is happening today
-    const isAuthenticated = !!req.session.userId;
-    if (!isAuthenticated) {
-      const edmontonNow = DateTime.now().setZone('America/Edmonton');
-      const todayStart = edmontonNow.startOf('day').toJSDate();
-      const todayEnd = edmontonNow.endOf('day').toJSDate();
-      
-      if (program.nextStart) {
-        const programStart = new Date(program.nextStart);
-        if (programStart < todayStart || programStart > todayEnd) {
-          return res.status(403).json({ 
-            error: 'Sign in to view programs beyond today',
-            requiresAuth: true 
-          });
-        }
-      }
-    }
-
+    // Programs-first approach: Both guests and authenticated users can view all program details
     res.json(program);
   } catch (error) {
     console.error('Get program error:', error);
