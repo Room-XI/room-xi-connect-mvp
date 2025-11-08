@@ -135,6 +135,7 @@ export const api = {
   // Check-ins
   checkins: {
     list: () => fetchApi('/checkins'),
+    getLast7Days: () => fetchApi('/checkins/last-7-days'),
     create: (data: {
       timestamp?: string;
       dimension?: string;

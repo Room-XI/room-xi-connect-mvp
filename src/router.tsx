@@ -14,7 +14,10 @@ import Signup from './routes/auth/Signup';
 import Reset from './routes/auth/Reset';
 import UpdatePassword from './routes/auth/UpdatePassword';
 import SafetyProfile from './routes/SafetyProfile';
+import SafetyResources from './routes/SafetyResources';
 import About from './routes/About';
+import TermsOfService from './routes/TermsOfService';
+import PrivacyPolicy from './routes/PrivacyPolicy';
 import ErrorBoundary from './ui/ErrorBoundary';
 import Journal from './routes/Journal';
 import VerifyConsent from './routes/VerifyConsent';
@@ -41,9 +44,12 @@ export const router = createBrowserRouter([
       { path: 'qr', element: <QRScan /> },
       { path: 'me', element: <Me /> },
       { path: 'safety-profile', element: <SafetyProfile /> },
+      { path: 'safety-resources', element: <SafetyResources /> },
       { path: 'settings', element: <Settings /> },
       { path: 'admin', element: <Admin /> },
       { path: 'about', element: <About /> },
+      { path: 'terms-of-service', element: <TermsOfService /> },
+      { path: 'privacy-policy', element: <PrivacyPolicy /> },
       { path: 'journal', element: <Journal /> },
       { path: 'living-journal', element: <LivingJournal /> },
       { path: 'verify-consent/:token', element: <VerifyConsent /> },
@@ -64,7 +70,6 @@ export const router = createBrowserRouter([
   }
 ], {
   future: {
-    v7_startTransition: true,
     v7_relativeSplatPath: true,
     v7_fetcherPersist: true,
     v7_normalizeFormMethod: true,

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Menu } from 'lucide-react';
+import { Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import CrisisSheet from './crisis/CrisisSheet';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
@@ -10,6 +11,7 @@ interface HeaderProps {
 }
 
 export default function Header({ title, showCrisis = true }: HeaderProps) {
+  const navigate = useNavigate();
   const [crisisOpen, setCrisisOpen] = useState(false);
 
   return (
@@ -34,7 +36,7 @@ export default function Header({ title, showCrisis = true }: HeaderProps) {
             {/* Crisis Support Button - Always visible for safety */}
             {showCrisis && (
               <motion.button
-                onClick={() => setCrisisOpen(true)}
+                onClick={() => navigate('/safety-resources')}
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-coral/10 text-coral hover:bg-coral/20 transition-colors"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

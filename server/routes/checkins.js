@@ -24,6 +24,45 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get last 7 days of check-ins for mood orb gradient
+router.get('/last-7-days', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Get user timezone
+    const [profile] = await db.select().from(profiles).where(eq(profiles.userId, req.session.userId)).limit(1);
+    const userTimezone = profile?.timezone || 'America/Edmonton';
+
+    // Calculate 7 days ago using Luxon
+    const { DateTime } = await import('luxon');
+    const now = DateTime.now().setZone(userTimezone);
+    const sevenDaysAgo = now.minus({ days: 7 }).startOf('day');
+
+    // Get check-ins from the last 7 days
+    const recentCheckins = await db.select({
+      id: checkins.id,
+      mood: checkins.moodLevel16,
+      timestamp: checkins.timestamp,
+      checkinDate: checkins.checkinDate,
+    }).from(checkins)
+      .where(
+        and(
+          eq(checkins.userId, req.session.userId),
+          sql`${checkins.timestamp} >= ${sevenDaysAgo.toJSDate()}`
+        )
+      )
+      .orderBy(sql`${checkins.timestamp} DESC`)
+      .limit(7);
+
+    res.json(recentCheckins);
+  } catch (error) {
+    console.error('Get last 7 days checkins error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Create or update checkin
 router.post('/', async (req, res) => {
   try {
