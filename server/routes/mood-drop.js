@@ -7,7 +7,7 @@ import express from 'express';
 import { db } from '../db.js';
 import { moodDrops } from '../schema.js';
 import { eq, desc } from 'drizzle-orm';
-import Filter from 'bad-words';
+import { Filter } from 'bad-words';
 
 const router = express.Router();
 const profanityFilter = new Filter();

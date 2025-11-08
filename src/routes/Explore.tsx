@@ -33,6 +33,32 @@ export default function Explore() {
           </p>
         </div>
 
+        {/* Guest Notice Banner */}
+        {!user && (
+          <motion.div
+            className="cosmic-card p-4 bg-gradient-to-r from-teal/10 to-sage/10 border-l-4 border-teal"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="flex items-start space-x-3">
+              <div className="w-5 h-5 mt-0.5 text-teal">
+                <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium text-deepSage">
+                  Sign in to see all upcoming programs
+                </p>
+                <p className="text-sm text-textSecondaryLight">
+                  Guests can browse today's programs only. Create an account or sign in to view all future programs and events.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Segmented Control */}
         <ExploreTabs current={currentView} />
         

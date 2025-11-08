@@ -7,7 +7,7 @@ import express from 'express';
 import { db } from '../db.js';
 import { checkins } from '../schema.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
-import { applyLaplaceNoise } from '../lib/differentialPrivacy.js';
+import { addLaplaceNoise } from '../lib/differentialPrivacy.js';
 import { DateTime } from 'luxon';
 
 const router = express.Router();
@@ -92,14 +92,18 @@ router.get('/summary', async (req, res) => {
     // Apply differential privacy noise to ratios
     const noisyRatios = {};
     Object.keys(ratios).forEach(mood => {
-      noisyRatios[mood] = Math.max(0, Math.min(1, applyLaplaceNoise(ratios[mood])));
+      const result = addLaplaceNoise(ratios[mood], 1);
+      noisyRatios[mood] = Math.max(0, Math.min(1, result.value));
     });
+
+    const streakResult = addLaplaceNoise(streak, 1);
+    const varianceResult = addLaplaceNoise(variance, 1);
 
     res.json({
       ratios: noisyRatios,
-      streak: applyLaplaceNoise(streak),
+      streak: streakResult.value,
       dominantMood,
-      variance: applyLaplaceNoise(variance),
+      variance: varianceResult.value,
       totalCheckins: recentCheckins.length,
       privacyProtected: true
     });
