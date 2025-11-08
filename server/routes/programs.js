@@ -9,8 +9,27 @@ const router = express.Router();
 // Get all programs
 router.get('/', async (req, res) => {
   try {
-    // Programs-first approach: Both guests and authenticated users can browse all programs
-    const allPrograms = await db.select().from(programs);
+    const isAuthenticated = !!req.session.userId;
+    
+    let allPrograms;
+    
+    if (!isAuthenticated) {
+      // Guest users: Show programs for the next 30 days (privacy-first with reasonable access)
+      // This balances programs-first discovery with trauma-informed safeguards
+      const edmontonNow = DateTime.now().setZone('America/Edmonton');
+      const windowStart = edmontonNow.startOf('day').toJSDate();
+      const windowEnd = edmontonNow.plus({ days: 30 }).endOf('day').toJSDate();
+      
+      // Show programs within next 30 days OR programs without scheduled dates
+      allPrograms = await db.select().from(programs)
+        .where(
+          sql`${programs.nextStart} IS NULL OR (${programs.nextStart} >= ${windowStart} AND ${programs.nextStart} <= ${windowEnd})`
+        )
+        .limit(50); // Prevent catalog scraping
+    } else {
+      // Authenticated users: show all programs (no limits)
+      allPrograms = await db.select().from(programs);
+    }
     
     res.json(allPrograms);
   } catch (error) {
