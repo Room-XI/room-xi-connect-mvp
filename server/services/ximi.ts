@@ -1,6 +1,9 @@
 import OpenAI from 'openai';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 
+// Initialize OpenAI client with Replit AI Integrations
+// The AI_INTEGRATIONS_OPENAI_API_KEY and AI_INTEGRATIONS_OPENAI_BASE_URL
+// are automatically provided by Replit when the javascript_openai_ai_integrations integration is installed
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY!,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -238,54 +241,111 @@ export async function generateXimiResponse(
     enhancedMessage += `Respond to them using this tone as inspiration: "${contextualResponse}"\n\nUser message: ${userMessage}`;
   }
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        {
-          role: 'user',
-          content: enhancedMessage,
-        },
-      ],
-      temperature: 0.8,
-      max_tokens: 150,
-    });
-
-    const responseText = completion.choices[0]?.message?.content?.trim() || 
-      "I'm here if you want to talk more.";
-
-    // Check if AI detected crisis (should respond with CRISIS_DETECTED_ESCALATE_NOW)
-    if (responseText.includes('CRISIS_DETECTED_ESCALATE_NOW')) {
-      return {
-        message: "I noticed you mentioned something serious. Are you safe right now? If you need immediate help, please reach out to a crisis line: Kids Help Phone 1-800-668-6868 or text CONNECT to 686868.",
-        crisisDetected: true,
-        crisisKeywords: ['ai_detected'],
+  // Retry logic for rate limits and transient errors
+  const maxRetries = 3;
+  let lastError: any;
+  let modelToUse = 'gpt-5';  // Start with gpt-5 (newest model released August 7, 2025)
+  let useGpt5Params = true;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Use gpt-5 model first (newest model released August 7, 2025) via Replit AI Integrations
+      // Note: gpt-5 has specific requirements:
+      // - Uses 'max_completion_tokens' instead of 'max_tokens'
+      // - Only supports temperature of 1 (default)
+      // Fallback to gpt-4o-mini if gpt-5 fails
+      const completionParams: any = {
+        model: modelToUse,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: enhancedMessage,
+          },
+        ],
       };
-    }
 
-    return {
-      message: responseText,
-      crisisDetected: false,
-      crisisKeywords: [],
-    };
-  } catch (error) {
-    console.error('Ximi AI error:', error);
-    
-    // Graceful fallback
-    const fallbackMessage = mode === 'sibling'
-      ? "I'm having trouble thinking right now, but I'm here if you want to keep talking."
-      : "Something's off on my end. Let me know if you want to talk more when I'm back.";
-    
-    return {
-      message: fallbackMessage,
-      crisisDetected: false,
-      crisisKeywords: [],
-    };
+      // Use appropriate parameters based on model
+      if (useGpt5Params) {
+        completionParams.temperature = 1;  // gpt-5 only supports temperature of 1
+        completionParams.max_completion_tokens = 150;  // gpt-5 uses max_completion_tokens
+      } else {
+        completionParams.temperature = 0.8;  // gpt-4o-mini supports temperature tuning
+        completionParams.max_tokens = 150;  // gpt-4o-mini uses max_tokens
+      }
+
+      const completion = await openai.chat.completions.create(completionParams);
+
+      const responseText = completion.choices[0]?.message?.content?.trim() || 
+        "I'm here if you want to talk more.";
+
+      // Check if AI detected crisis (should respond with CRISIS_DETECTED_ESCALATE_NOW)
+      if (responseText.includes('CRISIS_DETECTED_ESCALATE_NOW')) {
+        return {
+          message: "I noticed you mentioned something serious. Are you safe right now? If you need immediate help, please reach out to a crisis line: Kids Help Phone 1-800-668-6868 or text CONNECT to 686868.",
+          crisisDetected: true,
+          crisisKeywords: ['ai_detected'],
+        };
+      }
+
+      return {
+        message: responseText,
+        crisisDetected: false,
+        crisisKeywords: [],
+      };
+    } catch (error: any) {
+      console.error(`Ximi AI error with ${modelToUse} (attempt ${attempt}/${maxRetries}):`, error);
+      lastError = error;
+      
+      // Check if it's a rate limit error (status 429) or a server error (5xx)
+      const status = error?.status || error?.response?.status;
+      const isRateLimitError = status === 429;
+      const isServerError = status >= 500 && status < 600;
+      const isModelNotAvailable = status === 404 || 
+        (error?.message && error.message.includes('model_not_found')) ||
+        (error?.message && error.message.includes('does not exist'));
+      
+      // If gpt-5 is not available or returns empty responses, fallback to gpt-4o-mini
+      if (modelToUse === 'gpt-5' && (isModelNotAvailable || attempt === 1)) {
+        console.log('gpt-5 not available or not responding properly, falling back to gpt-4o-mini...');
+        modelToUse = 'gpt-4o-mini';
+        useGpt5Params = false;
+        // Don't count this as a retry attempt, just switch models
+        attempt--;
+        continue;
+      }
+      
+      // If it's a rate limit or server error and we have retries left, wait and retry
+      if ((isRateLimitError || isServerError) && attempt < maxRetries) {
+        // Exponential backoff with jitter: 1s, 2s, 4s
+        const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 4000) + Math.random() * 1000;
+        console.log(`Retrying after ${Math.round(backoffMs)}ms due to ${isRateLimitError ? 'rate limit' : 'server error'}...`);
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        continue;
+      }
+      
+      // If it's not a retryable error or we're out of retries, break
+      break;
+    }
   }
+  
+  // Log the final error for debugging (using Replit AI Integrations)
+  console.error('Ximi AI failed after all retries:', lastError);
+  console.log('Ensure AI_INTEGRATIONS_OPENAI_API_KEY and AI_INTEGRATIONS_OPENAI_BASE_URL are set by Replit AI Integrations');
+  
+  // Graceful fallback
+  const fallbackMessage = mode === 'sibling'
+    ? "I'm having trouble thinking right now, but I'm here if you want to keep talking."
+    : "Something's off on my end. Let me know if you want to talk more when I'm back.";
+  
+  return {
+    message: fallbackMessage,
+    crisisDetected: false,
+    crisisKeywords: [],
+  };
 }
 
 // Generate contextual Ximi message based on mood and stage
