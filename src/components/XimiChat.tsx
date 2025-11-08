@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Sparkles, Users, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 
 interface Message {
   id: string;
@@ -17,6 +18,7 @@ interface XimiChatProps {
 }
 
 export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiChatProps) {
+  const { needsGuardianVerification } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -174,6 +176,27 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
               </button>
             </div>
 
+            {/* Guardian Verification Warning */}
+            {needsGuardianVerification && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                className="bg-amber-50 border-b border-amber-200 p-3"
+              >
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-amber-900 font-medium">
+                      Guardian Verification Required
+                    </p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      A parent or guardian needs to verify your account before you can chat with Ximi.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Crisis Warning */}
             {showCrisisWarning && (
               <motion.div
@@ -247,14 +270,14 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                 />
                 <motion.button
                   type="submit"
-                  disabled={!inputMessage.trim() || isSending}
+                  disabled={!inputMessage.trim() || isSending || needsGuardianVerification}
                   className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    inputMessage.trim() && !isSending
+                    inputMessage.trim() && !isSending && !needsGuardianVerification
                       ? 'bg-gradient-to-br from-purple-500 to-teal text-cream'
                       : 'bg-sage/20 text-textSecondaryLight cursor-not-allowed'
                   }`}
-                  whileHover={inputMessage.trim() && !isSending ? { scale: 1.05 } : {}}
-                  whileTap={inputMessage.trim() && !isSending ? { scale: 0.95 } : {}}
+                  whileHover={inputMessage.trim() && !isSending && !needsGuardianVerification ? { scale: 1.05 } : {}}
+                  whileTap={inputMessage.trim() && !isSending && !needsGuardianVerification ? { scale: 0.95 } : {}}
                 >
                   {isSending ? (
                     <div className="w-4 h-4 border-2 border-cream border-t-transparent rounded-full animate-spin" />

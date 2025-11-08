@@ -6,30 +6,80 @@ interface ApiResponse<T = any> {
   error?: string;
 }
 
+// CSRF token cache
+let csrfToken: string | null = null;
+
+/**
+ * Fetch CSRF token from server
+ */
+async function getCsrfToken(): Promise<string> {
+  if (csrfToken) {
+    return csrfToken;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/csrf-token`, {
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      csrfToken = data.csrfToken;
+      return csrfToken || '';
+    }
+  } catch (error) {
+    console.error('Failed to fetch CSRF token:', error);
+  }
+  
+  return '';
+}
+
 async function fetchApi<T = any>(
   endpoint: string,
   options?: RequestInit
 ): Promise<ApiResponse<T>> {
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options?.headers as Record<string, string>),
+    };
+
+    // Add CSRF token for state-changing requests
+    if (options?.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
+      const token = await getCsrfToken();
+      if (token) {
+        headers['X-CSRF-Token'] = token;
+      }
+    }
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
       ...options,
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      return { error: data.error || 'An error occurred' };
+      // If CSRF token is invalid, clear it and retry once
+      if (response.status === 403 && data.error === 'Invalid CSRF token') {
+        csrfToken = null;
+        // Could retry here, but for now just return the error
+      }
+      return { error: data.error || data.message || 'An error occurred' };
     }
 
     return { data };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Network error' };
   }
+}
+
+/**
+ * Clear CSRF token (call on logout)
+ */
+export function clearCsrfToken() {
+  csrfToken = null;
 }
 
 export const api = {
@@ -45,10 +95,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       }),
-    logout: () =>
-      fetchApi('/auth/logout', {
+    logout: async () => {
+      clearCsrfToken();
+      return fetchApi('/auth/logout', {
         method: 'POST',
-      }),
+      });
+    },
     getUser: () => fetchApi('/auth/me'),
     resetPassword: (email: string) =>
       fetchApi('/auth/reset-password', {

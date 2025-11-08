@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { BookOpen, Sparkles, Send, CheckCircle } from 'lucide-react';
+import { BookOpen, Sparkles, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSession } from '@/lib/session';
 import api from '@/lib/api';
@@ -24,7 +24,7 @@ interface Message {
 }
 
 export default function Journal() {
-  const { user } = useSession();
+  const { user, needsGuardianVerification } = useSession();
   const [mode, setMode] = useState<'alone' | 'peer'>('alone');
   const [mood, setMood] = useState<MoodKey>('clear');
   const [content, setContent] = useState('');
@@ -198,6 +198,28 @@ export default function Journal() {
   return (
     <>
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Guardian Verification Banner */}
+        {needsGuardianVerification && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 mb-6"
+          >
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-amber-900 mb-1">
+                  Guardian Verification Required
+                </h3>
+                <p className="text-sm text-amber-800 leading-relaxed">
+                  To use the journaling features, a parent or guardian needs to verify your account. 
+                  They should have received a verification email. Journaling will be available once verified.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-cosmic-midnight flex items-center gap-3 mb-6">
             <BookOpen className="w-8 h-8 text-cosmic-teal" />
@@ -207,11 +229,12 @@ export default function Journal() {
           <div className="flex gap-2 bg-gray-100 p-1 rounded-xl mb-6">
             <button
               onClick={() => handleModeChange('alone')}
+              disabled={needsGuardianVerification}
               className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
                 mode === 'alone'
                   ? 'bg-white text-cosmic-teal shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+              } ${needsGuardianVerification ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center justify-center gap-2">
                 <BookOpen className="w-5 h-5" />
@@ -220,11 +243,12 @@ export default function Journal() {
             </button>
             <button
               onClick={() => handleModeChange('peer')}
+              disabled={needsGuardianVerification}
               className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
                 mode === 'peer'
                   ? 'bg-white text-cosmic-purple shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+              } ${needsGuardianVerification ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center justify-center gap-2">
                 <Sparkles className="w-5 h-5" />

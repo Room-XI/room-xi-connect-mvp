@@ -17,6 +17,11 @@ const PgStore = pgSession(session);
 async function createServer() {
   const app = express();
   
+  // CRITICAL SECURITY: Enforce SESSION_SECRET in production
+  if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+    throw new Error('SESSION_SECRET environment variable is required in production. Set a strong random secret.');
+  }
+  
   // Verify email configuration on startup
   await verifyEmailConfig();
   
@@ -27,15 +32,19 @@ async function createServer() {
       pool,
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || 'room-xi-connect-secret-change-in-production',
+    secret: process.env.SESSION_SECRET || 'room-xi-dev-secret-DEVELOPMENT-ONLY',
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
+      sameSite: 'strict', // CSRF protection
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     }
   }));
+
+  // Import security middleware
+  const { validateCsrfToken, requireGuardianVerification } = await import('./middleware/security.ts');
 
   // Import API routes
   const { default: authRoutes } = await import('./routes/auth.js');
@@ -60,28 +69,30 @@ async function createServer() {
   const { default: skipTokenRoutes } = await import('./routes/skip-token.js');
   const { default: moodDropRoutes } = await import('./routes/mood-drop.js');
 
-  // API routes
+  // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   app.use('/api/auth', authRoutes);
   app.use('/api/programs', programRoutes);
-  app.use('/api/checkins', checkinRoutes);
-  app.use('/api/profile', profileRoutes);
-  app.use('/api/xid', xidRoutes);
-  app.use('/api/consent', consentRoutes);
   app.use('/api/crisis', crisisRoutes);
-  app.use('/api/ximi', ximiRoutes);
-  app.use('/api/admin', adminRoutes);
-  app.use('/api/org', orgRoutes);
-  app.use('/api/privacy', privacyRoutes);
   app.use('/api/transparency', transparencyRoutes);
-  app.use('/api/journal', journalRoutes);
-  app.use('/api/achievements', achievementsRoutes);
-  app.use('/api/kpi', kpiRoutes);
-  app.use('/api/orb-snapshots', orbSnapshotsRoutes);
-  app.use('/api/quotes', quotesRoutes);
-  app.use('/api/notifications', notificationsRoutes);
-  app.use('/api/orb', orbRoutes);
-  app.use('/api/skip-token', skipTokenRoutes);
-  app.use('/api/mood-drop', moodDropRoutes);
+  
+  // Protected routes requiring CSRF token
+  app.use('/api/checkins', validateCsrfToken, requireGuardianVerification, checkinRoutes);
+  app.use('/api/profile', validateCsrfToken, profileRoutes);
+  app.use('/api/xid', validateCsrfToken, requireGuardianVerification, xidRoutes);
+  app.use('/api/consent', validateCsrfToken, consentRoutes);
+  app.use('/api/ximi', validateCsrfToken, requireGuardianVerification, ximiRoutes);
+  app.use('/api/journal', validateCsrfToken, requireGuardianVerification, journalRoutes);
+  app.use('/api/admin', validateCsrfToken, adminRoutes);
+  app.use('/api/org', validateCsrfToken, orgRoutes);
+  app.use('/api/privacy', validateCsrfToken, privacyRoutes);
+  app.use('/api/achievements', validateCsrfToken, achievementsRoutes);
+  app.use('/api/kpi', validateCsrfToken, kpiRoutes);
+  app.use('/api/orb-snapshots', validateCsrfToken, orbSnapshotsRoutes);
+  app.use('/api/quotes', validateCsrfToken, quotesRoutes);
+  app.use('/api/notifications', validateCsrfToken, notificationsRoutes);
+  app.use('/api/orb', validateCsrfToken, orbRoutes);
+  app.use('/api/skip-token', validateCsrfToken, skipTokenRoutes);
+  app.use('/api/mood-drop', validateCsrfToken, moodDropRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({

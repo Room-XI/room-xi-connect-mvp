@@ -58,8 +58,44 @@ I prefer simple language. I want iterative development. Ask before making major 
 - **Zeffy:** Donation platform, linked via a fixed "Donate" button.
 - **CanManDan, JumpStart, Allendale Community, Duggan Community, YMCA of Northern Alberta, OTB Basketball:** Partner organizations.
 
+## Required Environment Variables
+
+### Production Requirements (CRITICAL)
+- **SESSION_SECRET**: Cryptographically secure secret for session encryption (required in production, auto-generated in dev)
+  - Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+  - **SECURITY WARNING**: Never commit this to version control
+
+### Database
+- **DATABASE_URL**: Neon PostgreSQL connection string (auto-configured in Replit)
+  - Format: `postgresql://user:password@host/database?sslmode=require`
+
+### Email Service (Guardian Verification)
+- **GMAIL_USER**: Gmail address for sending guardian verification emails
+- **GMAIL_APP_PASSWORD**: Gmail app-specific password (not your regular password)
+  - Setup: https://support.google.com/accounts/answer/185833
+  - Required for users under 16 (guardian verification flow)
+
+### Optional/Development
+- **NODE_ENV**: Set to `production` in production environments (affects cookie security, logging)
+- **PORT**: Server port (default: 3000, Replit uses 5000 for frontend)
+
+## Test Accounts
+
+### Live Test Account (Created via API)
+- **Email**: test@roomxi.example.com
+- **Password**: TestPassword123!
+- **Age**: 17 (no guardian verification required)
+- **Access**: Full access to all features
+
+### Seeded Test Accounts (via `npm run seed-test-accounts`)
+Run `tsx scripts/seed-test-accounts.ts` to create:
+1. **youth17@roomxi.test** - Age 17, no guardian verification needed
+2. **youth15unverified@roomxi.test** - Age 15, pending guardian verification
+3. **youth15verified@roomxi.test** - Age 15, guardian verified, full access
+- All passwords: TestPassword123!
+
 ## Notes for Future Development
-- **Guardian Verification Email:** Implemented using Gmail SMTP (nodemailer). Guardian verification links are sent via email to guardians when youth under 16 sign up. Requires GMAIL_USER and GMAIL_APP_PASSWORD environment variables. See DEVELOPER_HANDOFF.md for setup instructions.
+- **Guardian Verification Email:** Implemented using Gmail SMTP (nodemailer). Guardian verification links are sent via email to guardians when youth under 16 sign up. Requires GMAIL_USER and GMAIL_APP_PASSWORD environment variables. See above for setup instructions.
 
 ## Recent Technical Updates (Oct 31, 2025)
 - **Database Connection Resilience:** Added retry logic with exponential backoff in `server/db.ts` to handle transient connection failures.

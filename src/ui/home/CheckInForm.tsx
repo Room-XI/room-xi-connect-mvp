@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { addToQueue } from '@/lib/queue';
 import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { MOODS, type MoodKey } from '@/lib/moodConfig';
 import { WELLNESS_DIMENSIONS, type WellnessDimensionKey } from '@/lib/wellnessConfig';
 
@@ -19,6 +20,7 @@ const affectOptions = [
 ];
 
 export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormProps) {
+  const { needsGuardianVerification, user } = useSession();
   const [step, setStep] = useState(1);
   const [selectedMood, setSelectedMood] = useState<MoodKey | null>(null);
   const [selectedDimensions, setSelectedDimensions] = useState<WellnessDimensionKey[]>([]);
@@ -136,6 +138,28 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         >
           <div className="p-6 space-y-6">
+            {/* Guardian Verification Banner */}
+            {needsGuardianVerification && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 mb-4"
+              >
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-amber-900 mb-1">
+                      Guardian Verification Required
+                    </h3>
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      To start checking in, a parent or guardian needs to verify your account. 
+                      They should have received a verification email. Check-ins will be available once verified.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -340,18 +364,20 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                   {/* Submit Button */}
                   <motion.button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || needsGuardianVerification}
                     className={`w-full cosmic-button ${
-                      isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                      isSubmitting || needsGuardianVerification ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
-                    whileHover={!isSubmitting ? { scale: 1.02 } : {}}
-                    whileTap={!isSubmitting ? { scale: 0.98 } : {}}
+                    whileHover={!isSubmitting && !needsGuardianVerification ? { scale: 1.02 } : {}}
+                    whileTap={!isSubmitting && !needsGuardianVerification ? { scale: 0.98 } : {}}
                   >
                     {isSubmitting ? (
                       <div className="flex items-center justify-center space-x-2">
                         <div className="w-4 h-4 border-2 border-deepSage border-t-transparent rounded-full animate-spin" />
                         <span>Saving...</span>
                       </div>
+                    ) : needsGuardianVerification ? (
+                      'Guardian Verification Required'
                     ) : (
                       'Save Check-in'
                     )}

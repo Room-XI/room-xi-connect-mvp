@@ -120,10 +120,6 @@ export const profiles = pgTable("profiles", {
   ximiConsent: boolean("ximi_consent").default(false),
   ximiMode: text("ximi_mode").default("sibling"),
   
-  // Daily quotes tracking
-  lastQuoteDate: date("last_quote_date"),
-  lastQuoteId: integer("last_quote_id"),
-  
   mood: text("mood"),
   
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

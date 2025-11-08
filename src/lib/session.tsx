@@ -4,6 +4,9 @@ import api from './api';
 interface User {
   id: string;
   email: string;
+  age?: number;
+  requiresGuardianVerification?: boolean;
+  guardianVerifiedAt?: string | null;
   [key: string]: any;
 }
 
@@ -12,6 +15,7 @@ interface SessionContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  needsGuardianVerification: boolean;
 }
 
 const SessionContext = createContext<SessionContextType>({
@@ -19,6 +23,7 @@ const SessionContext = createContext<SessionContextType>({
   loading: true,
   signOut: async () => {},
   refreshSession: async () => {},
+  needsGuardianVerification: false,
 });
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -56,8 +61,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     window.location.href = '/';
   };
 
+  const needsGuardianVerification = Boolean(
+    user?.requiresGuardianVerification && !user?.guardianVerifiedAt
+  );
+
   return (
-    <SessionContext.Provider value={{ user, loading, signOut, refreshSession }}>
+    <SessionContext.Provider value={{ user, loading, signOut, refreshSession, needsGuardianVerification }}>
       {children}
     </SessionContext.Provider>
   );

@@ -106,3 +106,72 @@ export const rateLimitConfig = {
     message: 'Too many password reset attempts, please try again later.',
   },
 };
+
+/**
+ * CSRF Protection
+ */
+import crypto from 'crypto';
+
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+    email?: string;
+    csrfToken?: string;
+    requiresGuardianVerification?: boolean;
+    guardianVerifiedAt?: string | null;
+    age?: number;
+  }
+}
+
+/**
+ * Generate a CSRF token for the session
+ */
+export function generateCsrfToken(req: Request): string {
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  return req.session.csrfToken;
+}
+
+/**
+ * Middleware to validate CSRF tokens on state-changing requests
+ */
+export function validateCsrfToken(req: Request, res: Response, next: NextFunction) {
+  // Skip CSRF validation for GET, HEAD, OPTIONS (safe methods)
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+
+  // Get token from header or body
+  const token = req.headers['x-csrf-token'] || req.body._csrf;
+
+  // Validate token
+  if (!token || token !== req.session.csrfToken) {
+    return res.status(403).json({
+      error: 'Invalid CSRF token',
+      message: 'Your session may have expired. Please refresh the page and try again.'
+    });
+  }
+
+  next();
+}
+
+/**
+ * Middleware to enforce guardian verification for users under 16
+ */
+export function requireGuardianVerification(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Check if user is under 16 and not yet verified
+  if (req.session.requiresGuardianVerification && !req.session.guardianVerifiedAt) {
+    return res.status(403).json({
+      error: 'Guardian verification required',
+      message: 'You need guardian approval to access this feature. Please check your guardian\'s email for a verification link.',
+      requiresGuardianVerification: true
+    });
+  }
+
+  next();
+}

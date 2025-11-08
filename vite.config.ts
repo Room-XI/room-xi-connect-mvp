@@ -1,9 +1,16 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    setupFiles: [],
+    include: ['server/__tests__/**/*.test.ts'],
+  },
   plugins: [
     react(),
     VitePWA({
