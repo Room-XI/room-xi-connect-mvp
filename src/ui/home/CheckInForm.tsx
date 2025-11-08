@@ -131,13 +131,13 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
         
         {/* Sheet */}
         <motion.div
-          className="cosmic-sheet"
+          className="cosmic-sheet max-h-[90vh] flex flex-col"
           initial={{ transform: 'translateY(100%)' }}
           animate={{ transform: 'translateY(0)' }}
           exit={{ transform: 'translateY(100%)' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         >
-          <div className="p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-32">
             {/* Guardian Verification Banner */}
             {needsGuardianVerification && (
               <motion.div

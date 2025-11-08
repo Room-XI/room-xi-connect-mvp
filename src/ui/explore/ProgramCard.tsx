@@ -148,7 +148,7 @@ export default function ProgramCard({ program }: ProgramCardProps) {
         <motion.button
           onClick={toggleSave}
           disabled={isToggling}
-          className={`absolute top-4 right-4 p-2 rounded-lg transition-all duration-200 ${
+          className={`absolute top-4 right-4 p-3 rounded-lg transition-all duration-200 ${
             isSaved 
               ? 'text-gold bg-gold/10 hover:bg-gold/20' 
               : 'text-textSecondaryLight hover:text-gold hover:bg-gold/10'
