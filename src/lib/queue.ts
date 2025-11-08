@@ -22,7 +22,9 @@ interface AttendanceData {
 }
 
 interface ProgramData {
-  programId: string;
+  programId?: string;
+  program_id?: string;
+  user_id?: string;
 }
 
 type QueueData = CheckinData | AttendanceData | ProgramData;
@@ -41,6 +43,7 @@ interface QueueDB extends DBSchema {
   queue: {
     key: string;
     value: QueueItem;
+    indexes: { 'timestamp': number; 'type': string; };
   };
 }
 
@@ -138,7 +141,7 @@ export async function getQueueItems(): Promise<QueueItem[]> {
 async function processQueueItem(item: QueueItem): Promise<boolean> {
   try {
     // Decrypt the data
-    const data = item.encrypted ? await decryptData(item.data) : item.data;
+    const data = item.encrypted ? (typeof item.data === 'string' ? await decryptData(item.data) : item.data) : item.data;
     
     switch (item.type) {
       case 'checkin': {
@@ -162,13 +165,19 @@ async function processQueueItem(item: QueueItem): Promise<boolean> {
         
       case 'save_program': {
         const programData = data as ProgramData;
-        await api.programs.save(programData.programId);
+        const programId = programData.programId || programData.program_id;
+        if (programId) {
+          await api.programs.saved.add(programId);
+        }
         break;
       }
         
       case 'unsave_program': {
         const programData = data as ProgramData;
-        await api.programs.unsave(programData.programId);
+        const programId = programData.programId || programData.program_id;
+        if (programId) {
+          await api.programs.saved.remove(programId);
+        }
         break;
       }
         
