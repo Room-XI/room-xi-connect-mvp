@@ -1,7 +1,7 @@
 import express from 'express';
 import { db } from '../db.js';
 import { privacyConsents, consentAuditLog, consentReminders, dpApplications, xids } from '../schema.js';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import crypto from 'crypto';
 import { applyDPToStats, logDPApplication } from '../lib/differentialPrivacy.js';
 
@@ -306,6 +306,132 @@ router.post('/reminder-response', async (req, res) => {
   } catch (error) {
     console.error('Error recording reminder response:', error);
     res.status(500).json({ error: 'Failed to record response' });
+  }
+});
+
+/**
+ * GET /api/privacy/export
+ * Export all user data (PIPEDA/GDPR compliance)
+ */
+router.get('/export', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { checkins, profiles, savedPrograms, journalEntries, ximiConversations, healthProfiles, attendance } = await import('../schema.js');
+    
+    // Get user profile
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, req.session.userId))
+      .limit(1);
+
+    // Get check-ins
+    const userCheckins = await db
+      .select()
+      .from(checkins)
+      .where(eq(checkins.userId, req.session.userId))
+      .orderBy(desc(checkins.timestamp));
+
+    // Get saved programs
+    const userSavedPrograms = await db
+      .select()
+      .from(savedPrograms)
+      .where(eq(savedPrograms.userId, req.session.userId));
+
+    // Get journal entries
+    const userJournalEntries = await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.userId, req.session.userId))
+      .orderBy(desc(journalEntries.createdAt));
+
+    // Get Ximi conversations
+    const userXimiConversations = await db
+      .select()
+      .from(ximiConversations)
+      .where(eq(ximiConversations.userId, req.session.userId))
+      .orderBy(desc(ximiConversations.createdAt));
+
+    // Get health profile (if exists)
+    const [healthProfile] = await db
+      .select()
+      .from(healthProfiles)
+      .where(eq(healthProfiles.userId, req.session.userId))
+      .limit(1);
+
+    // Get attendance records via user's XID
+    const userXidsData = await db
+      .select({ xidId: xids.id })
+      .from(xids)
+      .where(and(
+        eq(xids.userId, req.session.userId),
+        sql`${xids.tombstonedAt} IS NULL`
+      ));
+    
+    const userXidIds = userXidsData.map(x => x.xidId);
+    
+    let userAttendance = [];
+    if (userXidIds.length > 0) {
+      userAttendance = await db
+        .select()
+        .from(attendance)
+        .where(inArray(attendance.xidId, userXidIds))
+        .orderBy(desc(attendance.timestamp));
+    }
+
+    // Get privacy consents
+    const [privacyConsentData] = await db
+      .select()
+      .from(privacyConsents)
+      .where(eq(privacyConsents.userId, req.session.userId))
+      .limit(1);
+
+    // Get consent audit log
+    const userXid = await getUserXid(req.session.userId);
+    const auditLogs = await db
+      .select()
+      .from(consentAuditLog)
+      .where(eq(consentAuditLog.userXid, userXid))
+      .orderBy(desc(consentAuditLog.timestamp));
+
+    // Compile all data
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      userId: req.session.userId,
+      profile: profile || null,
+      checkins: userCheckins || [],
+      savedPrograms: userSavedPrograms || [],
+      journalEntries: userJournalEntries || [],
+      ximiConversations: userXimiConversations || [],
+      healthProfile: healthProfile || null,
+      attendance: userAttendance || [],
+      privacyConsents: privacyConsentData || null,
+      consentAuditLog: auditLogs || [],
+    };
+
+    // Log export event
+    await logConsentChange(
+      req.session.userId,
+      'data_export',
+      null,
+      true,
+      'export_request',
+      req
+    );
+
+    // Set filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `room-xi-data-export-${timestamp}.json`;
+
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.json(exportData);
+  } catch (error) {
+    console.error('Error exporting user data:', error);
+    res.status(500).json({ error: 'Failed to export data' });
   }
 });
 

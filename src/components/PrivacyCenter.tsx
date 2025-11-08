@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Info,
   Battery,
-  Quote
+  Quote,
+  Download
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -119,6 +120,7 @@ function PrivacyCenter() {
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
@@ -491,6 +493,48 @@ function PrivacyCenter() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Export Data Button */}
+      <button
+        onClick={async () => {
+          try {
+            setExporting(true);
+            setError(null);
+            
+            const response = await api.get('/api/privacy/export');
+            
+            // Create blob and download
+            const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+              type: 'application/json'
+            });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `room-xi-data-export-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+          } catch (err: any) {
+            console.error('Error exporting data:', err);
+            setError('Failed to export data. Please try again.');
+          } finally {
+            setExporting(false);
+          }
+        }}
+        disabled={exporting}
+        className="w-full cosmic-card p-4 hover:bg-sage/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <div className="flex items-center justify-center gap-3">
+          <Download className="w-5 h-5 text-sage" />
+          <span className="font-medium text-deepSage">
+            {exporting ? 'Exporting Data...' : 'Export My Data'}
+          </span>
+        </div>
+        <p className="text-xs text-textSecondaryLight mt-2 text-center">
+          Download all your data in JSON format (PIPEDA compliant)
+        </p>
+      </button>
 
       {/* Privacy Notice */}
       <div className="cosmic-card p-4 bg-blue-50/50 border-blue-200/20">
