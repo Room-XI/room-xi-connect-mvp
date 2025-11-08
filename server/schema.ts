@@ -42,6 +42,7 @@ export const programs = pgTable("programs", {
   lat: text("lat"),
   lng: text("lng"),
   organizer: text("organizer"),
+  orgId: uuid("org_id"),
   website: text("website"),
   accessibilityNotes: text("accessibility_notes"),
   nextStart: timestamp("next_start", { withTimezone: true }),

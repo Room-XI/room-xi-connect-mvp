@@ -123,6 +123,18 @@ export const api = {
   programs: {
     list: () => fetchApi('/programs'),
     get: (id: string) => fetchApi(`/programs/${id}`),
+    create: (data: any) =>
+      fetchApi('/programs', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      fetchApi(`/programs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      fetchApi(`/programs/${id}`, { method: 'DELETE' }),
     getSaved: () => fetchApi('/programs/saved'),
     save: (programId: string) => fetchApi(`/programs/saved/${programId}`, { method: 'POST' }),
     unsave: (programId: string) => fetchApi(`/programs/saved/${programId}`, { method: 'DELETE' }),

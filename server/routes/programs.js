@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db.js';
-import { programs, savedPrograms } from '../schema.js';
+import { programs, savedPrograms, profiles, orgMembers } from '../schema.js';
 import { eq, and, sql, gte, lte } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 
@@ -113,6 +113,176 @@ router.delete('/saved/:programId', async (req, res) => {
     res.json({ message: 'Program unsaved' });
   } catch (error) {
     console.error('Unsave program error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a program (org admin only)
+router.post('/', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userOrgs = await db
+      .select({ orgId: orgMembers.orgId, role: orgMembers.role })
+      .from(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, req.session.userId),
+        eq(orgMembers.active, true)
+      ));
+
+    if (userOrgs.length === 0) {
+      return res.status(403).json({ error: 'No organization membership found' });
+    }
+
+    const hasAdminRole = userOrgs.some(org => org.role === 'org_admin' || org.role === 'admin');
+    if (!hasAdminRole) {
+      return res.status(403).json({ error: 'Organization admin role required' });
+    }
+
+    const [newProgram] = await db.insert(programs).values({
+      title: req.body.title,
+      description: req.body.description || null,
+      longDescription: req.body.long_description || null,
+      tags: req.body.tags || [],
+      free: req.body.free ?? true,
+      costCents: req.body.cost_cents || null,
+      locationName: req.body.location_name || null,
+      address: req.body.address || null,
+      organizer: req.body.organizer || null,
+      orgId: userOrgs[0].orgId,
+      contactEmail: req.body.contact_email || null,
+      contactPhone: req.body.contact_phone || null,
+      websiteUrl: req.body.website_url || null,
+      capacity: req.body.capacity || null,
+      ageMin: req.body.age_min || null,
+      ageMax: req.body.age_max || null,
+      indoor: req.body.indoor ?? false,
+      outdoor: req.body.outdoor ?? false,
+    }).returning();
+
+    res.status(201).json(newProgram);
+  } catch (error) {
+    console.error('Create program error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update a program (org admin only)
+router.put('/:id', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userOrgs = await db
+      .select({ orgId: orgMembers.orgId, role: orgMembers.role })
+      .from(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, req.session.userId),
+        eq(orgMembers.active, true)
+      ));
+
+    if (userOrgs.length === 0) {
+      return res.status(403).json({ error: 'No organization membership found' });
+    }
+
+    const hasAdminRole = userOrgs.some(org => org.role === 'org_admin' || org.role === 'admin');
+    if (!hasAdminRole) {
+      return res.status(403).json({ error: 'Organization admin role required' });
+    }
+
+    const orgIds = userOrgs.map(o => o.orgId);
+
+    const [existingProgram] = await db
+      .select()
+      .from(programs)
+      .where(eq(programs.id, req.params.id))
+      .limit(1);
+
+    if (!existingProgram) {
+      return res.status(404).json({ error: 'Program not found' });
+    }
+
+    if (!orgIds.includes(existingProgram.orgId)) {
+      return res.status(403).json({ error: 'Cannot modify programs from other organizations' });
+    }
+
+    const [updatedProgram] = await db.update(programs)
+      .set({
+        title: req.body.title,
+        description: req.body.description || null,
+        longDescription: req.body.long_description || null,
+        tags: req.body.tags || [],
+        free: req.body.free ?? true,
+        costCents: req.body.cost_cents || null,
+        locationName: req.body.location_name || null,
+        address: req.body.address || null,
+        organizer: req.body.organizer || null,
+        contactEmail: req.body.contact_email || null,
+        contactPhone: req.body.contact_phone || null,
+        websiteUrl: req.body.website_url || null,
+        capacity: req.body.capacity || null,
+        ageMin: req.body.age_min || null,
+        ageMax: req.body.age_max || null,
+        indoor: req.body.indoor ?? false,
+        outdoor: req.body.outdoor ?? false,
+      })
+      .where(eq(programs.id, req.params.id))
+      .returning();
+
+    res.json(updatedProgram);
+  } catch (error) {
+    console.error('Update program error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a program (org admin only)
+router.delete('/:id', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userOrgs = await db
+      .select({ orgId: orgMembers.orgId, role: orgMembers.role })
+      .from(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, req.session.userId),
+        eq(orgMembers.active, true)
+      ));
+
+    if (userOrgs.length === 0) {
+      return res.status(403).json({ error: 'No organization membership found' });
+    }
+
+    const hasAdminRole = userOrgs.some(org => org.role === 'org_admin' || org.role === 'admin');
+    if (!hasAdminRole) {
+      return res.status(403).json({ error: 'Organization admin role required' });
+    }
+
+    const orgIds = userOrgs.map(o => o.orgId);
+
+    const [existingProgram] = await db
+      .select()
+      .from(programs)
+      .where(eq(programs.id, req.params.id))
+      .limit(1);
+
+    if (!existingProgram) {
+      return res.status(404).json({ error: 'Program not found' });
+    }
+
+    if (!orgIds.includes(existingProgram.orgId)) {
+      return res.status(403).json({ error: 'Cannot delete programs from other organizations' });
+    }
+
+    await db.delete(programs).where(eq(programs.id, req.params.id));
+    res.json({ message: 'Program deleted' });
+  } catch (error) {
+    console.error('Delete program error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

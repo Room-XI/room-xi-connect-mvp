@@ -19,11 +19,13 @@ import About from './routes/About';
 import TermsOfService from './routes/TermsOfService';
 import PrivacyPolicy from './routes/PrivacyPolicy';
 import CheckInHistory from './routes/CheckInHistory';
+import SavedPrograms from './routes/SavedPrograms';
 import ErrorBoundary from './ui/ErrorBoundary';
 import Journal from './routes/Journal';
 import VerifyConsent from './routes/VerifyConsent';
 import GuardianVerify from './routes/GuardianVerify';
 import OrgDashboard from './routes/org/Dashboard';
+import ProgramManagement from './routes/org/ProgramManagement';
 import { TransparencyDashboard } from './components/TransparencyDashboard';
 import { PrivacyCenter } from './components/PrivacyCenter';
 import { LivingJournal } from './components/LivingJournal';
@@ -52,11 +54,13 @@ export const router = createBrowserRouter([
       { path: 'terms-of-service', element: <TermsOfService /> },
       { path: 'privacy-policy', element: <PrivacyPolicy /> },
       { path: 'check-in-history', element: <CheckInHistory /> },
+      { path: 'saved-programs', element: <SavedPrograms /> },
       { path: 'journal', element: <Journal /> },
       { path: 'living-journal', element: <LivingJournal /> },
       { path: 'verify-consent/:token', element: <VerifyConsent /> },
       { path: 'guardian/verify/:token', element: <GuardianVerify /> },
       { path: 'org/dashboard', element: <OrgDashboard /> },
+      { path: 'org/programs', element: <ProgramManagement /> },
       { path: 'kpi-dashboard', element: <KPIDashboard /> },
       { path: 'transparency', element: <TransparencyDashboard /> },
       { path: 'privacy-center', element: <PrivacyCenter /> },
