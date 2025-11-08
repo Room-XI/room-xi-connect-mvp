@@ -1,7 +1,33 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { db } from '../db.js';
+import { dpApplications } from '../schema.js';
 import { addLaplaceNoise, applyDPToStats, applyDifferentialPrivacy } from '../lib/differentialPrivacy.js';
+import { addNoiseWithLogging, applyDPWithLogging } from '../middleware/differentialPrivacy.js';
 import { Parser } from 'json2csv';
+
+// Helper to log DP application
+async function logDPToDatabase(operation, tableName, originalCount, noiseAdded, suppressed, suppressionReason = null) {
+  try {
+    await db.insert(dpApplications).values({
+      operation,
+      tableName: tableName || null,
+      queryType: 'aggregate',
+      originalCount: originalCount || null,
+      noiseAdded,
+      epsilon: '0.50',
+      mechanism: 'laplace',
+      suppressed,
+      suppressionReason: suppressionReason || null,
+      metadata: {
+        timestamp: new Date().toISOString(),
+        source: 'kpi_endpoint'
+      }
+    });
+  } catch (error) {
+    console.error('[KPI DP Logging] Failed to log DP application:', error);
+  }
+}
 
 const router = express.Router();
 
@@ -58,28 +84,38 @@ router.get('/daily-checkins', checkKPIPermission, async (req, res) => {
     
     const result = await pool.query(query);
     
-    // Apply differential privacy to each row
-    const noisyData = result.rows.map(row => {
+    // Apply differential privacy to each row with logging
+    const noisyData = await Promise.all(result.rows.map(async (row) => {
       if (row.privacy_status === 'suppressed') {
+        await logDPToDatabase('kpi_daily_checkins', 'checkins', row.dau || 0, false, true, 'Below threshold N<7');
         return { ...row, dau: null, total_checkins: null, checkins_per_user: null };
       }
       
       const noisyDau = addLaplaceNoise(row.dau, 1, 0.5);
       const noisyCheckins = addLaplaceNoise(row.total_checkins, 1, 0.5);
       
+      // Log DP application
+      await logDPToDatabase('kpi_daily_checkins', 'checkins', row.dau, noisyDau.noiseAdded, false);
+      
       return {
         ...row,
         dau: noisyDau.value,
         total_checkins: noisyCheckins.value,
         checkins_per_user: noisyDau.value > 0 ? (noisyCheckins.value / noisyDau.value).toFixed(2) : 0,
-        dp_applied: true
+        dp_applied: true,
+        nCount: row.dau
       };
-    });
+    }));
     
     res.json({
       data: noisyData,
       range: days,
-      generated_at: new Date().toISOString()
+      generated_at: new Date().toISOString(),
+      metadata: {
+        dpApplied: true,
+        epsilon: 0.5,
+        minThreshold: 7
+      }
     });
   } catch (error) {
     console.error('Error fetching daily check-ins:', error);
@@ -107,16 +143,34 @@ router.get('/streak-completion', checkKPIPermission, async (req, res) => {
       });
     }
     
-    // Apply differential privacy
-    const noisyData = applyDPToStats({
+    // Apply differential privacy with logging
+    const noisyData = await applyDPWithLogging({
       total_active_users: row.total_active_users,
       users_with_streak: row.users_with_streak,
       streak_completion_percent: row.streak_completion_percent
-    }, row.total_active_users);
+    }, row.total_active_users, 'kpi_streak_completion', 'profiles');
+    
+    // Check if suppressed
+    if (noisyData.suppressed) {
+      return res.json({
+        data: {
+          suppressed: true,
+          message: noisyData.reason || 'Insufficient data for privacy-preserving display'
+        },
+        metadata: {
+          minThreshold: 7
+        }
+      });
+    }
     
     res.json({
       data: noisyData,
-      generated_at: new Date().toISOString()
+      generated_at: new Date().toISOString(),
+      metadata: {
+        dpApplied: noisyData.noiseAdded,
+        epsilon: 0.5,
+        nCount: noisyData.nCount
+      }
     });
   } catch (error) {
     console.error('Error fetching streak completion:', error);

@@ -1,7 +1,9 @@
 import express from 'express';
 import { db } from '../db.js';
-import { consents, consentEvents, profiles } from '../schema.js';
-import { eq, and } from 'drizzle-orm';
+import { consents, consentEvents, profiles, consentAuditLog, xids } from '../schema.js';
+import { eq, and, desc } from 'drizzle-orm';
+import crypto from 'crypto';
+import { Parser } from 'json2csv';
 import {
   generateGuardianToken,
   verifyGuardianWithPIN,
@@ -132,6 +134,36 @@ router.post('/', async (req, res) => {
       ipAddress,
       userAgent,
     });
+
+    // Log to consent audit log with anonymized user_xid
+    try {
+      // Get user's XID hash
+      const [userXid] = await db.select({ xidHash: xids.xidHash })
+        .from(xids)
+        .where(eq(xids.userId, req.session.userId))
+        .limit(1);
+
+      const userXidHash = userXid?.xidHash || `user_${req.session.userId.substring(0, 8)}`;
+
+      // Hash IP address for privacy
+      const ipHash = ipAddress 
+        ? crypto.createHash('sha256').update(ipAddress).digest('hex').substring(0, 16)
+        : null;
+
+      await db.insert(consentAuditLog).values({
+        userXid: userXidHash,
+        consentType,
+        action: value ? 'granted' : 'revoked',
+        previousValue: existing?.value || null,
+        newValue: value,
+        source: grantedBy,
+        ipAddressHash: ipHash,
+        userAgent,
+      });
+    } catch (auditError) {
+      console.error('Failed to log to consent audit log:', auditError);
+      // Don't fail the request if audit logging fails
+    }
 
     res.json(result);
   } catch (error) {
@@ -295,6 +327,90 @@ router.post('/delete-account', async (req, res) => {
   } catch (error) {
     console.error('Account deletion error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Consent Audit Log - CSV Export (Admin only)
+router.get('/consent-audit/export', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Check if user is admin
+    const [profile] = await db.select()
+      .from(profiles)
+      .where(eq(profiles.userId, req.session.userId))
+      .limit(1);
+
+    if (!profile?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required for consent audit export' });
+    }
+
+    // Query consent audit log with optional date filters
+    const { startDate, endDate } = req.query;
+    
+    let query = db.select().from(consentAuditLog).orderBy(desc(consentAuditLog.timestamp));
+    
+    // Apply date filters if provided
+    if (startDate || endDate) {
+      // Date filtering would be added here if needed
+      // For now, return all records
+    }
+
+    const auditRecords = await query;
+
+    if (auditRecords.length === 0) {
+      return res.status(404).json({ 
+        error: 'No consent audit records found',
+        message: 'The consent audit log is empty'
+      });
+    }
+
+    // Format data for CSV export
+    const csvData = auditRecords.map(record => ({
+      id: record.id,
+      user_xid: record.userXid,
+      consent_type: record.consentType,
+      action: record.action,
+      previous_value: record.previousValue !== null ? record.previousValue.toString() : '',
+      new_value: record.newValue !== null ? record.newValue.toString() : '',
+      source: record.source || '',
+      ip_address_hash: record.ipAddressHash || '',
+      user_agent: record.userAgent || '',
+      timestamp: record.timestamp ? new Date(record.timestamp).toISOString() : ''
+    }));
+
+    // Convert to CSV
+    const json2csvParser = new Parser({
+      fields: [
+        { label: 'ID', value: 'id' },
+        { label: 'User XID', value: 'user_xid' },
+        { label: 'Consent Type', value: 'consent_type' },
+        { label: 'Action', value: 'action' },
+        { label: 'Previous Value', value: 'previous_value' },
+        { label: 'New Value', value: 'new_value' },
+        { label: 'Source', value: 'source' },
+        { label: 'IP Hash', value: 'ip_address_hash' },
+        { label: 'User Agent', value: 'user_agent' },
+        { label: 'Timestamp', value: 'timestamp' }
+      ]
+    });
+    
+    const csv = json2csvParser.parse(csvData);
+    
+    // Set headers for CSV download
+    const filename = `consent-audit-log-${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+    
+  } catch (error) {
+    console.error('Consent audit export error:', error);
+    res.status(500).json({ 
+      error: 'Failed to export consent audit log',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

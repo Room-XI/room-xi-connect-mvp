@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db.js';
-import { checkins, programs, savedPrograms, ximiConversations, profiles, privacyConsents } from '../schema.js';
-import { applyDifferentialPrivacy } from '../lib/differentialPrivacy.js';
+import { checkins, programs, savedPrograms, ximiConversations, profiles, privacyConsents, dpApplications } from '../schema.js';
+import { applyDifferentialPrivacy, applyDPToStats } from '../lib/differentialPrivacy.js';
 import { Parser } from 'json2csv';
+import { applyDPWithLogging, addNoiseWithLogging } from '../middleware/differentialPrivacy.js';
 
 const router = Router();
 
@@ -71,25 +72,48 @@ router.get('/stats', async (req, res) => {
     const ximiInteractions = Number(ximiResult[0]?.count || 0);
     const crisisSupport = Number(crisisResult[0]?.count || 0);
 
-    // Apply differential privacy to all statistics
-    const stats = applyDifferentialPrivacy({
+    // Apply differential privacy with logging
+    const stats = await applyDPWithLogging(
+      {
+        activeUsers,
+        dailyCheckIns,
+        streaksCompleted,
+        programsEngaged,
+        ximiInteractions,
+        crisisSupport
+      },
       activeUsers,
-      dailyCheckIns,
-      streaksCompleted,
-      programsEngaged,
-      ximiInteractions,
-      crisisSupport
-    });
+      'transparency_stats',
+      'multiple'
+    );
+
+    // Check if data was suppressed
+    if (stats.suppressed) {
+      return res.json({
+        data: null,
+        suppressed: true,
+        message: stats.reason || 'Insufficient data for privacy-preserving display',
+        metadata: {
+          minThreshold: 7,
+          noiseApplied: false
+        }
+      });
+    }
 
     // Add metadata about privacy protection
     const privacyMetadata = {
-      noiseApplied: process.env.NODE_ENV === 'production',
-      epsilon: 0.5,
+      noiseApplied: stats.noiseAdded,
+      epsilon: stats.dpEpsilon || 0.5,
+      nCount: stats.nCount,
+      mechanism: stats.mechanism,
       lastUpdated: new Date().toISOString()
     };
 
+    // Remove DP metadata from stats object before sending
+    const { noiseAdded, nCount, dpEpsilon, mechanism, ...cleanStats } = stats;
+
     res.json({
-      ...stats,
+      ...cleanStats,
       privacyMetadata
     });
     
@@ -120,15 +144,20 @@ router.get('/mood-distribution', async (req, res) => {
       .where(sql`created_at >= ${monthAgo.toISOString()}`)
       .groupBy(checkins.moodType);
 
-    // Convert to object and apply differential privacy
+    // Convert to object and apply differential privacy with logging
     const distribution = {};
     for (const row of moodDistribution) {
       if (row.mood) {
-        // Apply N >= 7 threshold before differential privacy
         const count = Number(row.count);
+        // Apply N >= 7 threshold with logging
         if (count >= 7) {
-          const noisyCount = applyDifferentialPrivacy({ count });
-          distribution[row.mood] = noisyCount.count;
+          const noisyResult = await addNoiseWithLogging(
+            count,
+            `mood_distribution_${row.mood}`,
+            'checkins',
+            1
+          );
+          distribution[row.mood] = noisyResult.value;
         }
       }
     }
@@ -139,7 +168,8 @@ router.get('/mood-distribution', async (req, res) => {
         period: '30_days',
         noiseApplied: process.env.NODE_ENV === 'production',
         epsilon: 0.5,
-        minThreshold: 7
+        minThreshold: 7,
+        moodsDisplayed: Object.keys(distribution).length
       }
     });
     
@@ -186,14 +216,32 @@ router.get('/opt-in-rates', async (req, res) => {
 
     const stats = consentStats[0] || {};
     
-    // Apply differential privacy to all counts
-    const noisyStats = applyDifferentialPrivacy({
+    // Apply differential privacy with logging to all counts
+    const noisyStats = await applyDPWithLogging(
+      {
+        totalUsers,
+        locationOptIn: Number(stats.location_optin || 0),
+        orbOptIn: Number(stats.orb_optin || 0),
+        reflectionsOptIn: Number(stats.reflections_optin || 0),
+        notificationsOptIn: Number(stats.notifications_optin || 0)
+      },
       totalUsers,
-      locationOptIn: Number(stats.location_optin || 0),
-      orbOptIn: Number(stats.orb_optin || 0),
-      reflectionsOptIn: Number(stats.reflections_optin || 0),
-      notificationsOptIn: Number(stats.notifications_optin || 0)
-    });
+      'opt_in_rates',
+      'privacy_consents'
+    );
+
+    // Check if data was suppressed
+    if (noisyStats.suppressed) {
+      return res.json({
+        data: null,
+        suppressed: true,
+        message: noisyStats.reason || 'Insufficient data for privacy-preserving display',
+        metadata: {
+          minThreshold: 7,
+          noiseApplied: false
+        }
+      });
+    }
 
     // Calculate percentages with noisy data
     const data = {
@@ -207,8 +255,9 @@ router.get('/opt-in-rates', async (req, res) => {
     res.json({
       data,
       metadata: {
-        noiseApplied: process.env.NODE_ENV === 'production',
-        epsilon: 0.5,
+        noiseApplied: noisyStats.noiseAdded,
+        epsilon: noisyStats.dpEpsilon || 0.5,
+        nCount: noisyStats.nCount,
         minThreshold: 7
       }
     });
