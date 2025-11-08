@@ -18,6 +18,7 @@ import SafetyResources from './routes/SafetyResources';
 import About from './routes/About';
 import TermsOfService from './routes/TermsOfService';
 import PrivacyPolicy from './routes/PrivacyPolicy';
+import CheckInHistory from './routes/CheckInHistory';
 import ErrorBoundary from './ui/ErrorBoundary';
 import Journal from './routes/Journal';
 import VerifyConsent from './routes/VerifyConsent';
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: 'about', element: <About /> },
       { path: 'terms-of-service', element: <TermsOfService /> },
       { path: 'privacy-policy', element: <PrivacyPolicy /> },
+      { path: 'check-in-history', element: <CheckInHistory /> },
       { path: 'journal', element: <Journal /> },
       { path: 'living-journal', element: <LivingJournal /> },
       { path: 'verify-consent/:token', element: <VerifyConsent /> },

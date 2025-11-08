@@ -123,6 +123,9 @@ export const api = {
   programs: {
     list: () => fetchApi('/programs'),
     get: (id: string) => fetchApi(`/programs/${id}`),
+    getSaved: () => fetchApi('/programs/saved'),
+    save: (programId: string) => fetchApi(`/programs/saved/${programId}`, { method: 'POST' }),
+    unsave: (programId: string) => fetchApi(`/programs/saved/${programId}`, { method: 'DELETE' }),
     saved: {
       list: () => fetchApi('/programs/saved/list'),
       add: (programId: string) =>
@@ -325,6 +328,16 @@ export const api = {
       
       return response.json();
     },
+  },
+
+  // Organization Dashboard
+  org: {
+    getDashboardStats: (timeRange: '7days' | '30days' | 'all' = '30days') =>
+      fetchApi(`/org/dashboard?timeRange=${timeRange}`),
+    exportReport: (timeRange: '7days' | '30days' | 'all' = '30days') =>
+      fetchApi(`/org/export?timeRange=${timeRange}`),
+    getProgramAnalytics: (programId: string) =>
+      fetchApi(`/org/programs/${programId}/analytics`),
   },
 };
 

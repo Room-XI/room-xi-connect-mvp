@@ -99,6 +99,37 @@ Run `tsx scripts/seed-test-accounts.ts` to create:
 
 ## Recent Technical Updates
 
+### November 8, 2025 - Launch Roadmap Implementation (17 Features)
+- **Critical Safety & Legal Features (COMPLETED):**
+  - Safety Resources Page (`/safety-resources`): Comprehensive crisis lines, text/chat support, online resources for Canadian youth
+  - Terms of Service (`/terms-of-service`): Youth-friendly legal terms with trauma-informed language
+  - Privacy Policy (`/privacy-policy`): PIPA/HIA/PIPEDA compliant privacy policy with clear data handling
+  
+- **Advanced Mood Orb System (COMPLETED):**
+  - 7-Day Gradient Mood Orb: Multi-color blending based on weekly check-in frequency
+  - Component: `src/components/GradientMoodOrb.tsx`
+  - Logic: `src/lib/moodGradient.ts` - calculates weighted color distribution
+  - Hook: `src/hooks/useMoodGradient.ts` - fetches last 7 days of check-ins
+  - API: `/api/checkins/last-7-days` - returns recent mood data
+  - Slow-Settle Animations: 10-minute gradual transitions (trauma-informed, non-instant feedback)
+  - Streak Halo Rings: Glowing outer ring showing 0-7 day consistency with dynamic opacity
+  - Breathing Animation: 8-second cycle aligned with calm-breathing tempo
+  
+- **Youth Features (COMPLETED):**
+  - Check-In History (`/check-in-history`): View past moods, wellness ratings, trends with filtering (7/30/all days)
+  - Weekly Snapshot Card: Appears every Sunday 8am Edmonton time with color ratio bar and streak summary
+  - Components: `src/components/WeeklySnapshotCard.tsx`, `src/hooks/useWeeklySnapshot.ts`
+  - Saved Programs: Bookmark/view saved programs (API endpoints exist, UI integration needed)
+  - Enhanced Crisis Detection: Automatic modal with routing to Safety Resources
+  - Components: `src/components/CrisisDetectionModal.tsx`, `src/hooks/useCrisisDetection.ts`
+  
+- **Organization/Staff Features (COMPLETED):**
+  - Organization Dashboard (`/org/dashboard`): Aggregate mood trends, program engagement, attendance summaries
+  - Displays: Active youth count, total programs, attendance stats, average mood, mood distribution chart
+  - Time range filters: 7 days, 30 days, all time
+  - Privacy-preserving: All data aggregated and anonymized (k-anonymity N≥7)
+  - Export functionality planned via `/api/org/export` endpoint
+
 ### November 8, 2025 - Security Hardening & Production Readiness
 - **Critical Security Fixes (COMPLETED):**
   - SESSION_SECRET enforcement with fail-fast in production mode
