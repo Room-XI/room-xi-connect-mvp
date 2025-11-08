@@ -1,37 +1,56 @@
 import { createBrowserRouter } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import App from './shell/App';
-import Home from './routes/Home';
-import Explore from './routes/Explore';
-import QRScan from './routes/QRScan';
-import Me from './routes/Me';
-import ProgramDetail from './routes/ProgramDetail';
-import Settings from './routes/Settings';
-import Admin from './routes/Admin';
-import NotFound from './routes/NotFound';
-import Login from './routes/auth/Login';
-import Register from './routes/auth/Register';
-import Signup from './routes/auth/Signup';
-import Reset from './routes/auth/Reset';
-import UpdatePassword from './routes/auth/UpdatePassword';
-import SafetyProfile from './routes/SafetyProfile';
-import SafetyResources from './routes/SafetyResources';
-import About from './routes/About';
-import TermsOfService from './routes/TermsOfService';
-import PrivacyPolicy from './routes/PrivacyPolicy';
-import CheckInHistory from './routes/CheckInHistory';
-import SavedPrograms from './routes/SavedPrograms';
 import ErrorBoundary from './ui/ErrorBoundary';
-import Journal from './routes/Journal';
-import VerifyConsent from './routes/VerifyConsent';
-import GuardianVerify from './routes/GuardianVerify';
-import OrgDashboard from './routes/org/Dashboard';
-import ProgramManagement from './routes/org/ProgramManagement';
-import { TransparencyDashboard } from './components/TransparencyDashboard';
-import { PrivacyCenter } from './components/PrivacyCenter';
-import { LivingJournal } from './components/LivingJournal';
-import { Achievements } from './components/Achievements';
-import { KPIDashboard } from './components/KPIDashboard';
-import OrbTimelapse from './components/OrbTimelapse';
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-cream">
+    <div className="w-12 h-12 border-4 border-teal border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
+// Lazy load routes to reduce initial bundle size
+const Home = lazy(() => import('./routes/Home'));
+const Explore = lazy(() => import('./routes/Explore'));
+const QRScan = lazy(() => import('./routes/QRScan'));
+const Me = lazy(() => import('./routes/Me'));
+const ProgramDetail = lazy(() => import('./routes/ProgramDetail'));
+const Settings = lazy(() => import('./routes/Settings'));
+const Admin = lazy(() => import('./routes/Admin'));
+const NotFound = lazy(() => import('./routes/NotFound'));
+const Login = lazy(() => import('./routes/auth/Login'));
+const Register = lazy(() => import('./routes/auth/Register'));
+const Signup = lazy(() => import('./routes/auth/Signup'));
+const Reset = lazy(() => import('./routes/auth/Reset'));
+const UpdatePassword = lazy(() => import('./routes/auth/UpdatePassword'));
+const SafetyProfile = lazy(() => import('./routes/SafetyProfile'));
+const SafetyResources = lazy(() => import('./routes/SafetyResources'));
+const About = lazy(() => import('./routes/About'));
+const TermsOfService = lazy(() => import('./routes/TermsOfService'));
+const PrivacyPolicy = lazy(() => import('./routes/PrivacyPolicy'));
+const CheckInHistory = lazy(() => import('./routes/CheckInHistory'));
+const SavedPrograms = lazy(() => import('./routes/SavedPrograms'));
+const Journal = lazy(() => import('./routes/Journal'));
+const VerifyConsent = lazy(() => import('./routes/VerifyConsent'));
+const GuardianVerify = lazy(() => import('./routes/GuardianVerify'));
+const OrgDashboard = lazy(() => import('./routes/org/Dashboard'));
+const ProgramManagement = lazy(() => import('./routes/org/ProgramManagement'));
+const TransparencyDashboard = lazy(() => import('./components/TransparencyDashboard').then(m => ({ default: m.TransparencyDashboard })));
+const PrivacyCenter = lazy(() => import('./components/PrivacyCenter').then(m => ({ default: m.PrivacyCenter })));
+const LivingJournal = lazy(() => import('./components/LivingJournal').then(m => ({ default: m.LivingJournal })));
+const Achievements = lazy(() => import('./components/Achievements').then(m => ({ default: m.Achievements })));
+const KPIDashboard = lazy(() => import('./components/KPIDashboard').then(m => ({ default: m.KPIDashboard })));
+const OrbTimelapse = lazy(() => import('./components/OrbTimelapse'));
+
+// Wrapper to add Suspense to lazy-loaded components
+const withSuspense = (Component: React.LazyExoticComponent<any>) => {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <Component />
+    </Suspense>
+  );
+};
 
 export const router = createBrowserRouter([
   {
@@ -39,39 +58,39 @@ export const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
-      { index: true, element: <Explore /> },
-      { path: 'home', element: <Home /> },
-      { path: 'explore', element: <Explore /> },
-      { path: 'explore/:view', element: <Explore /> }, // For map, saved
-      { path: 'program/:id', element: <ProgramDetail /> },
-      { path: 'qr', element: <QRScan /> },
-      { path: 'me', element: <Me /> },
-      { path: 'safety-profile', element: <SafetyProfile /> },
-      { path: 'safety-resources', element: <SafetyResources /> },
-      { path: 'settings', element: <Settings /> },
-      { path: 'admin', element: <Admin /> },
-      { path: 'about', element: <About /> },
-      { path: 'terms-of-service', element: <TermsOfService /> },
-      { path: 'privacy-policy', element: <PrivacyPolicy /> },
-      { path: 'check-in-history', element: <CheckInHistory /> },
-      { path: 'saved-programs', element: <SavedPrograms /> },
-      { path: 'journal', element: <Journal /> },
-      { path: 'living-journal', element: <LivingJournal /> },
-      { path: 'verify-consent/:token', element: <VerifyConsent /> },
-      { path: 'guardian/verify/:token', element: <GuardianVerify /> },
-      { path: 'org/dashboard', element: <OrgDashboard /> },
-      { path: 'org/programs', element: <ProgramManagement /> },
-      { path: 'kpi-dashboard', element: <KPIDashboard /> },
-      { path: 'transparency', element: <TransparencyDashboard /> },
-      { path: 'privacy-center', element: <PrivacyCenter /> },
-      { path: 'achievements', element: <Achievements /> },
-      { path: 'orb-timelapse', element: <OrbTimelapse /> },
-      { path: 'auth/login', element: <Login /> },
-      { path: 'auth/register', element: <Register /> },
-      { path: 'auth/signup', element: <Signup /> },
-      { path: 'auth/reset', element: <Reset /> },
-      { path: 'auth/update-password', element: <UpdatePassword /> },
-      { path: '*', element: <NotFound /> }
+      { index: true, element: withSuspense(Explore) },
+      { path: 'home', element: withSuspense(Home) },
+      { path: 'explore', element: withSuspense(Explore) },
+      { path: 'explore/:view', element: withSuspense(Explore) },
+      { path: 'program/:id', element: withSuspense(ProgramDetail) },
+      { path: 'qr', element: withSuspense(QRScan) },
+      { path: 'me', element: withSuspense(Me) },
+      { path: 'safety-profile', element: withSuspense(SafetyProfile) },
+      { path: 'safety-resources', element: withSuspense(SafetyResources) },
+      { path: 'settings', element: withSuspense(Settings) },
+      { path: 'admin', element: withSuspense(Admin) },
+      { path: 'about', element: withSuspense(About) },
+      { path: 'terms-of-service', element: withSuspense(TermsOfService) },
+      { path: 'privacy-policy', element: withSuspense(PrivacyPolicy) },
+      { path: 'check-in-history', element: withSuspense(CheckInHistory) },
+      { path: 'saved-programs', element: withSuspense(SavedPrograms) },
+      { path: 'journal', element: withSuspense(Journal) },
+      { path: 'living-journal', element: withSuspense(LivingJournal) },
+      { path: 'verify-consent/:token', element: withSuspense(VerifyConsent) },
+      { path: 'guardian/verify/:token', element: withSuspense(GuardianVerify) },
+      { path: 'org/dashboard', element: withSuspense(OrgDashboard) },
+      { path: 'org/programs', element: withSuspense(ProgramManagement) },
+      { path: 'kpi-dashboard', element: withSuspense(KPIDashboard) },
+      { path: 'transparency', element: withSuspense(TransparencyDashboard) },
+      { path: 'privacy-center', element: withSuspense(PrivacyCenter) },
+      { path: 'achievements', element: withSuspense(Achievements) },
+      { path: 'orb-timelapse', element: withSuspense(OrbTimelapse) },
+      { path: 'auth/login', element: withSuspense(Login) },
+      { path: 'auth/register', element: withSuspense(Register) },
+      { path: 'auth/signup', element: withSuspense(Signup) },
+      { path: 'auth/reset', element: withSuspense(Reset) },
+      { path: 'auth/update-password', element: withSuspense(UpdatePassword) },
+      { path: '*', element: withSuspense(NotFound) }
     ]
   }
 ], {

@@ -62,6 +62,20 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'animation': ['framer-motion'],
+          'charts': ['recharts'],
+          'maps': ['leaflet', 'react-leaflet'],
+          'forms': ['react-hook-form', 'zod'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
   server: { 
     port: 5000,
     host: '0.0.0.0',
