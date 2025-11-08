@@ -56,6 +56,9 @@ async function createServer() {
   const { default: orbSnapshotsRoutes } = await import('./routes/orbSnapshots.js');
   const { default: quotesRoutes } = await import('./routes/quotes.js');
   const { default: notificationsRoutes } = await import('./routes/notifications.js');
+  const { default: orbRoutes } = await import('./routes/orb.js');
+  const { default: skipTokenRoutes } = await import('./routes/skip-token.js');
+  const { default: moodDropRoutes } = await import('./routes/mood-drop.js');
 
   // API routes
   app.use('/api/auth', authRoutes);
@@ -76,6 +79,9 @@ async function createServer() {
   app.use('/api/orb-snapshots', orbSnapshotsRoutes);
   app.use('/api/quotes', quotesRoutes);
   app.use('/api/notifications', notificationsRoutes);
+  app.use('/api/orb', orbRoutes);
+  app.use('/api/skip-token', skipTokenRoutes);
+  app.use('/api/mood-drop', moodDropRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({

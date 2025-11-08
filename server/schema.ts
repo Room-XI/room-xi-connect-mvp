@@ -124,6 +124,8 @@ export const profiles = pgTable("profiles", {
   lastQuoteDate: date("last_quote_date"),
   lastQuoteId: integer("last_quote_id"),
   
+  mood: text("mood"),
+  
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -530,4 +532,20 @@ export const weeklyOrbSnapshots = pgTable("weekly_orb_snapshots", {
   userDateIdx: uniqueIndex("weekly_orb_snapshots_user_date_idx").on(table.userId, table.snapshotDate),
   userIdx: index("weekly_orb_snapshots_user_idx").on(table.userId, table.createdAt.desc()),
   dateIdx: index("weekly_orb_snapshots_date_idx").on(table.snapshotDate.desc()),
+}));
+
+// Mood Drops - moderated mood posts for community sharing
+export const moodDrops = pgTable("mood_drops", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  mood: text("mood").notNull(), // cold, stormy, foggy, clear, breezy, aurora
+  message: text("message"), // Optional message (max 280 chars)
+  isApproved: boolean("is_approved").default(false), // Moderation flag
+  isPublic: boolean("is_public").default(false), // Public visibility
+  moderatedAt: timestamp("moderated_at"), // When it was moderated
+  moderatedBy: uuid("moderated_by").references(() => users.id), // Admin who moderated
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("mood_drops_user_idx").on(table.userId, table.createdAt.desc()),
+  publicIdx: index("mood_drops_public_idx").on(table.isPublic, table.createdAt.desc()),
 }));
