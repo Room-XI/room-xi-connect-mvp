@@ -121,6 +121,11 @@ export const profiles = pgTable("profiles", {
   ximiConsent: boolean("ximi_consent").default(false),
   ximiMode: text("ximi_mode").default("sibling"),
   
+  // Mood Orb Accessibility Settings
+  highVisibility: boolean("high_visibility").default(false),
+  patternOverlay: boolean("pattern_overlay").default(false),
+  showColorKey: boolean("show_color_key").default(false),
+  
   mood: text("mood"),
   
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

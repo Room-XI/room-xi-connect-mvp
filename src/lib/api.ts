@@ -151,6 +151,7 @@ export const api = {
   checkins: {
     list: () => fetchApi('/checkins'),
     getLast7Days: () => fetchApi('/checkins/last-7-days'),
+    getSummary: (window: number = 7) => fetchApi(`/checkins/summary?window=${window}`),
     create: (data: {
       timestamp?: string;
       dimension?: string;

@@ -1,5 +1,13 @@
 import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 import { useMoodGradient } from '@/hooks/useMoodGradient';
+import { useMoodOrbSettings } from '@/hooks/useMoodOrbSettings';
+import {
+  saveOrbTweenState,
+  loadOrbTweenState,
+  calculateTweenProgress,
+  isTweenStateValid,
+} from '@/lib/orbPersistence';
 
 interface GradientMoodOrbProps {
   size?: number;
@@ -22,10 +30,14 @@ export default function GradientMoodOrb({
   size = 200, 
   onClick, 
   className = '',
-  streak = 0,
+  streak: overrideStreak,
   showSlowSettle = true,
 }: GradientMoodOrbProps) {
-  const { moodBlend, loading } = useMoodGradient();
+  const { moodBlend, summary, loading } = useMoodGradient();
+  const { settings } = useMoodOrbSettings();
+  
+  // Use streak from API summary if available, otherwise use prop override
+  const streak = summary?.streak7 ?? overrideStreak ?? 0;
   
   // Default cosmic gradient while loading
   const defaultStyle = {
@@ -36,16 +48,62 @@ export default function GradientMoodOrb({
   
   const style = moodBlend || defaultStyle;
   
+  // Track if this is the first render (for localStorage resume)
+  const isFirstRender = useRef(true);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  
+  // On mount, check if we have a saved state that matches current state
+  useEffect(() => {
+    if (isFirstRender.current && moodBlend) {
+      const savedState = loadOrbTweenState();
+      
+      // If saved state exists, is valid, and matches current blend, skip animation
+      if (savedState && isTweenStateValid(savedState)) {
+        const progress = calculateTweenProgress(savedState.tweenStartAt, savedState.settleMs);
+        
+        // If animation is complete or near complete, don't animate
+        if (progress >= 0.95 && savedState.orbTarget.gradient === moodBlend.gradient) {
+          setShouldAnimate(false);
+        }
+      }
+      
+      isFirstRender.current = false;
+    }
+  }, [moodBlend]);
+  
+  // Save tween state when mood blend changes
+  useEffect(() => {
+    if (moodBlend && !loading) {
+      const settleMs = showSlowSettle ? 600000 : 2000; // 10 min or 2 sec
+      
+      saveOrbTweenState({
+        orbTarget: {
+          gradient: moodBlend.gradient,
+          glow: moodBlend.glow,
+          particles: moodBlend.particles,
+        },
+        tweenStartAt: Date.now(),
+        settleMs,
+      });
+      
+      // Enable animation for new data
+      if (!isFirstRender.current) {
+        setShouldAnimate(true);
+      }
+    }
+  }, [moodBlend, loading, showSlowSettle]);
+  
   // Calculate halo opacity based on streak (0-7 days)
   const haloOpacity = Math.min(streak / 7, 1);
   const haloGlow = streak === 7 ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
   
   // Slow-settle transition duration (10 minutes = 600 seconds)
-  const settleTransition = showSlowSettle ? {
+  // Skip animation if we're resuming from saved state
+  const settleTransition = (showSlowSettle && shouldAnimate) ? {
     duration: 600,
     ease: "easeInOut",
   } : {
-    duration: 2,
+    duration: shouldAnimate ? 2 : 0,
     ease: "easeInOut",
   };
   

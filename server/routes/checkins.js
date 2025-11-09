@@ -25,6 +25,119 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get mood orb summary with per-day 1/7 weighting
+router.get('/summary', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { DateTime } = await import('luxon');
+    
+    // Get user profile for timezone and streak
+    const [profile] = await db.select().from(profiles).where(eq(profiles.userId, req.session.userId)).limit(1);
+    const userTimezone = profile?.timezone || 'America/Edmonton';
+    const streak7 = Math.min(profile?.streakCount || 0, 7);
+
+    // Calculate window (default 7 days)
+    const window = parseInt(req.query.window || '7');
+    const now = DateTime.now().setZone(userTimezone);
+    const windowStart = now.minus({ days: window }).startOf('day');
+
+    // Get all check-ins from the window
+    const allCheckins = await db.select({
+      moodLevel16: checkins.moodLevel16,
+      moodType: checkins.moodType,
+      checkinDate: checkins.checkinDate,
+    }).from(checkins)
+      .where(
+        and(
+          eq(checkins.userId, req.session.userId),
+          sql`${checkins.timestamp} >= ${windowStart.toJSDate()}`
+        )
+      );
+
+    // Map mood numeric values (1-6) to mood names
+    const moodMap = {
+      1: 'cold',
+      2: 'stormy',
+      3: 'foggy',
+      4: 'clear',
+      5: 'breezy',
+      6: 'aurora'
+    };
+
+    // Group check-ins by date
+    const checkInsByDay = {};
+    allCheckins.forEach(checkin => {
+      const date = checkin.checkinDate;
+      if (!checkInsByDay[date]) {
+        checkInsByDay[date] = [];
+      }
+      const moodName = checkin.moodType || moodMap[checkin.moodLevel16];
+      if (moodName) {
+        checkInsByDay[date].push(moodName);
+      }
+    });
+
+    // Calculate per-day mood ratios, then apply 1/7 weighting
+    const ratios = {
+      cold: 0,
+      stormy: 0,
+      foggy: 0,
+      clear: 0,
+      breezy: 0,
+      aurora: 0
+    };
+
+    const daysWithData = Object.keys(checkInsByDay).length;
+    
+    if (daysWithData > 0) {
+      // For each day, calculate that day's mood mix
+      Object.values(checkInsByDay).forEach(dayMoods => {
+        const dayTotal = dayMoods.length;
+        const dayRatios = { cold: 0, stormy: 0, foggy: 0, clear: 0, breezy: 0, aurora: 0 };
+        
+        // Count moods for this day
+        dayMoods.forEach(mood => {
+          dayRatios[mood] = (dayRatios[mood] || 0) + 1;
+        });
+        
+        // Convert to ratios and apply 1/7 weight to this day
+        Object.keys(dayRatios).forEach(mood => {
+          const dayMoodRatio = dayRatios[mood] / dayTotal;
+          ratios[mood] += dayMoodRatio / window;
+        });
+      });
+    }
+
+    // Calculate variance (spread of mood values)
+    const moodScores = allCheckins.map(c => c.moodLevel16);
+    let variance = 0;
+    if (moodScores.length > 0) {
+      const mean = moodScores.reduce((sum, score) => sum + score, 0) / moodScores.length;
+      const squaredDiffs = moodScores.map(score => Math.pow(score - mean, 2));
+      variance = Math.sqrt(squaredDiffs.reduce((sum, diff) => sum + diff, 0) / moodScores.length) / 6; // Normalize to 0-1
+    }
+
+    // Find dominant mood (only if we have data)
+    const dominant = daysWithData > 0 
+      ? Object.entries(ratios).reduce((a, b) => a[1] > b[1] ? a : b)[0]
+      : null;
+
+    res.json({
+      ratios,
+      variance: parseFloat(variance.toFixed(2)),
+      streak7,
+      dominant,
+      daysWithData
+    });
+  } catch (error) {
+    console.error('Get mood summary error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get last 7 days of check-ins for mood orb gradient
 router.get('/last-7-days', async (req, res) => {
   try {
@@ -41,7 +154,8 @@ router.get('/last-7-days', async (req, res) => {
     const now = DateTime.now().setZone(userTimezone);
     const sevenDaysAgo = now.minus({ days: 7 }).startOf('day');
 
-    // Get check-ins from the last 7 days
+    // Get ALL check-ins from the last 7 calendar days (no limit)
+    // This allows proper per-day aggregation when users check in multiple times per day
     const recentCheckins = await db.select({
       id: checkins.id,
       mood: checkins.moodLevel16,
@@ -54,8 +168,7 @@ router.get('/last-7-days', async (req, res) => {
           sql`${checkins.timestamp} >= ${sevenDaysAgo.toJSDate()}`
         )
       )
-      .orderBy(sql`${checkins.timestamp} DESC`)
-      .limit(7);
+      .orderBy(sql`${checkins.timestamp} DESC`);
 
     res.json(recentCheckins);
   } catch (error) {

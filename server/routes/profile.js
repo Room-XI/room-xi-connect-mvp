@@ -38,7 +38,8 @@ router.put('/', async (req, res) => {
       'emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelationship',
       'indigenousIdentity', 'indigenousCommunity',
       'accountComplete', 'safetyProfileComplete', 'programProfileComplete',
-      'weights', 'scores'
+      'weights', 'scores',
+      'highVisibility', 'patternOverlay', 'showColorKey'
     ];
 
     const updates = {};

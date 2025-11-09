@@ -1,4 +1,4 @@
-import { MOODS, type MoodKey, getMoodByScore } from './moodConfig';
+import { MOODS, getMoodByScore } from './moodConfig';
 
 export interface MoodDistribution {
   [key: string]: number; // mood label -> count
