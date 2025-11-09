@@ -1,0 +1,31 @@
+@media (prefers-contrast: more) {
+  .mood-orb-container {
+    outline: 2px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
+  }
+  
+  .mood-orb-main {
+    box-shadow: 
+      0 0 0 2px rgba(0, 0, 0, 0.8),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+      0 0 40px var(--orb-glow-color);
+  }
+  
+  .mood-orb-halo {
+    border-width: 4px !important;
+    opacity: 1 !important;
+  }
+  
+  .mood-orb-pattern {
+    opacity: 0.7 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mood-orb-main,
+  .mood-orb-halo,
+  .mood-orb-particles {
+    animation: none !important;
+    transition: none !important;
+  }
+}

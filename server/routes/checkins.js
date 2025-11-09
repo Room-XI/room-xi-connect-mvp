@@ -111,14 +111,27 @@ router.get('/summary', async (req, res) => {
       });
     }
 
-    // Calculate variance (spread of mood values)
-    const moodScores = allCheckins.map(c => c.moodLevel16);
+    // Calculate variance using per-day aggregates (not individual check-ins)
+    const dailyAverageMoods = Object.values(checkInsByDay).map(dayMoods => {
+      const dayScores = dayMoods.map(moodName => {
+        const moodScore = Object.keys(moodMap).find(key => moodMap[key] === moodName);
+        return parseInt(moodScore) || 4;
+      });
+      return dayScores.reduce((sum, score) => sum + score, 0) / dayScores.length;
+    });
+    
     let variance = 0;
-    if (moodScores.length > 0) {
-      const mean = moodScores.reduce((sum, score) => sum + score, 0) / moodScores.length;
-      const squaredDiffs = moodScores.map(score => Math.pow(score - mean, 2));
-      variance = Math.sqrt(squaredDiffs.reduce((sum, diff) => sum + diff, 0) / moodScores.length) / 6; // Normalize to 0-1
+    let variabilityIndex = 0;
+    if (dailyAverageMoods.length > 0) {
+      const mean = dailyAverageMoods.reduce((sum, score) => sum + score, 0) / dailyAverageMoods.length;
+      const squaredDiffs = dailyAverageMoods.map(score => Math.pow(score - mean, 2));
+      const stdDev = Math.sqrt(squaredDiffs.reduce((sum, diff) => sum + diff, 0) / dailyAverageMoods.length);
+      variance = stdDev / 6;
+      variabilityIndex = stdDev;
     }
+
+    // Calculate consistency index (fraction of days checked in)
+    const consistencyIndex = daysWithData / window;
 
     // Find dominant mood (only if we have data)
     const dominant = daysWithData > 0 
@@ -128,6 +141,8 @@ router.get('/summary', async (req, res) => {
     res.json({
       ratios,
       variance: parseFloat(variance.toFixed(2)),
+      variabilityIndex: parseFloat(variabilityIndex.toFixed(2)),
+      consistencyIndex: parseFloat(consistencyIndex.toFixed(2)),
       streak7,
       dominant,
       daysWithData

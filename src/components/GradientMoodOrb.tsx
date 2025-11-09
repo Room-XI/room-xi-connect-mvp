@@ -11,6 +11,7 @@ import {
   calculateTweenProgress,
   isTweenStateValid,
 } from '@/lib/orbPersistence';
+import './MoodOrb.css';
 
 interface GradientMoodOrbProps {
   size?: number;
@@ -135,7 +136,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   return (
     <motion.div
       ref={orbRef}
-      className={`relative cursor-pointer ${className}`}
+      className={`relative cursor-pointer mood-orb-container ${className}`}
       style={{ width: size, height: size }}
       onClick={onClick}
       whileHover={{ scale: 1.05 }}
@@ -145,7 +146,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
       {/* Streak Halo Ring */}
       {streak > 0 && (
         <motion.div
-          className="absolute inset-0 rounded-full"
+          className="absolute inset-0 rounded-full mood-orb-halo"
           style={{
             border: `${3 + (streak * 0.5)}px solid ${haloGlow}`,
             opacity: haloOpacity,
@@ -165,7 +166,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
       
       {/* Main orb with breathing animation and slow-settle gradient transition */}
       <motion.div
-        className={`absolute inset-0 rounded-full ${
+        className={`absolute inset-0 rounded-full mood-orb-main ${
           settings.highVisibility ? 'ring-3 ring-white ring-opacity-80' : ''
         }`}
         style={{
@@ -173,6 +174,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
           boxShadow: settings.highVisibility 
             ? `0 0 40px ${style.glow}, 0 0 60px ${style.glow}, inset 0 0 20px rgba(0, 0, 0, 0.3)`
             : `0 0 30px ${style.glow}`,
+          ['--orb-glow-color' as any]: style.glow,
         }}
         animate={{
           scale: [1, 1.05, 1],
@@ -194,30 +196,35 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
           }}
         />
         
-        {/* Pattern overlay for color-blind accessibility */}
-        {settings.patternOverlay && summary && (
-          <div className="absolute inset-0 rounded-full overflow-hidden opacity-40">
-            {/* Warm colors (clear, breezy, aurora) get dots */}
-            {((summary.ratios.clear || 0) + (summary.ratios.breezy || 0) + (summary.ratios.aurora || 0)) > 0.3 && (
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)',
-                  backgroundSize: '8px 8px',
-                }}
-              />
-            )}
-            {/* Cool colors (foggy, stormy, cold) get lines */}
-            {((summary.ratios.foggy || 0) + (summary.ratios.stormy || 0) + (summary.ratios.cold || 0)) > 0.3 && (
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 5px)',
-                }}
-              />
-            )}
-          </div>
-        )}
+        {/* Pattern overlay for color-blind accessibility - continuous intensity */}
+        {settings.patternOverlay && summary && (() => {
+          const warmRatio = (summary.ratios.clear || 0) + (summary.ratios.breezy || 0) + (summary.ratios.aurora || 0);
+          const coolRatio = (summary.ratios.foggy || 0) + (summary.ratios.stormy || 0) + (summary.ratios.cold || 0);
+          
+          return (
+            <>
+              {warmRatio > 0 && (
+                <div
+                  className="absolute inset-0 rounded-full overflow-hidden mood-orb-pattern"
+                  style={{
+                    backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)',
+                    backgroundSize: '8px 8px',
+                    opacity: Math.min(warmRatio * 0.6, 0.5),
+                  }}
+                />
+              )}
+              {coolRatio > 0 && (
+                <div
+                  className="absolute inset-0 rounded-full overflow-hidden mood-orb-pattern"
+                  style={{
+                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 5px)',
+                    opacity: Math.min(coolRatio * 0.6, 0.5),
+                  }}
+                />
+              )}
+            </>
+          );
+        })()}
         
         {/* Floating particles */}
         <div className="absolute inset-0 rounded-full overflow-hidden">

@@ -52,7 +52,7 @@ export const MOODS: MoodConfig[] = [
     icon: Sun,
     score: 4,
     desc: 'Calm, stable, doing okay',
-    color: { h: 48, s: 95, l: 55 },
+    color: { h: 48, s: 96, l: 56 },
     copyHint: 'Feeling calm and okay.',
   },
   {
@@ -62,7 +62,7 @@ export const MOODS: MoodConfig[] = [
     icon: Zap,
     score: 5,
     desc: 'Upbeat, energized, motivated',
-    color: { h: 52, s: 98, l: 58 },
+    color: { h: 172, s: 70, l: 48 },
     copyHint: 'Feeling upbeat and energized!',
   },
   {

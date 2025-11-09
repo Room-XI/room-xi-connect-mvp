@@ -12,6 +12,8 @@ export interface MoodSummary {
     aurora: number;
   };
   variance: number;
+  variabilityIndex: number;
+  consistencyIndex: number;
   streak7: number;
   dominant: string;
   daysWithData: number;
@@ -37,15 +39,8 @@ export function useMoodGradient(window: number = 7) {
       if (data) {
         setSummary(data);
         
-        // Convert ratios to distribution format for generateMoodBlend
-        // Distribution needs counts, so multiply ratios by a common denominator
-        const distribution: { [key: string]: number } = {};
-        (Object.entries(data.ratios) as [string, number][]).forEach(([mood, ratio]) => {
-          distribution[mood] = ratio * 100; // Scale up for blend calculation
-        });
-        
-        // Generate blend styling from ratios
-        const blend = generateMoodBlend(distribution);
+        // Pass ratios directly (0-1 values) for sector wheel alpha calculation
+        const blend = generateMoodBlend(data.ratios);
         setMoodBlend(blend);
       }
     } catch (err) {
