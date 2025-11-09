@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
+import XimiConsentModal from '@/components/XimiConsentModal';
 
 interface XimiDockProps {
   onCrisis: () => void;
@@ -16,6 +17,8 @@ interface Message {
 
 export default function XimiDock({ onCrisis }: XimiDockProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -91,7 +94,15 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
       const { data, error } = await api.ximi.chat({ message: messageText });
       
       if (error) {
-        // Handle API error
+        // Handle consent required error
+        if (error === 'Ximi consent required') {
+          setPendingMessage(messageText);
+          setShowConsentModal(true);
+          setIsTyping(false);
+          return;
+        }
+        
+        // Handle other API errors
         const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
           text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
@@ -103,6 +114,9 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         setIsTyping(false);
         return;
       }
+      
+      // Clear pending message on successful send
+      setPendingMessage(null);
 
       // Check if crisis was detected
       if (data.crisisDetected) {
@@ -156,8 +170,90 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
     }
   };
 
+  const handleConsentGranted = async () => {
+    setShowConsentModal(false);
+    
+    // Retry sending the pending message if there was one
+    if (pendingMessage) {
+      setIsTyping(true);
+      
+      try {
+        // Call the real Ximi AI API with the pending message
+        const { data, error } = await api.ximi.chat({ message: pendingMessage });
+        
+        if (error) {
+          // Handle API errors
+          const errorResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
+            isUser: false,
+            timestamp: new Date(),
+          };
+          
+          setMessages(prev => [...prev, errorResponse]);
+          setIsTyping(false);
+          setPendingMessage(null);
+          return;
+        }
+
+        // Check if crisis was detected
+        if (data.crisisDetected) {
+          const crisisResponse: Message = {
+            id: data.id.toString(),
+            text: data.ximiResponse,
+            isUser: false,
+            timestamp: new Date(data.createdAt),
+          };
+          
+          setMessages(prev => [...prev, crisisResponse]);
+          setIsTyping(false);
+          setPendingMessage(null);
+          
+          // Trigger crisis support sheet
+          setTimeout(() => {
+            onCrisis();
+          }, 1000);
+          return;
+        }
+
+        // Add AI response to messages
+        const aiResponse: Message = {
+          id: data.id.toString(),
+          text: data.ximiResponse,
+          isUser: false,
+          timestamp: new Date(data.createdAt),
+        };
+        
+        setMessages(prev => [...prev, aiResponse]);
+        setIsTyping(false);
+        setPendingMessage(null);
+
+      } catch (error) {
+        console.error('Error processing message:', error);
+        
+        const errorResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
+          isUser: false,
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, errorResponse]);
+        setIsTyping(false);
+        setPendingMessage(null);
+      }
+    }
+  };
+
   return (
     <>
+      {/* Ximi Consent Modal */}
+      <XimiConsentModal
+        isOpen={showConsentModal}
+        onClose={() => setShowConsentModal(false)}
+        onConsentGranted={handleConsentGranted}
+      />
+
       {/* Floating Action Button */}
       <motion.button
         onClick={() => setIsOpen(true)}

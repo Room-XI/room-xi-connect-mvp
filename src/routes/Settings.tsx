@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Moon,
   Sun,
-  Smartphone
+  Smartphone,
+  Sparkles
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
@@ -26,6 +27,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
+  const [ximiConsent, setXimiConsent] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function Settings() {
       
       const { data } = await api.profile.get();
       setProfile(data);
+      setXimiConsent(data?.ximiConsent || false);
     } catch (error) {
       console.error('Unexpected error loading profile:', error);
     } finally {
@@ -95,6 +98,25 @@ export default function Settings() {
       console.log(`User response to the install prompt: ${outcome}`);
       // @ts-ignore
       window.deferredPrompt = null;
+    }
+  };
+
+  const handleToggleXimiConsent = async () => {
+    const newValue = !ximiConsent;
+    
+    try {
+      const { error } = await api.ximi.setConsent(newValue);
+      
+      if (error) {
+        console.error('Error updating Ximi consent:', error);
+        alert('Failed to update Ximi settings. Please try again.');
+        return;
+      }
+
+      setXimiConsent(newValue);
+    } catch (error) {
+      console.error('Unexpected error updating Ximi consent:', error);
+      alert('Failed to update Ximi settings. Please try again.');
     }
   };
 
@@ -205,6 +227,34 @@ export default function Settings() {
                 <div
                   className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
                     notifications ? 'translate-x-6' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Ximi AI Companion */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-teal rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-medium text-deepSage">Ximi AI Companion</p>
+                  <p className="text-sm text-textSecondaryLight">
+                    AI wellness chat support
+                  </p>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleToggleXimiConsent}
+                className={`w-12 h-6 rounded-full transition-colors duration-200 ${
+                  ximiConsent ? 'bg-teal' : 'bg-sage/20'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                    ximiConsent ? 'translate-x-6' : 'translate-x-0.5'
                   }`}
                 />
               </button>
