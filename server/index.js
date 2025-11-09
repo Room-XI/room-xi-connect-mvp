@@ -72,6 +72,7 @@ async function createServer() {
   const { default: orbSnapshotsRoutes } = await import('./routes/orbSnapshots.js');
   const { default: quotesRoutes } = await import('./routes/quotes.js');
   const { default: notificationsRoutes } = await import('./routes/notifications.js');
+  const { default: pushRoutes } = await import('./routes/push.ts');
   const { default: orbRoutes } = await import('./routes/orb.js');
   const { default: skipTokenRoutes } = await import('./routes/skip-token.js');
   const { default: moodDropRoutes } = await import('./routes/mood-drop.js');
@@ -98,6 +99,7 @@ async function createServer() {
   app.use('/api/orb-snapshots', validateCsrfToken, writeLimiter, orbSnapshotsRoutes);
   app.use('/api/quotes', validateCsrfToken, writeLimiter, quotesRoutes);
   app.use('/api/notifications', validateCsrfToken, writeLimiter, notificationsRoutes);
+  app.use('/api/push', validateCsrfToken, writeLimiter, pushRoutes);
   app.use('/api/orb', validateCsrfToken, writeLimiter, orbRoutes);
   app.use('/api/skip-token', validateCsrfToken, writeLimiter, skipTokenRoutes);
   app.use('/api/mood-drop', validateCsrfToken, writeLimiter, moodDropRoutes);

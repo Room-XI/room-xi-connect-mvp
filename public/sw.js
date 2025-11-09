@@ -123,25 +123,33 @@ self.addEventListener('sync', event => {
   }
 });
 
-// Push notifications (for future crisis support features)
+// Push notifications
 self.addEventListener('push', event => {
   console.log('Push notification received:', event);
   
   if (event.data) {
-    const data = event.data.json();
-    
-    const options = {
-      body: data.body || 'You have a new message',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: data.tag || 'general',
-      requireInteraction: data.urgent || false,
-      actions: data.actions || []
-    };
+    try {
+      const data = event.data.json();
+      
+      const options = {
+        body: data.body || 'You have a new message',
+        icon: data.icon || '/icons/icon-192.png',
+        badge: data.badge || '/icons/icon-192.png',
+        tag: data.tag || 'general',
+        requireInteraction: data.requireInteraction || false,
+        actions: data.actions || [],
+        data: {
+          url: data.url || '/',
+          timestamp: Date.now()
+        }
+      };
 
-    event.waitUntil(
-      self.registration.showNotification(data.title || 'Room XI Connect', options)
-    );
+      event.waitUntil(
+        self.registration.showNotification(data.title || 'Room XI Connect', options)
+      );
+    } catch (error) {
+      console.error('Error parsing push notification:', error);
+    }
   }
 });
 
@@ -151,25 +159,35 @@ self.addEventListener('notificationclick', event => {
   
   event.notification.close();
 
-  // Handle action clicks
-  if (event.action) {
-    console.log('Notification action clicked:', event.action);
-    // Handle specific actions here
+  // Determine the URL to open based on notification data or action
+  let targetUrl = '/';
+  
+  if (event.action === 'view-resources') {
+    targetUrl = '/crisis';
+  } else if (event.action === 'dismiss') {
+    return;
+  } else if (event.notification.data && event.notification.data.url) {
+    targetUrl = event.notification.data.url;
   }
 
-  // Open or focus the app
+  // Open or focus the app at the target URL
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then(clients => {
-      // Check if app is already open
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      // Check if there's already a window open to our app
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.focus();
+          // Navigate the existing window to the target URL
+          return client.focus().then(client => {
+            if ('navigate' in client) {
+              return client.navigate(targetUrl);
+            }
+          });
         }
       }
       
-      // Open new window if app is not open
+      // Open a new window if app is not open
       if (self.clients.openWindow) {
-        return self.clients.openWindow('/');
+        return self.clients.openWindow(targetUrl);
       }
     })
   );

@@ -270,6 +270,28 @@ export const api = {
     getStatus: () => fetchApi('/notifications/status'),
     testNudge: () => fetchApi('/notifications/test-nudge', { method: 'POST' }),
   },
+
+  // Push Notifications
+  push: {
+    getVapidPublicKey: () => fetchApi('/push/vapid-public-key'),
+    subscribe: (subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+      fetchApi('/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify(subscription),
+      }),
+    unsubscribe: (endpoint?: string) =>
+      fetchApi('/push/unsubscribe', {
+        method: 'DELETE',
+        body: JSON.stringify({ endpoint }),
+      }),
+    getStatus: () => fetchApi('/push/status'),
+    send: (userId: string, payload: { title: string; body: string; url?: string; tag?: string }) =>
+      fetchApi('/push/send', {
+        method: 'POST',
+        body: JSON.stringify({ userId, ...payload }),
+      }),
+    test: () => fetchApi('/push/test', { method: 'POST' }),
+  },
   
   privacy: {
     getConsents: async () => {

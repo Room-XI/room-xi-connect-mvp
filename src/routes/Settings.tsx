@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
   User, 
   Bell, 
   Shield, 
-  Palette, 
   Download, 
   Trash2,
   LogOut,
@@ -19,6 +18,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { clearQueue } from '@/lib/queue';
+import NotificationSettings from '@/components/NotificationSettings';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -307,12 +307,21 @@ export default function Settings() {
           </div>
         </motion.div>
 
+        {/* Push Notifications */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+        >
+          <NotificationSettings />
+        </motion.div>
+
         {/* Privacy & Security */}
         <motion.div
           className="cosmic-card p-6 space-y-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
+          transition={{ delay: 0.4, duration: 0.6 }}
         >
           <h3 className="font-semibold text-deepSage">Privacy & Security</h3>
           

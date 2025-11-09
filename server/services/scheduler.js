@@ -1,6 +1,10 @@
 import { DateTime } from 'luxon';
 import { captureAllWeeklySnapshots } from '../routes/orbSnapshots.js';
 import { checkMorningNudges } from '../routes/notifications.js';
+import { sendCheckinReminder, pushEnabled } from './pushNotification.ts';
+import { db } from '../db.js';
+import { privacyConsents, checkins, profiles } from '../schema.js';
+import { eq, and } from 'drizzle-orm';
 
 // Store the interval ID for the scheduler
 let schedulerInterval = null;
@@ -45,6 +49,18 @@ function msUntilNextSundaySnapshot() {
 }
 
 /**
+ * Check if current time matches 8:00 AM America/Edmonton for check-in reminders
+ */
+function shouldRunCheckinReminder() {
+  const now = DateTime.now().setZone('America/Edmonton');
+  const hour = now.hour;
+  const minute = now.minute;
+  
+  // Run at 08:00-08:05 to account for timing variations
+  return hour === 8 && minute >= 0 && minute < 5;
+}
+
+/**
  * Check if current time matches 10:00 AM America/Edmonton for morning nudges
  */
 function shouldRunMorningNudge() {
@@ -54,6 +70,66 @@ function shouldRunMorningNudge() {
   
   // Run at 10:00-10:05 to account for timing variations
   return hour === 10 && minute >= 0 && minute < 5;
+}
+
+/**
+ * Send check-in reminders via push notifications
+ */
+async function sendCheckinReminders() {
+  try {
+    if (!pushEnabled) {
+      console.log('[Scheduler] Push notifications disabled - skipping check-in reminders');
+      return;
+    }
+
+    const now = DateTime.now().setZone('America/Edmonton');
+    const today = now.toISODate();
+    
+    console.log(`[Scheduler] Sending check-in reminders at ${now.toISO()}`);
+
+    // Get users with notifications enabled
+    const usersWithNotifications = await db
+      .select({
+        userId: privacyConsents.userId,
+      })
+      .from(privacyConsents)
+      .where(eq(privacyConsents.notificationsEnabled, true));
+
+    let sentCount = 0;
+    let skippedCount = 0;
+
+    for (const user of usersWithNotifications) {
+      try {
+        // Check if user already checked in today
+        const [todayCheckin] = await db
+          .select()
+          .from(checkins)
+          .where(and(
+            eq(checkins.userId, user.userId),
+            eq(checkins.checkinDate, today)
+          ))
+          .limit(1);
+
+        if (!todayCheckin) {
+          // Send push notification reminder
+          const result = await sendCheckinReminder(user.userId);
+          if (result.sent > 0) {
+            sentCount++;
+          } else {
+            skippedCount++;
+          }
+        } else {
+          skippedCount++;
+        }
+      } catch (error) {
+        console.error(`[Scheduler] Error sending reminder to user ${user.userId}:`, error);
+      }
+    }
+
+    console.log(`[Scheduler] Check-in reminders sent: ${sentCount}, skipped: ${skippedCount}`);
+  } catch (error) {
+    console.error('[Scheduler] Error sending check-in reminders:', error);
+  }
 }
 
 /**
@@ -73,6 +149,18 @@ async function runScheduledTasks() {
         console.log('[Scheduler] Weekly snapshots completed:', result);
       } catch (error) {
         console.error('[Scheduler] Failed to capture weekly snapshots:', error);
+      }
+    }
+    
+    // Check if we should send check-in reminders at 8:00 AM
+    if (shouldRunCheckinReminder()) {
+      console.log('[Scheduler] Sending check-in reminders...');
+      
+      try {
+        await sendCheckinReminders();
+        console.log('[Scheduler] Check-in reminders completed');
+      } catch (error) {
+        console.error('[Scheduler] Failed to send check-in reminders:', error);
       }
     }
     

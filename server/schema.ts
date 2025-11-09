@@ -551,3 +551,17 @@ export const moodDrops = pgTable("mood_drops", {
   userIdx: index("mood_drops_user_idx").on(table.userId, table.createdAt.desc()),
   publicIdx: index("mood_drops_public_idx").on(table.isPublic, table.createdAt.desc()),
 }));
+
+// Push Notification Subscriptions
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(), // Encryption key
+  auth: text("auth").notNull(), // Authentication secret
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("push_subscriptions_user_idx").on(table.userId),
+  userEndpointIdx: uniqueIndex("push_subscriptions_user_endpoint_idx").on(table.userId, table.endpoint),
+}));
