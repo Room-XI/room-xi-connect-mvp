@@ -9,7 +9,6 @@ import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { DateTime } from 'luxon';
 import GradientMoodOrb from './GradientMoodOrb';
 import { useHistoricalMoodData } from '@/hooks/useHistoricalMoodData';
-import { createMoodBlend } from '@/lib/moodGradient';
 
 interface MoodTimelapseProps {
   className?: string;
@@ -23,9 +22,6 @@ export default function MoodTimelapse({ className = '' }: MoodTimelapseProps) {
   const currentDate = DateTime.now().setZone('America/Edmonton').minus({ days: currentDayOffset });
   const canGoBack = currentDayOffset < 30;
   const canGoForward = currentDayOffset > 0;
-  
-  // Create mood blend from historical summary
-  const historicalBlend = summary ? createMoodBlend(summary.ratios) : null;
 
   return (
     <div className={`bg-white dark:bg-gray-900 rounded-xl p-6 ${className}`}>
@@ -83,11 +79,11 @@ export default function MoodTimelapse({ className = '' }: MoodTimelapseProps) {
       >
         {loading ? (
           <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
-        ) : historicalBlend ? (
+        ) : summary?.ratios ? (
           <GradientMoodOrb
             size={200}
             showSlowSettle={false}
-            overrideBlend={historicalBlend}
+            overrideRatios={summary.ratios}
           />
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400">

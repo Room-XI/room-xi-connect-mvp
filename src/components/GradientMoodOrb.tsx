@@ -4,7 +4,14 @@ import { Info } from 'lucide-react';
 import { useMoodGradient } from '@/hooks/useMoodGradient';
 import { useMoodOrbSettings } from '@/hooks/useMoodOrbSettings';
 import ColorLegendDrawer from './ColorLegendDrawer';
-import type { MoodBlend } from '@/lib/moodGradient';
+import {
+  renderSmoothGradient,
+  calculateColorStops,
+  drawPatternOverlay,
+  getDominantMoodColor,
+  type CanvasGradientOptions,
+} from '@/lib/canvasGradient';
+import type { MoodKey } from '@/lib/moodConfig';
 import {
   saveOrbTweenState,
   loadOrbTweenState,
@@ -19,17 +26,20 @@ interface GradientMoodOrbProps {
   className?: string;
   streak?: number; // 0-7 day streak for halo ring
   showSlowSettle?: boolean; // Enable 1-2 minute gradual transition
-  overrideBlend?: MoodBlend | null; // For historical/timelapse views
+  overrideRatios?: Record<string, number> | null; // For historical/timelapse views
 }
 
 /**
- * 7-Day Gradient Mood Orb
- * Displays a blended orb with all mood colors from the past week
+ * 7-Day Gradient Mood Orb (Canvas-Based Smooth Blend)
+ * Displays a dreamy blended orb with all 6 mood colors from the past week
  * Features:
- * - Weighted color gradient based on mood frequency
+ * - Smooth continuous gradient using canvas rendering
+ * - All 6 moods always visible (epsilon weighting)
+ * - Soft Gaussian blur for atmospheric quality
+ * - HSL color interpolation to avoid muddy transitions
  * - Breathing animation (8-second cycle)
  * - Streak halo ring (grows from 0-7 days)
- * - Optional slow-settle animation (1-2 minute transition)
+ * - Pattern overlay for accessibility
  * - Export support via DOM ref
  */
 const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({ 
@@ -38,24 +48,22 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   className = '',
   streak: overrideStreak,
   showSlowSettle = true,
-  overrideBlend,
+  overrideRatios,
 }, ref) => {
-  const { moodBlend: liveMoodBlend, summary, loading } = useMoodGradient();
+  const { summary, loading } = useMoodGradient();
   const { settings } = useMoodOrbSettings();
   
-  // Use override blend (for historical data) or live blend
-  const moodBlend = overrideBlend || liveMoodBlend;
+  // Use override ratios (for historical data) or live ratios
+  const ratios = overrideRatios || summary?.ratios || {};
   
-  // Internal ref for export functionality
+  // Internal refs
   const orbRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Merged ref callback to expose DOM element to parent for export
-  // This ensures both internal orbRef and forwarded ref receive the DOM node
   const mergedRef = useCallback((node: HTMLDivElement | null) => {
-    // Update internal ref (cast to mutable to satisfy TypeScript)
     (orbRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
     
-    // Update forwarded ref (handle both function and object refs)
     if (typeof ref === 'function') {
       ref(node);
     } else if (ref) {
@@ -66,78 +74,119 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   // Use streak from API summary if available, otherwise use prop override
   const streak = summary?.streak7 ?? overrideStreak ?? 0;
   
-  // Default cosmic gradient while loading
-  const defaultStyle = {
-    gradient: 'radial-gradient(circle at 30% 30%, #2EC489, #6E8F7A, #D8AE3D)',
-    glow: 'rgba(46, 196, 137, 0.4)',
-    particles: '#2EC489',
-  };
-  
   // Check for fallback states
   const hasNoData = summary && summary.daysWithData === 0;
-  const mutedGrayStyle = {
-    gradient: 'radial-gradient(circle at 30% 30%, #6B7280, #4B5563, #374151)',
-    glow: 'rgba(107, 114, 128, 0.3)',
-    particles: '#9CA3AF',
-  };
   
-  const style = hasNoData ? mutedGrayStyle : (moodBlend || defaultStyle);
-  
-  // Track if this is the first render (for localStorage resume)
+  // Track animation state
   const isFirstRender = useRef(true);
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const [showColorLegend, setShowColorLegend] = useState(false);
   
+  // Calculate dominant mood for glow effects
+  const dominantMoodData = getDominantMoodColor(ratios as Record<MoodKey, number>);
+  const glowColor = `hsla(${dominantMoodData.h}, ${dominantMoodData.s}%, ${dominantMoodData.l}%, 0.4)`;
+  const particleColor = `hsl(${dominantMoodData.h}, ${dominantMoodData.s}%, ${Math.min(dominantMoodData.l + 15, 95)}%)`;
+  
+  // Render canvas gradient
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || loading) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Set canvas size (renderSmoothGradient handles DPR internally)
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Handle no data state with muted gray gradient
+    if (hasNoData) {
+      // Set transform for logical coordinate system
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      
+      const gradient = ctx.createRadialGradient(
+        size * 0.3, size * 0.3, 0,
+        size / 2, size / 2, size / 2
+      );
+      gradient.addColorStop(0, '#6B7280');
+      gradient.addColorStop(0.5, '#4B5563');
+      gradient.addColorStop(1, '#374151');
+      
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      return;
+    }
+    
+    // Render smooth gradient with mood data
+    const options: CanvasGradientOptions = {
+      ratios: ratios as Record<MoodKey, number>,
+      size,
+      blurRadius: 20, // Soft atmospheric blur
+      highContrast: settings.highVisibility,
+      showPatterns: settings.patternOverlay,
+    };
+    
+    renderSmoothGradient(ctx, options);
+    
+    // Add pattern overlay if enabled (drawPatternOverlay expects dpr-scaled context)
+    if (settings.patternOverlay && summary) {
+      const colorStops = calculateColorStops(ratios as Record<MoodKey, number>);
+      drawPatternOverlay(ctx, size, colorStops);
+    }
+    
+  }, [size, ratios, loading, hasNoData, settings.highVisibility, settings.patternOverlay, summary]);
+  
   // On mount, check if we have a saved state that matches current state
   useEffect(() => {
-    if (isFirstRender.current && moodBlend) {
+    if (isFirstRender.current && ratios) {
       const savedState = loadOrbTweenState();
       
-      // If saved state exists, is valid, and matches current blend, skip animation
       if (savedState && isTweenStateValid(savedState)) {
         const progress = calculateTweenProgress(savedState.tweenStartAt, savedState.settleMs);
         
-        // If animation is complete or near complete, don't animate
-        if (progress >= 0.95 && savedState.orbTarget.gradient === moodBlend.gradient) {
+        if (progress >= 0.95) {
           setShouldAnimate(false);
         }
       }
       
       isFirstRender.current = false;
     }
-  }, [moodBlend]);
+  }, [ratios]);
   
-  // Save tween state when mood blend changes
+  // Save tween state when ratios change
   useEffect(() => {
-    if (moodBlend && !loading) {
-      // Random settle time between 1-2 minutes for organic feel (or 2 sec for reduced motion)
+    if (ratios && !loading && Object.keys(ratios).length > 0) {
       const settleMs = showSlowSettle ? (60000 + Math.random() * 60000) : 2000;
       
       saveOrbTweenState({
         orbTarget: {
-          gradient: moodBlend.gradient,
-          glow: moodBlend.glow,
-          particles: moodBlend.particles,
+          gradient: JSON.stringify(ratios), // Use ratios as proxy for gradient state
+          glow: glowColor,
+          particles: particleColor,
         },
         tweenStartAt: Date.now(),
         settleMs,
       });
       
-      // Enable animation for new data
       if (!isFirstRender.current) {
         setShouldAnimate(true);
       }
     }
-  }, [moodBlend, loading, showSlowSettle]);
+  }, [ratios, loading, showSlowSettle, glowColor, particleColor]);
   
   // Calculate halo opacity based on streak (0-7 days)
   const haloOpacity = Math.min(streak / 7, 1);
   const haloGlow = streak === 7 ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
   
-  // Slow-settle transition duration (1-2 minutes = 60-120 seconds)
-  // Skip animation if we're resuming from saved state
+  // Slow-settle transition duration
   const settleTransition = (showSlowSettle && shouldAnimate) ? {
-    duration: 60 + Math.random() * 60, // Random 1-2 min for organic feel
+    duration: 60 + Math.random() * 60,
     ease: "easeInOut",
   } : {
     duration: shouldAnimate ? 2 : 0,
@@ -175,17 +224,16 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
         />
       )}
       
-      {/* Main orb with breathing animation and slow-settle gradient transition */}
+      {/* Main orb with canvas-based gradient and breathing animation */}
       <motion.div
-        className={`absolute inset-0 rounded-full mood-orb-main ${
+        className={`absolute inset-0 rounded-full mood-orb-main overflow-hidden ${
           settings.highVisibility ? 'ring-3 ring-white ring-opacity-80' : ''
         }`}
         style={{
-          background: style.gradient,
           boxShadow: settings.highVisibility 
-            ? `0 0 40px ${style.glow}, 0 0 60px ${style.glow}, inset 0 0 20px rgba(0, 0, 0, 0.3)`
-            : `0 0 30px ${style.glow}`,
-          ['--orb-glow-color' as any]: style.glow,
+            ? `0 0 40px ${glowColor}, 0 0 60px ${glowColor}, inset 0 0 20px rgba(0, 0, 0, 0.3)`
+            : `0 0 30px ${glowColor}`,
+          ['--orb-glow-color' as any]: glowColor,
         }}
         animate={{
           scale: [1, 1.05, 1],
@@ -196,55 +244,36 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
             repeat: Infinity,
             ease: "easeInOut",
           },
-          background: settleTransition,
+          ...settleTransition,
         }}
       >
+        {/* Canvas gradient layer */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full"
+          style={{
+            width: size,
+            height: size,
+            imageRendering: 'auto',
+          }}
+        />
+        
         {/* Highlight overlay for 3D effect */}
         <div
-          className="absolute inset-0 rounded-full opacity-30"
+          className="absolute inset-0 rounded-full opacity-30 pointer-events-none"
           style={{
             background: 'radial-gradient(circle at 70% 30%, transparent 30%, rgba(255, 255, 255, 0.3) 70%)',
           }}
         />
         
-        {/* Pattern overlay for color-blind accessibility - continuous intensity */}
-        {settings.patternOverlay && summary && (() => {
-          const warmRatio = (summary.ratios.clear || 0) + (summary.ratios.breezy || 0) + (summary.ratios.aurora || 0);
-          const coolRatio = (summary.ratios.foggy || 0) + (summary.ratios.stormy || 0) + (summary.ratios.cold || 0);
-          
-          return (
-            <>
-              {warmRatio > 0 && (
-                <div
-                  className="absolute inset-0 rounded-full overflow-hidden mood-orb-pattern"
-                  style={{
-                    backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)',
-                    backgroundSize: '8px 8px',
-                    opacity: Math.min(warmRatio * 0.6, 0.5),
-                  }}
-                />
-              )}
-              {coolRatio > 0 && (
-                <div
-                  className="absolute inset-0 rounded-full overflow-hidden mood-orb-pattern"
-                  style={{
-                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 5px)',
-                    opacity: Math.min(coolRatio * 0.6, 0.5),
-                  }}
-                />
-              )}
-            </>
-          );
-        })()}
-        
         {/* Floating particles */}
-        <div className="absolute inset-0 rounded-full overflow-hidden">
+        <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
           {[...Array(6)].map((_, i) => (
             <motion.div
               key={i}
               className="absolute w-1 h-1 rounded-full opacity-60"
               style={{
-                backgroundColor: style.particles,
+                backgroundColor: particleColor,
                 left: `${20 + (i * 12)}%`,
                 top: `${30 + (i % 3) * 20}%`,
               }}
@@ -265,8 +294,8 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
         
         {/* Ripple effect on hover */}
         <motion.div
-          className="absolute inset-0 rounded-full border-2 opacity-0"
-          style={{ borderColor: style.particles }}
+          className="absolute inset-0 rounded-full border-2 opacity-0 pointer-events-none"
+          style={{ borderColor: particleColor }}
           whileHover={{
             scale: [1, 1.2, 1.4],
             opacity: [0, 0.6, 0],
@@ -284,7 +313,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
       
       {/* No data message */}
       {hasNoData && !loading && (
-        <div className="absolute inset-0 flex items-center justify-center text-center px-6">
+        <div className="absolute inset-0 flex items-center justify-center text-center px-6 pointer-events-none">
           <div className="text-white drop-shadow-lg">
             <div className="text-sm font-medium mb-1">Orb is resting</div>
             <div className="text-xs opacity-80">Check in to reflect</div>
@@ -299,7 +328,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
             e.stopPropagation();
             setShowColorLegend(true);
           }}
-          className="absolute bottom-2 right-2 p-2 bg-white/90 dark:bg-gray-800/90 rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+          className="absolute bottom-2 right-2 p-2 bg-white/90 dark:bg-gray-800/90 rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 z-10"
           aria-label="Show color meanings"
         >
           <Info className="w-4 h-4 text-gray-700 dark:text-gray-300" />
