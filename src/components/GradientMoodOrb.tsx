@@ -17,7 +17,7 @@ interface GradientMoodOrbProps {
   onClick?: () => void;
   className?: string;
   streak?: number; // 0-7 day streak for halo ring
-  showSlowSettle?: boolean; // Enable 10-minute gradual transition
+  showSlowSettle?: boolean; // Enable 1-2 minute gradual transition
   overrideBlend?: MoodBlend | null; // For historical/timelapse views
 }
 
@@ -28,8 +28,8 @@ interface GradientMoodOrbProps {
  * - Weighted color gradient based on mood frequency
  * - Breathing animation (8-second cycle)
  * - Streak halo ring (grows from 0-7 days)
- * - Optional slow-settle animation (10-minute transition)
- * - Export support via canvas ref
+ * - Optional slow-settle animation (1-2 minute transition)
+ * - Export support via DOM ref
  */
 const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({ 
   size = 200, 
@@ -98,7 +98,8 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   // Save tween state when mood blend changes
   useEffect(() => {
     if (moodBlend && !loading) {
-      const settleMs = showSlowSettle ? 600000 : 2000; // 10 min or 2 sec
+      // Random settle time between 1-2 minutes for organic feel (or 2 sec for reduced motion)
+      const settleMs = showSlowSettle ? (60000 + Math.random() * 60000) : 2000;
       
       saveOrbTweenState({
         orbTarget: {
@@ -121,10 +122,10 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   const haloOpacity = Math.min(streak / 7, 1);
   const haloGlow = streak === 7 ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
   
-  // Slow-settle transition duration (10 minutes = 600 seconds)
+  // Slow-settle transition duration (1-2 minutes = 60-120 seconds)
   // Skip animation if we're resuming from saved state
   const settleTransition = (showSlowSettle && shouldAnimate) ? {
-    duration: 600,
+    duration: 60 + Math.random() * 60, // Random 1-2 min for organic feel
     ease: "easeInOut",
   } : {
     duration: shouldAnimate ? 2 : 0,
