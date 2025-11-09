@@ -68,7 +68,7 @@
     "lucide-react": "^0.356.0",
     "luxon": "^3.7.2",
     "nodemailer": "^7.0.10",
-    "openai": "^6.7.0",
+    "openai": "^6.8.1",
     "prettier": "^3.6.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
