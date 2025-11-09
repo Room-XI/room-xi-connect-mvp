@@ -1,0 +1,31 @@
+# Capacitor Mobile Setup Required
+
+The `/ios` and `/android` folders are not committed to version control.
+
+## First-Time Setup
+
+Run the following command to generate native projects:
+
+```bash
+npm run setup:mobile
+```
+
+Or manually:
+
+```bash
+npx cap add ios
+npx cap add android
+npm run build:mobile
+npm run cap:sync
+```
+
+## Documentation
+
+See [MOBILE_BUILD.md](./MOBILE_BUILD.md) for complete mobile build instructions.
+
+## Why?
+
+- Keeps repository clean and small
+- Avoids platform-specific merge conflicts
+- Standard Capacitor best practice for simple wrapper apps
+- Native projects can be regenerated from `capacitor.config.ts`

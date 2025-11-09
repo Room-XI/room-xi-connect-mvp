@@ -26,6 +26,29 @@ A youth mental health and wellness platform for ages 13-25, providing daily chec
 - **Progressive Web App**: Install on any device, works like a native app
 - **Accessibility First**: WCAG 2.1 AA compliant
 
+## 📱 Mobile Development
+
+Room XI Connect includes Capacitor for iOS and Android builds.
+
+**⚠️ First-time setup required**: The `/ios` and `/android` folders are not committed to version control and must be generated.
+
+See **[MOBILE_BUILD.md](./MOBILE_BUILD.md)** for complete mobile build instructions.
+
+### Quick Mobile Setup
+
+```bash
+# One-command setup (recommended)
+npm run setup:mobile
+
+# Or manually:
+npx cap add ios && npx cap add android
+npm run build:mobile && npm run cap:sync
+```
+
+**Note**: iOS builds require macOS. Android builds work on all platforms.
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites

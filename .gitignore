@@ -120,3 +120,8 @@ coverage/
 
 # Misc
 *.tsbuildinfo
+
+# Capacitor
+/ios
+/android
+capacitor.config.json
