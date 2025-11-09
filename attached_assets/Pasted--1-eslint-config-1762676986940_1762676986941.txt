@@ -1,0 +1,272 @@
+# ───────────────────────────────────────────────────────────────────────────────
+# 1) eslint.config.js  (flat config)
+# Place at repo root
+# Why: you run `eslint .` but have no ESLint config; this adds a sane TS/React setup.
+# ───────────────────────────────────────────────────────────────────────────────
+/* eslint.config.js */
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import react from "eslint-plugin-react";
+import hooks from "eslint-plugin-react-hooks";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+import globals from "globals";
+
+export default tseslint.config(
+  { ignores: ["dist/**", "node_modules/**"] },
+  {
+    files: ["**/*.{ts,tsx,js,jsx}"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+      parser: tseslint.parser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+        projectService: true,
+      },
+    },
+    plugins: { react, "react-hooks": hooks, "jsx-a11y": jsxA11y },
+    settings: { react: { version: "detect" } },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...tseslint.configs.recommendedTypeChecked[0].rules,
+      ...react.configs.recommended.rules,
+      ...jsxA11y.configs.recommended.rules,
+      "react/react-in-jsx-scope": "off",
+      "react/jsx-uses-react": "off",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  }
+);
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 2) server/middleware/rateLimit.ts
+# New file
+# Why: add basic rate limits for auth + mutating APIs.
+# ───────────────────────────────────────────────────────────────────────────────
+/* server/middleware/rateLimit.ts */
+import rateLimit from "express-rate-limit";
+import type { RequestHandler } from "express";
+
+export const authLimiter: RequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 50,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+});
+
+export const writeLimiter: RequestHandler = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 200,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+});
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 3) server/services/email.provider.js
+# Drop-in provider switch (keeps your existing call sites intact).
+# Set EMAIL_PROVIDER=sendgrid|gmail (default: gmail).
+# Why: README/.env talk SendGrid; code used Gmail — unify.
+# ───────────────────────────────────────────────────────────────────────────────
+/* server/services/email.provider.js */
+const provider = (process.env.EMAIL_PROVIDER || "gmail").toLowerCase();
+
+let impl;
+if (provider === "sendgrid") {
+  impl = await import("./email.sendgrid.js");
+} else {
+  impl = await import("./email.gmail.js");
+}
+
+export const sendGuardianVerificationEmail = impl.sendGuardianVerificationEmail;
+export const verifyEmailConfig = impl.verifyEmailConfig;
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 4) server/services/email.gmail.js
+# Replacement for your current email.js using Gmail SMTP (nodemailer).
+# ───────────────────────────────────────────────────────────────────────────────
+/* server/services/email.gmail.js */
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
+
+export async function sendGuardianVerificationEmail({ guardianEmail, youthName, verifyUrl }) {
+  if (!guardianEmail || !verifyUrl) throw new Error("guardianEmail and verifyUrl are required");
+  await transporter.sendMail({
+    from: `"${process.env.EMAIL_FROM_NAME || "Room XI"}" <${process.env.EMAIL_FROM || process.env.GMAIL_USER}>`,
+    to: guardianEmail,
+    subject: "Please verify consent",
+    html: `
+      <p>Hello,</p>
+      <p>${youthName || "Your youth"} is requesting access. Please verify:</p>
+      <p><a href="${verifyUrl}">Verify consent</a></p>
+    `,
+  });
+}
+
+export async function verifyEmailConfig() {
+  await transporter.verify();
+  return true;
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 5) server/services/email.sendgrid.js
+# SendGrid implementation to match your .env.example.
+# ───────────────────────────────────────────────────────────────────────────────
+/* server/services/email.sendgrid.js */
+import sgMail from "@sendgrid/mail";
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+export async function sendGuardianVerificationEmail({ guardianEmail, youthName, verifyUrl }) {
+  if (!guardianEmail || !verifyUrl) throw new Error("guardianEmail and verifyUrl are required");
+  const msg = {
+    to: guardianEmail,
+    from: { email: process.env.EMAIL_FROM, name: process.env.EMAIL_FROM_NAME || "Room XI" },
+    subject: "Please verify consent",
+    html: `
+      <p>Hello,</p>
+      <p>${youthName || "Your youth"} is requesting access. Please verify:</p>
+      <p><a href="${verifyUrl}">Verify consent</a></p>
+    `,
+  };
+  await sgMail.send(msg);
+}
+
+export async function verifyEmailConfig() {
+  if (!process.env.SENDGRID_API_KEY) throw new Error("SENDGRID_API_KEY missing");
+  return true;
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 6) server/middleware/applySecurity.ts
+# Wire global security headers; keep your per-route CSRF.
+# ───────────────────────────────────────────────────────────────────────────────
+/* server/middleware/applySecurity.ts */
+import type { Express } from "express";
+import { securityHeaders } from "./security";
+
+export function applySecurity(app: Express) {
+  // TODO: replace 'unsafe-inline/eval' with nonces in security.ts when feasible.
+  app.use(securityHeaders);
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 7) server/routes/journal.js  (patch)
+# Replace the key derivation + remove insecure default.
+# Why: avoid a static fallback secret; enforce 32-byte key.
+# ───────────────────────────────────────────────────────────────────────────────
+/* PATCH: server/routes/journal.js */
+import crypto from "crypto";
+function deriveKey() {
+  const secret = process.env.ENCRYPTION_SECRET;
+  if (!secret) {
+    // Fail fast in all envs except tests; prevents silent weak encryption.
+    throw new Error("ENCRYPTION_SECRET is required");
+  }
+  // HKDF to 32-byte key for AES-256-GCM
+  return crypto.hkdfSync("sha256", Buffer.from(secret), Buffer.alloc(0), Buffer.from("room-xi-journal"), 32);
+}
+const KEY = deriveKey();
+/* … keep your encrypt/decrypt, but use KEY instead of raw secret … */
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 8) server/index.js  (minimal insert points)
+# Add imports and middleware wiring. Insert at the top/before routes.
+# Why: prod serving, security headers, and rate limits.
+# ───────────────────────────────────────────────────────────────────────────────
+/* PATCH: server/index.js */
+// + NEW imports:
+import path from "path"; // already present
+import { applySecurity } from "./middleware/applySecurity.ts";
+import { authLimiter, writeLimiter } from "./middleware/rateLimit.ts";
+/* … after app creation … */
+applySecurity(app);
+/* … on routes … */
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/checkins", validateCsrfToken, requireGuardianVerification, writeLimiter, checkinRoutes);
+app.use("/api/profile", validateCsrfToken, writeLimiter, profileRoutes);
+app.use("/api/consent", validateCsrfToken, writeLimiter, consentRoutes);
+/* … at the bottom (production only) … */
+if (process.env.NODE_ENV === "production") {
+  const dist = path.resolve(__dirname, "../dist");
+  const expressStatic = (await import("express")).default.static;
+  app.use(expressStatic(dist, { index: false, maxAge: "1y", setHeaders: (res) => res.setHeader("Service-Worker-Allowed", "/") }));
+  app.get("*", (_req, res) => res.sendFile(path.join(dist, "index.html")));
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 9) vite.config.ts  (test include fix)
+# Replace your `test:` block with this minimal one.
+# Why: your UI tests under src/** are not running.
+# ───────────────────────────────────────────────────────────────────────────────
+/* PATCH: vite.config.ts */
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: [],
+    include: [
+      "server/__tests__/**/*.test.ts",
+      "src/**/*.test.{ts,tsx}"
+    ],
+  },
+  /* …rest unchanged… */
+});
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 10) scripts/fix-package-json.mjs
+# Move drizzle-kit to devDependencies, add a sane start script, and normalize dev ports.
+# Run: `node scripts/fix-package-json.mjs`
+# ───────────────────────────────────────────────────────────────────────────────
+/* scripts/fix-package-json.mjs */
+import { readFileSync, writeFileSync } from "node:fs";
+
+const pkgPath = new URL("../package.json", import.meta.url);
+const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+
+pkg.scripts = pkg.scripts || {};
+pkg.scripts.start = pkg.scripts.start || "NODE_ENV=production node server/index.js";
+if (pkg.scripts["dev:client"]?.includes("5173")) {
+  pkg.scripts["dev:client"] = pkg.scripts["dev:client"].replace("5173", "5000");
+}
+
+pkg.devDependencies = pkg.devDependencies || {};
+if (pkg.dependencies?.["drizzle-kit"]) {
+  pkg.devDependencies["drizzle-kit"] = pkg.dependencies["drizzle-kit"];
+  delete pkg.dependencies["drizzle-kit"];
+}
+
+writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+console.log("✔ package.json normalized");
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 11) .env.example  (append these lines if missing)
+# Why: keep template aligned with code.
+# ───────────────────────────────────────────────────────────────────────────────
+# --- Server required ---
+DATABASE_URL=postgres://user:pass@host:5432/db
+SESSION_SECRET=replace_with_long_random_string
+ENCRYPTION_SECRET=replace_with_long_random_string
+XID_PEPPER=replace_with_hex_64
+JWT_SECRET=replace_with_long_random_string
+
+# --- Email ---
+EMAIL_PROVIDER=gmail # or: sendgrid
+GMAIL_USER=
+GMAIL_APP_PASSWORD=
+EMAIL_FROM=
+EMAIL_FROM_NAME=Room XI
+
+# --- Optional OpenAI base (if used) ---
+AI_INTEGRATIONS_OPENAI_API_KEY=
+AI_INTEGRATIONS_OPENAI_BASE_URL=
