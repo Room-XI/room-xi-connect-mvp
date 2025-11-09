@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useSession } from '@/lib/session';
 import api from '@/lib/api';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
+import VoiceControls from '@/components/VoiceControls';
 import { MOODS, type MoodKey } from '@/lib/moodConfig';
 
 const PROMPTS = [
@@ -292,19 +293,35 @@ export default function Journal() {
               <p className="text-cosmic-midnight italic">{prompt}</p>
             </div>
 
+            <div className="mb-4">
+              <VoiceControls
+                mode="input"
+                onAppendTranscript={(text) => setContent((prev) => prev + text)}
+                className="mb-3"
+              />
+            </div>
+
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Start writing..."
+              placeholder="Start writing or use voice input above..."
               className="w-full h-64 p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:border-cosmic-teal font-serif text-lg"
               style={{ fontFamily: "'Merriweather', serif" }}
               maxLength={5000}
             />
 
             <div className="flex items-center justify-between mt-4">
-              <span className="text-sm text-gray-500">
-                {content.length} / 5000 characters
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">
+                  {content.length} / 5000 characters
+                </span>
+                {content.trim() && (
+                  <VoiceControls
+                    mode="playback"
+                    getTextToSpeak={() => content}
+                  />
+                )}
+              </div>
               <button
                 onClick={saveAloneEntry}
                 disabled={loading || !content.trim()}
@@ -343,14 +360,22 @@ export default function Journal() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div
-                    className={`max-w-[80%] px-4 py-3 rounded-2xl ${
-                      message.isUser
-                        ? 'bg-cosmic-teal text-white'
-                        : 'bg-cosmic-purple/10 text-cosmic-midnight border border-cosmic-purple/20'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                  <div className={`flex items-start gap-2 ${message.isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div
+                      className={`max-w-[80%] px-4 py-3 rounded-2xl ${
+                        message.isUser
+                          ? 'bg-cosmic-teal text-white'
+                          : 'bg-cosmic-purple/10 text-cosmic-midnight border border-cosmic-purple/20'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    </div>
+                    {!message.isUser && (
+                      <VoiceControls
+                        mode="playback"
+                        getTextToSpeak={() => message.text}
+                      />
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -383,13 +408,20 @@ export default function Journal() {
             </div>
 
             <div className="p-6 border-t border-gray-200 bg-gray-50/50">
+              <div className="mb-3">
+                <VoiceControls
+                  mode="input"
+                  onAppendTranscript={(text) => setInputText((prev) => prev + text)}
+                />
+              </div>
+              
               <div className="flex space-x-3 mb-4">
                 <input
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Share what's on your mind..."
+                  placeholder="Share what's on your mind or use voice above..."
                   className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-cosmic-purple transition-colors"
                   disabled={isTyping}
                   maxLength={500}
