@@ -16,6 +16,8 @@ The tech stack includes React 18 with TypeScript, Vite 5, React Router v6, Tailw
 ### Feature Specifications
 The application utilizes a 6-level mood system and SAMHSA Wellness Dimensions. Ximi AI includes consent gating and crisis keyword detection. A legally compliant consent system involves a basic consent layer during account creation and a second layer for a "Safety Profile" with optional health information and granular media consent. A breach notification system is in place for OIPC compliance. Authenticated users must complete a daily check-in by 8 AM (Edmonton time) before browsing programs, a feature managed by an "Explore Gate." Ximi proactively supports users during mood declines based on a statistical mood variance detection service.
 
+**Ximi AI Consent System (Nov 2025):** A dedicated consent flow for Ximi AI requires explicit user opt-in before accessing the AI companion. The XimiConsentModal displays comprehensive information about what Ximi is, how it works (AI-powered conversations, crisis detection, privacy-first design), and what users are consenting to (AI-generated responses, conversation storage, OpenAI API processing, crisis keyword detection). When users attempt to chat without consent, the modal automatically appears and preserves their message, automatically sending it after consent is granted for a seamless experience. Users can enable/disable Ximi anytime via a toggle in Settings. Backend enforcement ensures all `/api/ximi/chat` requests require `ximiConsent=true` in the user's profile, returning 403 errors otherwise.
+
 ## External Dependencies
 - **Supabase:** PostgreSQL database, authentication, and storage.
 - **Neon PostgreSQL:** Primary database backend.
