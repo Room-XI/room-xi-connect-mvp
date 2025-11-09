@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, AlertCircle } from 'lucide-react';
 import { useOrbExportSettings } from '@/hooks/useOrbExportSettings';
 
@@ -12,6 +12,10 @@ export function OrbExportModal({ isOpen, onClose, onConfirmExport }: OrbExportMo
   const { settings, enableExport } = useOrbExportSettings();
   const [acknowledged, setAcknowledged] = useState(settings.privacyAcknowledged);
   
+  useEffect(() => {
+    setAcknowledged(settings.privacyAcknowledged);
+  }, [settings.privacyAcknowledged]);
+  
   if (!isOpen) return null;
   
   const handleEnableAndExport = () => {
@@ -20,6 +24,11 @@ export function OrbExportModal({ isOpen, onClose, onConfirmExport }: OrbExportMo
       onConfirmExport();
       onClose();
     }
+  };
+  
+  const handleConfirmExport = () => {
+    onConfirmExport();
+    onClose();
   };
   
   if (!settings.exportEnabled) {
@@ -77,5 +86,35 @@ export function OrbExportModal({ isOpen, onClose, onConfirmExport }: OrbExportMo
     );
   }
   
-  return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl">
+        <div className="flex items-start gap-3 mb-4">
+          <Download className="w-6 h-6 text-teal-600 flex-shrink-0 mt-1" />
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Export Mood Orb</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Export this week's mood orb as PNG?
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmExport}
+            className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

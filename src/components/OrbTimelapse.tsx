@@ -215,9 +215,13 @@ export default function OrbTimelapse() {
     const currentMood = dayData.moodType || 'clear';
     const nextMood = nextDayData?.moodType || currentMood;
     
+    // Capitalize first letter for MOOD_COLORS access (keys are 'Clear', not 'clear')
+    const capitalizedCurrentMood = currentMood.charAt(0).toUpperCase() + currentMood.slice(1);
+    const capitalizedNextMood = nextMood.charAt(0).toUpperCase() + nextMood.slice(1);
+    
     // Get colors for current and next mood
-    const currentColor = MOOD_COLORS[currentMood as keyof typeof MOOD_COLORS] || MOOD_COLORS.clear;
-    const nextColor = MOOD_COLORS[nextMood as keyof typeof MOOD_COLORS] || currentColor;
+    const currentColor = MOOD_COLORS[capitalizedCurrentMood] || MOOD_COLORS.Clear;
+    const nextColor = MOOD_COLORS[capitalizedNextMood] || currentColor;
     
     // Interpolate colors based on transition progress
     const h = currentColor.h + (nextColor.h - currentColor.h) * transitionProgress;
@@ -257,7 +261,7 @@ export default function OrbTimelapse() {
     
     // Draw mood label if available
     if (dayData.moodType) {
-      ctx.fillStyle = currentColor.hex;
+      ctx.fillStyle = `hsl(${currentColor.h}, ${currentColor.s}%, ${currentColor.l}%)`;
       ctx.font = 'bold 16px system-ui';
       ctx.fillText(dayData.moodType.charAt(0).toUpperCase() + dayData.moodType.slice(1), centerX, 30);
     }
@@ -469,7 +473,7 @@ export default function OrbTimelapse() {
             <div key={mood} className="flex items-center space-x-2">
               <div
                 className="w-5 h-5 rounded-full border"
-                style={{ backgroundColor: color.hex }}
+                style={{ backgroundColor: `hsl(${color.h}, ${color.s}%, ${color.l}%)` }}
               />
               <span className="text-xs capitalize text-textSecondaryLight">
                 {t(`mood.${mood}`)}
