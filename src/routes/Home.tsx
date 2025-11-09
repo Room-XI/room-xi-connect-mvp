@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import MoodOrb from '@/ui/home/MoodOrb';
+import GradientMoodOrb from '@/components/GradientMoodOrb';
+import { AmbientMoodTint } from '@/components/AmbientMoodTint';
+import { OrbTimestamp } from '@/components/OrbTimestamp';
+import { OrbExportModal } from '@/components/OrbExportModal';
 import CheckInForm from '@/ui/home/CheckInForm';
 import SuggestedPrograms from '@/ui/home/SuggestedPrograms';
 import QuickActions from '@/ui/home/QuickActions';
@@ -11,6 +14,9 @@ import QuoteCard from '@/components/QuoteCard';
 import MilestoneOrb from '@/components/MilestoneOrb';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
+import { useMoodGradient } from '@/hooks/useMoodGradient';
+import { Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 interface CheckIn {
   id: string;
@@ -38,6 +44,13 @@ export default function Home() {
   const [privacyConsents, setPrivacyConsents] = useState<PrivacyConsents>({ dailyQuotes: false });
   const [showMilestoneOrb, setShowMilestoneOrb] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  
+  // Mood gradient hook for 7-day orb visualization
+  const { summary, refetch: refetchMoodData } = useMoodGradient();
+  
+  // Ref for orb export functionality
+  const orbRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -90,6 +103,29 @@ export default function Home() {
   const handleCheckInSuccess = () => {
     // Reload user data after successful check-in
     loadUserData();
+    // Refresh mood gradient data for updated orb
+    refetchMoodData();
+  };
+  
+  const handleExportOrb = async () => {
+    if (!orbRef.current) return;
+    
+    try {
+      const canvas = await html2canvas(orbRef.current, {
+        backgroundColor: null,
+        scale: 2,
+      });
+      
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `mood-orb-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = dataUrl;
+      link.click();
+      
+      setExportModalOpen(false);
+    } catch (error) {
+      console.error('Failed to export orb:', error);
+    }
   };
 
   const getGreeting = () => {
@@ -119,6 +155,9 @@ export default function Home() {
 
   return (
     <>
+      {/* Ambient mood tint based on dominant mood */}
+      <AmbientMoodTint />
+      
       <div className="py-6 space-y-8">
         {/* Greeting and Streak */}
         <motion.div
@@ -165,18 +204,37 @@ export default function Home() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.8, type: 'spring' }}
           >
-            <MoodOrb
-              size={200}
-              mood={lastCheckIn?.mood_level_1_6}
-              onClick={() => setCheckInOpen(true)}
-              className="drop-shadow-lg"
-            />
+            <div className="relative">
+              <GradientMoodOrb
+                ref={orbRef}
+                size={220}
+                onClick={() => setCheckInOpen(true)}
+                className="drop-shadow-lg"
+                streak={profile?.streak_count}
+              />
+              
+              {/* Export button - only show when user has data */}
+              {summary && summary.daysWithData > 0 && (
+                <motion.button
+                  onClick={() => setExportModalOpen(true)}
+                  className="absolute -bottom-2 -right-2 p-2 bg-teal text-white rounded-full shadow-lg hover:bg-teal/90 transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Export mood orb as image"
+                >
+                  <Download className="w-4 h-4" />
+                </motion.button>
+              )}
+            </div>
+            
+            {/* Last updated timestamp */}
+            <OrbTimestamp lastUpdated={lastCheckIn?.timestamp || null} />
             
             <div className="text-center space-y-2">
               {hasCheckedInToday() ? (
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-deepSage">
-                    You checked in today
+                    Your week at a glance
                   </p>
                   <p className="text-xs text-textSecondaryLight">
                     Tap the orb to update your mood
@@ -188,7 +246,7 @@ export default function Home() {
                     How are you feeling today?
                   </p>
                   <p className="text-xs text-textSecondaryLight">
-                    Tap the orb to check in
+                    Tap to explore your week
                   </p>
                 </div>
               )}
@@ -288,6 +346,13 @@ export default function Home() {
 
       {/* Crisis Support Sheet */}
       <CrisisSheet open={crisisOpen} onClose={() => setCrisisOpen(false)} />
+      
+      {/* Orb Export Modal */}
+      <OrbExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onConfirmExport={handleExportOrb}
+      />
     </>
   );
 }
