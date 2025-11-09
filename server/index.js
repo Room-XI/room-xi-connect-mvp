@@ -68,6 +68,7 @@ async function createServer() {
   const { default: orbRoutes } = await import('./routes/orb.js');
   const { default: skipTokenRoutes } = await import('./routes/skip-token.js');
   const { default: moodDropRoutes } = await import('./routes/mood-drop.js');
+  const { default: geoRoutes } = await import('./routes/geo.js');
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   app.use('/api/auth', authRoutes);
@@ -93,6 +94,7 @@ async function createServer() {
   app.use('/api/orb', validateCsrfToken, orbRoutes);
   app.use('/api/skip-token', validateCsrfToken, skipTokenRoutes);
   app.use('/api/mood-drop', validateCsrfToken, moodDropRoutes);
+  app.use('/api/geo', validateCsrfToken, geoRoutes);
 
   // Create Vite server in middleware mode
   const vite = await createViteServer({

@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { checkins, profiles } from '../schema.js';
 import { eq, and, sql } from 'drizzle-orm';
 import { calculateStreak, getLocalDateString } from '../services/streak.ts';
+import { analyzeMoodTrigger } from '../services/moodAnalysis.ts';
 
 const router = express.Router();
 
@@ -159,7 +160,29 @@ router.post('/', async (req, res) => {
         .where(eq(profiles.userId, req.session.userId));
     }
 
-    res.status(201).json(result);
+    // Analyze mood trends and check if Ximi should be triggered
+    // (15% drop or weekly variance >0.4, with 48h cooldown)
+    let ximiTrigger = null;
+    if (moodType) {
+      try {
+        const triggerResult = await analyzeMoodTrigger(req.session.userId, moodType);
+        if (triggerResult.shouldTrigger) {
+          ximiTrigger = {
+            triggered: true,
+            reason: triggerResult.reason,
+            details: triggerResult.details
+          };
+        }
+      } catch (error) {
+        console.error('[Checkins] Mood trigger analysis failed:', error);
+        // Continue without Ximi trigger if analysis fails
+      }
+    }
+
+    res.status(201).json({
+      ...result,
+      ximiTrigger
+    });
   } catch (error) {
     console.error('Create checkin error:', error);
     res.status(500).json({ error: 'Internal server error' });

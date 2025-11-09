@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ExploreTabs from '@/ui/explore/ExploreTabs';
 import ProgramList from '@/ui/explore/ProgramList';
@@ -8,12 +8,30 @@ import SavedList from '@/ui/explore/SavedList';
 import XimiDock from '@/ui/explore/XimiDock';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
 import { useSession } from '@/lib/session';
+import { useExploreGate } from '@/hooks/useExploreGate';
 
 export default function Explore() {
   const { view } = useParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useSession();
+  const { isGateOpen, needsCheckIn, isLoading } = useExploreGate();
   const currentView = view === 'map' ? 'map' : view === 'saved' ? 'saved' : 'programs';
   const [crisisOpen, setCrisisOpen] = useState(false);
+
+  // 8am Gate Enforcement: Redirect to check-in if gate not passed
+  useEffect(() => {
+    // Only enforce for authenticated users
+    if (!user || isLoading) return;
+    
+    // Allow bypass with ?skip_gate=true query param (for testing/emergency)
+    if (searchParams.get('skip_gate') === 'true') return;
+
+    // If user needs to do check-in to access Explore
+    if (needsCheckIn && !isGateOpen) {
+      navigate('/check-in?gate=explore', { replace: true });
+    }
+  }, [user, isGateOpen, needsCheckIn, isLoading, navigate, searchParams]);
 
   return (
     <>
