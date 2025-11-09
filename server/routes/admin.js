@@ -1,7 +1,15 @@
 import express from 'express';
 import { db } from '../db.js';
-import { checkins, profiles, savedPrograms, attendance } from '../schema.js';
-import { eq, sql, desc } from 'drizzle-orm';
+import { 
+  checkins, 
+  profiles, 
+  programs, 
+  attendance, 
+  adminLogs, 
+  ximiConversations,
+  users 
+} from '../schema.js';
+import { eq, sql, desc, and, gte, lte } from 'drizzle-orm';
 
 const router = express.Router();
 
@@ -14,14 +22,67 @@ router.get('/audit-logs', async (req, res) => {
     const [profile] = await db
       .select()
       .from(profiles)
-      .where(eq(profiles.id, req.session.userId))
+      .where(eq(profiles.userId, req.session.userId))
       .limit(1);
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || !profile.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    res.json([]);
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const offset = (page - 1) * limit;
+    const action = req.query.action;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    const conditions = [];
+    
+    if (action && action !== 'all') {
+      conditions.push(eq(adminLogs.action, action.toUpperCase()));
+    }
+    
+    if (startDate) {
+      conditions.push(gte(adminLogs.timestamp, new Date(startDate)));
+    }
+    
+    if (endDate) {
+      conditions.push(lte(adminLogs.timestamp, new Date(endDate)));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const logs = await db
+      .select()
+      .from(adminLogs)
+      .where(whereClause)
+      .orderBy(desc(adminLogs.timestamp))
+      .limit(limit)
+      .offset(offset);
+
+    const [totalResult] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(adminLogs)
+      .where(whereClause);
+
+    res.json({
+      logs: logs.map(log => ({
+        id: log.id.toString(),
+        action: log.action,
+        table_name: log.tableName,
+        record_id: log.recordId,
+        old_values: log.oldRecord,
+        new_values: log.newRecord,
+        timestamp: log.timestamp,
+        user_id: log.userId,
+      })),
+      pagination: {
+        page,
+        limit,
+        total: totalResult?.count || 0,
+        totalPages: Math.ceil((totalResult?.count || 0) / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching audit logs:', error);
     res.status(500).json({ error: 'Failed to fetch audit logs' });
@@ -37,16 +98,16 @@ router.get('/stats', async (req, res) => {
     const [profile] = await db
       .select()
       .from(profiles)
-      .where(eq(profiles.id, req.session.userId))
+      .where(eq(profiles.userId, req.session.userId))
       .limit(1);
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || !profile.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     const [totalUsers] = await db
       .select({ count: sql`count(*)::int` })
-      .from(profiles);
+      .from(users);
 
     const [totalCheckins] = await db
       .select({ count: sql`count(*)::int` })
@@ -57,10 +118,79 @@ router.get('/stats', async (req, res) => {
       .from(checkins)
       .where(sql`${checkins.timestamp} > now() - interval '30 days'`);
 
+    const [totalPrograms] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(programs);
+
+    const [totalAttendance] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(attendance);
+
+    const [ximiConversationsCount] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(ximiConversations);
+
+    const [crisisFlagsCount] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(checkins)
+      .where(eq(checkins.crisisFlagged, true));
+
+    const [crisisResolvedCount] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(checkins)
+      .where(
+        and(
+          eq(checkins.crisisFlagged, true),
+          sql`${checkins.crisisResolvedAt} IS NOT NULL`
+        )
+      );
+
+    const userGrowth = await db
+      .select({
+        date: sql`DATE(${users.createdAt})`.as('date'),
+        count: sql`count(*)::int`.as('count'),
+      })
+      .from(users)
+      .where(sql`${users.createdAt} > now() - interval '30 days'`)
+      .groupBy(sql`DATE(${users.createdAt})`)
+      .orderBy(sql`DATE(${users.createdAt})`);
+
+    const checkinTrends = await db
+      .select({
+        date: sql`DATE(${checkins.timestamp})`.as('date'),
+        count: sql`count(*)::int`.as('count'),
+      })
+      .from(checkins)
+      .where(sql`${checkins.timestamp} > now() - interval '30 days'`)
+      .groupBy(sql`DATE(${checkins.timestamp})`)
+      .orderBy(sql`DATE(${checkins.timestamp})`);
+
+    const avgDailyCheckins = checkinTrends.length > 0
+      ? Math.round(checkinTrends.reduce((sum, day) => sum + day.count, 0) / checkinTrends.length)
+      : 0;
+
+    const crisisResolutionRate = crisisFlagsCount?.count > 0
+      ? Math.round((crisisResolvedCount?.count / crisisFlagsCount?.count) * 100)
+      : 0;
+
     res.json({
       totalUsers: totalUsers?.count || 0,
       totalCheckins: totalCheckins?.count || 0,
       activeUsers: activeUsers?.count || 0,
+      totalPrograms: totalPrograms?.count || 0,
+      totalAttendance: totalAttendance?.count || 0,
+      ximiConversationsCount: ximiConversationsCount?.count || 0,
+      crisisFlagsCount: crisisFlagsCount?.count || 0,
+      crisisResolutionRate,
+      avgDailyCheckins,
+      userGrowth: userGrowth.map(row => ({
+        date: row.date,
+        count: row.count,
+      })),
+      checkinTrends: checkinTrends.map(row => ({
+        date: row.date,
+        count: row.count,
+      })),
     });
   } catch (error) {
     console.error('Error fetching admin stats:', error);

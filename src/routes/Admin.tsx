@@ -4,14 +4,17 @@ import {
   Shield, 
   Users, 
   Activity, 
-  AlertTriangle, 
-  Eye,
+  AlertTriangle,
   Calendar,
   Download,
-  BarChart
+  BarChart,
+  MessageSquare,
+  TrendingUp
 } from 'lucide-react';
 import { useSession } from '@/lib/session';
 import { Link } from 'react-router-dom';
+import { LineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { api } from '@/lib/api';
 
 interface AuditLog {
   id: string;
@@ -25,10 +28,17 @@ interface AuditLog {
 }
 
 interface AdminStats {
-  total_users: number;
-  total_checkins: number;
-  total_programs: number;
-  total_attendance: number;
+  totalUsers: number;
+  totalCheckins: number;
+  activeUsers: number;
+  totalPrograms: number;
+  totalAttendance: number;
+  ximiConversationsCount: number;
+  crisisFlagsCount: number;
+  crisisResolutionRate: number;
+  avgDailyCheckins: number;
+  userGrowth: Array<{ date: string; count: number }>;
+  checkinTrends: Array<{ date: string; count: number }>;
 }
 
 export default function Admin() {
@@ -38,28 +48,35 @@ export default function Admin() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [selectedAction, setSelectedAction] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     checkAdminAccess();
   }, [user]);
 
+  useEffect(() => {
+    if (isAdmin) {
+      loadAuditLogs();
+    }
+  }, [selectedAction, currentPage, isAdmin]);
+
   const checkAdminAccess = async () => {
     try {
       setLoading(true);
       
-      // TODO: Backend API needed - Check if user has admin role
-      // For now, assuming admin access if user exists
       if (!user) {
         setIsAdmin(false);
         return;
       }
 
-      // Note: This requires backend /api/admin/check-access endpoint
-      setIsAdmin(true);
       await Promise.all([loadAuditLogs(), loadStats()]);
-    } catch (error) {
+      setIsAdmin(true);
+    } catch (error: any) {
       console.error('Error checking admin access:', error);
-      setIsAdmin(false);
+      if (error?.message?.includes('Admin access required') || error?.message?.includes('403')) {
+        setIsAdmin(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -67,28 +84,44 @@ export default function Admin() {
 
   const loadAuditLogs = async () => {
     try {
-      // TODO: Backend API needed - /api/admin/audit-logs
-      // const { data, error } = await api.admin.getAuditLogs();
-      // For now, setting empty array
-      setAuditLogs([]);
-    } catch (error) {
-      console.error('Unexpected error loading audit logs:', error);
+      const { data, error: apiError } = await api.admin.getAuditLogs({
+        page: currentPage,
+        limit: 20,
+        action: selectedAction !== 'all' ? selectedAction : undefined,
+      });
+
+      if (apiError) {
+        throw new Error(apiError);
+      }
+
+      if (data) {
+        setAuditLogs(data.logs || []);
+        setTotalPages(data.pagination?.totalPages || 1);
+      }
+    } catch (error: any) {
+      console.error('Error loading audit logs:', error);
+      if (error?.message?.includes('403')) {
+        throw error;
+      }
     }
   };
 
   const loadStats = async () => {
     try {
-      // TODO: Backend API needed - /api/admin/stats
-      // const { data, error } = await api.admin.getStats();
-      // For now, setting default stats
-      setStats({
-        total_users: 0,
-        total_checkins: 0,
-        total_programs: 0,
-        total_attendance: 0
-      });
-    } catch (error) {
+      const { data, error: apiError } = await api.admin.getStats();
+
+      if (apiError) {
+        throw new Error(apiError);
+      }
+
+      if (data) {
+        setStats(data);
+      }
+    } catch (error: any) {
       console.error('Error loading stats:', error);
+      if (error?.message?.includes('403')) {
+        throw error;
+      }
     }
   };
 
@@ -120,10 +153,6 @@ export default function Admin() {
         return 'text-sage bg-sage/10';
     }
   };
-
-  const filteredLogs = selectedAction === 'all' 
-    ? auditLogs 
-    : auditLogs.filter(log => log.action.toLowerCase() === selectedAction.toLowerCase());
 
   if (loading) {
     return (
@@ -210,7 +239,7 @@ export default function Admin() {
       {/* Stats Grid */}
       {stats && (
         <motion.div
-          className="grid grid-cols-2 gap-4"
+          className="grid grid-cols-2 md:grid-cols-4 gap-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
@@ -218,43 +247,140 @@ export default function Admin() {
           <div className="cosmic-card p-4 text-center">
             <Users className="w-6 h-6 text-teal mx-auto mb-2" />
             <div className="text-2xl font-bold text-deepSage">
-              {stats.total_users}
+              {stats.totalUsers}
             </div>
             <div className="text-sm text-textSecondaryLight">
               Total Users
+            </div>
+            <div className="text-xs text-sage mt-1">
+              {stats.activeUsers} active (30d)
             </div>
           </div>
           
           <div className="cosmic-card p-4 text-center">
             <Activity className="w-6 h-6 text-gold mx-auto mb-2" />
             <div className="text-2xl font-bold text-deepSage">
-              {stats.total_checkins}
+              {stats.totalCheckins}
             </div>
             <div className="text-sm text-textSecondaryLight">
               Check-ins
+            </div>
+            <div className="text-xs text-sage mt-1">
+              {stats.avgDailyCheckins} avg/day
             </div>
           </div>
           
           <div className="cosmic-card p-4 text-center">
             <Calendar className="w-6 h-6 text-sage mx-auto mb-2" />
             <div className="text-2xl font-bold text-deepSage">
-              {stats.total_programs}
+              {stats.totalPrograms}
             </div>
             <div className="text-sm text-textSecondaryLight">
               Programs
             </div>
+            <div className="text-xs text-sage mt-1">
+              {stats.totalAttendance} attendance
+            </div>
           </div>
           
           <div className="cosmic-card p-4 text-center">
-            <Eye className="w-6 h-6 text-coral mx-auto mb-2" />
+            <MessageSquare className="w-6 h-6 text-coral mx-auto mb-2" />
             <div className="text-2xl font-bold text-deepSage">
-              {stats.total_attendance}
+              {stats.ximiConversationsCount}
             </div>
             <div className="text-sm text-textSecondaryLight">
-              Attendance
+              Ximi Chats
+            </div>
+          </div>
+
+          <div className="cosmic-card p-4 text-center col-span-2">
+            <AlertTriangle className="w-6 h-6 text-coral mx-auto mb-2" />
+            <div className="text-2xl font-bold text-deepSage">
+              {stats.crisisFlagsCount}
+            </div>
+            <div className="text-sm text-textSecondaryLight">
+              Crisis Flags
+            </div>
+            <div className="text-xs text-sage mt-1">
+              {stats.crisisResolutionRate}% resolved
+            </div>
+          </div>
+
+          <div className="cosmic-card p-4 text-center col-span-2">
+            <TrendingUp className="w-6 h-6 text-teal mx-auto mb-2" />
+            <div className="text-2xl font-bold text-deepSage">
+              {stats.userGrowth.reduce((sum, day) => sum + day.count, 0)}
+            </div>
+            <div className="text-sm text-textSecondaryLight">
+              New Users (30d)
             </div>
           </div>
         </motion.div>
+      )}
+
+      {/* Charts */}
+      {stats && (
+        <>
+          {/* User Growth Chart */}
+          <motion.div
+            className="cosmic-card p-6 space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <h2 className="text-lg font-semibold text-deepSage flex items-center space-x-2">
+              <TrendingUp className="w-5 h-5" />
+              <span>User Growth (Last 30 Days)</span>
+            </h2>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={stats.userGrowth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#7D8471"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                />
+                <YAxis stroke="#7D8471" tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#FFFAF5', border: '1px solid #E8E5DE', borderRadius: '8px' }}
+                  labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                />
+                <Line type="monotone" dataKey="count" stroke="#5FA8A3" strokeWidth={2} dot={{ fill: '#5FA8A3' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </motion.div>
+
+          {/* Check-in Trends Chart */}
+          <motion.div
+            className="cosmic-card p-6 space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
+            <h2 className="text-lg font-semibold text-deepSage flex items-center space-x-2">
+              <Activity className="w-5 h-5" />
+              <span>Check-in Trends (Last 30 Days)</span>
+            </h2>
+            <ResponsiveContainer width="100%" height={200}>
+              <RechartsBarChart data={stats.checkinTrends}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#7D8471"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                />
+                <YAxis stroke="#7D8471" tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#FFFAF5', border: '1px solid #E8E5DE', borderRadius: '8px' }}
+                  labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                />
+                <Bar dataKey="count" fill="#D9A962" radius={[4, 4, 0, 0]} />
+              </RechartsBarChart>
+            </ResponsiveContainer>
+          </motion.div>
+        </>
       )}
 
       {/* Audit Logs */}
@@ -289,71 +415,96 @@ export default function Admin() {
           </div>
         </div>
 
-        {filteredLogs.length === 0 ? (
+{auditLogs.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-textSecondaryLight">
               No audit logs found.
             </p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {filteredLogs.map((log, index) => (
-              <motion.div
-                key={log.id}
-                className="border border-borderMutedLight rounded-lg p-4 space-y-2"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.02, duration: 0.3 }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${getActionColor(log.action)}`}>
-                      {log.action.toUpperCase()}
-                    </span>
-                    <span className="font-medium text-deepSage">
-                      {log.table_name}
+          <>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {auditLogs.map((log, index) => (
+                <motion.div
+                  key={log.id}
+                  className="border border-borderMutedLight rounded-lg p-4 space-y-2"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.02, duration: 0.3 }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${getActionColor(log.action)}`}>
+                        {log.action.toUpperCase()}
+                      </span>
+                      <span className="font-medium text-deepSage">
+                        {log.table_name}
+                      </span>
+                    </div>
+                    
+                    <span className="text-xs text-textSecondaryLight">
+                      {formatTimestamp(log.timestamp)}
                     </span>
                   </div>
                   
-                  <span className="text-xs text-textSecondaryLight">
-                    {formatTimestamp(log.timestamp)}
-                  </span>
-                </div>
-                
-                {log.record_id && (
-                  <div className="text-sm text-textSecondaryLight">
-                    Record ID: <code className="bg-sage/10 px-1 rounded">{log.record_id}</code>
-                  </div>
-                )}
-                
-                {(log.old_values || log.new_values) && (
-                  <details className="text-sm">
-                    <summary className="cursor-pointer text-textSecondaryLight hover:text-deepSage">
-                      View Changes
-                    </summary>
-                    <div className="mt-2 space-y-2">
-                      {log.old_values && (
-                        <div>
-                          <span className="font-medium text-coral">Old:</span>
-                          <pre className="text-xs bg-coral/5 p-2 rounded overflow-auto">
-                            {JSON.stringify(log.old_values, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                      {log.new_values && (
-                        <div>
-                          <span className="font-medium text-teal">New:</span>
-                          <pre className="text-xs bg-teal/5 p-2 rounded overflow-auto">
-                            {JSON.stringify(log.new_values, null, 2)}
-                          </pre>
-                        </div>
-                      )}
+                  {log.record_id && (
+                    <div className="text-sm text-textSecondaryLight">
+                      Record ID: <code className="bg-sage/10 px-1 rounded">{log.record_id}</code>
                     </div>
-                  </details>
-                )}
-              </motion.div>
-            ))}
-          </div>
+                  )}
+                  
+                  {(log.old_values || log.new_values) && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer text-textSecondaryLight hover:text-deepSage">
+                        View Changes
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        {log.old_values && (
+                          <div>
+                            <span className="font-medium text-coral">Old:</span>
+                            <pre className="text-xs bg-coral/5 p-2 rounded overflow-auto">
+                              {JSON.stringify(log.old_values, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {log.new_values && (
+                          <div>
+                            <span className="font-medium text-teal">New:</span>
+                            <pre className="text-xs bg-teal/5 p-2 rounded overflow-auto">
+                              {JSON.stringify(log.new_values, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2 pt-4 border-t border-borderMutedLight">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 rounded-lg bg-sage/10 text-deepSage disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sage/20 transition-colors"
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-textSecondaryLight">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 rounded-lg bg-sage/10 text-deepSage disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sage/20 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </motion.div>
     </div>

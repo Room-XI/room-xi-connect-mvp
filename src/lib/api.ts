@@ -354,6 +354,28 @@ export const api = {
     getProgramAnalytics: (programId: string) =>
       fetchApi(`/org/programs/${programId}/analytics`),
   },
+
+  // Admin Dashboard
+  admin: {
+    getStats: () => fetchApi('/admin/stats'),
+    getAuditLogs: (params?: { 
+      page?: number; 
+      limit?: number; 
+      action?: string; 
+      startDate?: string; 
+      endDate?: string;
+    }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.set('page', params.page.toString());
+      if (params?.limit) queryParams.set('limit', params.limit.toString());
+      if (params?.action) queryParams.set('action', params.action);
+      if (params?.startDate) queryParams.set('startDate', params.startDate);
+      if (params?.endDate) queryParams.set('endDate', params.endDate);
+      
+      const query = queryParams.toString();
+      return fetchApi(`/admin/audit-logs${query ? `?${query}` : ''}`);
+    },
+  },
 };
 
 export default api;
