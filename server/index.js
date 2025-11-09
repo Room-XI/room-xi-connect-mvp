@@ -22,6 +22,9 @@ async function createServer() {
     throw new Error('SESSION_SECRET environment variable is required in production. Set a strong random secret.');
   }
   
+  // Trust proxy - Required for Replit deployment to get real client IPs for rate limiting
+  app.set('trust proxy', 1);
+  
   // Verify email configuration on startup
   await verifyEmailConfig();
   
