@@ -7,9 +7,12 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
     setupFiles: [],
-    include: ['server/__tests__/**/*.test.ts'],
+    include: [
+      'server/__tests__/**/*.test.ts',
+      'src/**/*.test.{ts,tsx}'
+    ],
   },
   plugins: [
     react(),

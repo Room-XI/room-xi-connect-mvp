@@ -34,8 +34,19 @@ function decrypt(encryptedData, key) {
 
 // Get user's encryption key (derived from user ID and a server secret)
 function getUserKey(userId) {
-  const serverSecret = process.env.ENCRYPTION_SECRET || 'default-secret-change-in-production';
-  return crypto.scryptSync(userId, serverSecret, 32);
+  const serverSecret = process.env.ENCRYPTION_SECRET;
+  if (!serverSecret) {
+    throw new Error('ENCRYPTION_SECRET environment variable is required for journal encryption');
+  }
+  
+  // Use HKDF to derive a 32-byte key for AES-256-GCM
+  return crypto.hkdfSync(
+    'sha256',
+    Buffer.from(serverSecret),
+    Buffer.alloc(0), // No salt
+    Buffer.from(`room-xi-journal-${userId}`), // Info parameter includes userId
+    32
+  );
 }
 
 /**

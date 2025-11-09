@@ -6,7 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from './db.js';
-import { verifyEmailConfig } from './services/email.js';
+import { verifyEmailConfig } from './services/email.provider.js';
 import { initializeScheduler } from './services/scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +24,10 @@ async function createServer() {
   
   // Verify email configuration on startup
   await verifyEmailConfig();
+  
+  // Apply security headers
+  const { applySecurity } = await import('./middleware/applySecurity.ts');
+  applySecurity(app);
   
   app.use(express.json());
   app.use(cookieParser());
@@ -45,6 +49,9 @@ async function createServer() {
 
   // Import security middleware
   const { validateCsrfToken, requireGuardianVerification } = await import('./middleware/security.ts');
+  
+  // Import rate limiters
+  const { authLimiter, writeLimiter } = await import('./middleware/rateLimit.ts');
 
   // Import API routes
   const { default: authRoutes } = await import('./routes/auth.js');
@@ -71,38 +78,78 @@ async function createServer() {
   const { default: geoRoutes } = await import('./routes/geo.js');
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
-  app.use('/api/auth', authRoutes);
+  app.use('/api/auth', authLimiter, authRoutes);
   app.use('/api/programs', programRoutes);
   app.use('/api/crisis', crisisRoutes);
   app.use('/api/transparency', transparencyRoutes);
   
-  // Protected routes requiring CSRF token
-  app.use('/api/checkins', validateCsrfToken, requireGuardianVerification, checkinRoutes);
-  app.use('/api/profile', validateCsrfToken, profileRoutes);
-  app.use('/api/xid', validateCsrfToken, requireGuardianVerification, xidRoutes);
-  app.use('/api/consent', validateCsrfToken, consentRoutes);
-  app.use('/api/ximi', validateCsrfToken, requireGuardianVerification, ximiRoutes);
-  app.use('/api/journal', validateCsrfToken, requireGuardianVerification, journalRoutes);
-  app.use('/api/admin', validateCsrfToken, adminRoutes);
-  app.use('/api/org', validateCsrfToken, orgRoutes);
-  app.use('/api/privacy', validateCsrfToken, privacyRoutes);
-  app.use('/api/achievements', validateCsrfToken, achievementsRoutes);
+  // Protected routes requiring CSRF token with rate limiting
+  app.use('/api/checkins', validateCsrfToken, requireGuardianVerification, writeLimiter, checkinRoutes);
+  app.use('/api/profile', validateCsrfToken, writeLimiter, profileRoutes);
+  app.use('/api/xid', validateCsrfToken, requireGuardianVerification, writeLimiter, xidRoutes);
+  app.use('/api/consent', validateCsrfToken, writeLimiter, consentRoutes);
+  app.use('/api/ximi', validateCsrfToken, requireGuardianVerification, writeLimiter, ximiRoutes);
+  app.use('/api/journal', validateCsrfToken, requireGuardianVerification, writeLimiter, journalRoutes);
+  app.use('/api/admin', validateCsrfToken, writeLimiter, adminRoutes);
+  app.use('/api/org', validateCsrfToken, writeLimiter, orgRoutes);
+  app.use('/api/privacy', validateCsrfToken, writeLimiter, privacyRoutes);
+  app.use('/api/achievements', validateCsrfToken, writeLimiter, achievementsRoutes);
   app.use('/api/kpi', validateCsrfToken, kpiRoutes);
-  app.use('/api/orb-snapshots', validateCsrfToken, orbSnapshotsRoutes);
-  app.use('/api/quotes', validateCsrfToken, quotesRoutes);
-  app.use('/api/notifications', validateCsrfToken, notificationsRoutes);
-  app.use('/api/orb', validateCsrfToken, orbRoutes);
-  app.use('/api/skip-token', validateCsrfToken, skipTokenRoutes);
-  app.use('/api/mood-drop', validateCsrfToken, moodDropRoutes);
-  app.use('/api/geo', validateCsrfToken, geoRoutes);
+  app.use('/api/orb-snapshots', validateCsrfToken, writeLimiter, orbSnapshotsRoutes);
+  app.use('/api/quotes', validateCsrfToken, writeLimiter, quotesRoutes);
+  app.use('/api/notifications', validateCsrfToken, writeLimiter, notificationsRoutes);
+  app.use('/api/orb', validateCsrfToken, writeLimiter, orbRoutes);
+  app.use('/api/skip-token', validateCsrfToken, writeLimiter, skipTokenRoutes);
+  app.use('/api/mood-drop', validateCsrfToken, writeLimiter, moodDropRoutes);
+  app.use('/api/geo', validateCsrfToken, writeLimiter, geoRoutes);
 
-  // Create Vite server in middleware mode
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: 'spa'
-  });
+  // Production or development mode
+  if (process.env.NODE_ENV === 'production') {
+    // Serve static files from dist directory in production
+    const distPath = path.resolve(__dirname, '../dist');
+    
+    // Serve static assets with smart caching
+    app.use(express.static(distPath, {
+      index: false,
+      maxAge: 0, // Default to no caching, set per-file below
+      setHeaders: (res, filePath) => {
+        const fileName = path.basename(filePath);
+        
+        // Allow service worker to control all routes
+        res.setHeader('Service-Worker-Allowed', '/');
+        
+        // Detect hashed assets (e.g., index-abc12345.js, logo.def45678.png)
+        // Vite generates hashes like: assets/index-[hash].js or logo.[hash].png
+        const isHashedAsset = /[.-][a-f0-9]{8,}\.(js|css|woff2?|ttf|eot|svg|png|jpe?g|gif|webp|ico)$/i.test(fileName);
+        
+        if (isHashedAsset) {
+          // Long-term cache for hashed assets (immutable)
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+          // No cache for non-hashed files (index.html, sw.js, manifest.json, etc.)
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      }
+    }));
+    
+    // SPA fallback - serve index.html for all non-API routes with no caching
+    app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    // Development mode - use Vite dev server
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa'
+    });
 
-  app.use(vite.middlewares);
+    app.use(vite.middlewares);
+  }
 
   const port = process.env.PORT || 5000;
   app.listen(port, '0.0.0.0', () => {
