@@ -184,8 +184,8 @@ function interpolateColor(
     }
     
     // Weight falls off with angular distance (Gaussian-like)
-    // Wider spread = smoother blends
-    const sigma = Math.PI / 3; // Adjust for blend smoothness
+    // WIDER spread for ultra-smooth dreamy blends
+    const sigma = Math.PI / 2; // Increased from π/3 for softer transitions
     const weight = stop.weight * Math.exp(-(angleDiff * angleDiff) / (2 * sigma * sigma));
     
     // Convert hue to radians and use circular averaging (unit vectors)
@@ -202,16 +202,18 @@ function interpolateColor(
   const hueRad = Math.atan2(totalSinH / totalWeight, totalCosH / totalWeight);
   const h = ((hueRad * 180) / Math.PI + 360) % 360; // Convert back to degrees, ensure positive
   
-  const s = totalS / totalWeight;
-  let l = totalL / totalWeight;
+  // Soften colors for pastel dreamy aesthetic
+  // Reduce saturation by 25% and increase lightness by 10%
+  let s = (totalS / totalWeight) * 0.75; // Softer, less vibrant
+  let l = Math.min((totalL / totalWeight) + 10, 90); // Lighter, more pastel
   
-  // Radial gradient effect: slightly lighter towards center
-  const radialFactor = 1 - (distance / radius) * 0.2;
+  // Enhanced radial gradient: smoother fade from center to edge for depth
+  const radialFactor = 1 + (1 - distance / radius) * 0.15; // Lighter center
   l = Math.min(l * radialFactor, 95);
   
-  // High contrast mode
+  // High contrast mode (override soft colors for accessibility)
   if (highContrast) {
-    return hslToRgb(h, s + 20, Math.min(l + 15, 90));
+    return hslToRgb(h, s + 30, Math.min(l + 10, 90));
   }
   
   return hslToRgb(h, s, l);
