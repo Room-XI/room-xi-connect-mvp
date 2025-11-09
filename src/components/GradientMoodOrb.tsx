@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
+import { Info } from 'lucide-react';
 import { useMoodGradient } from '@/hooks/useMoodGradient';
 import { useMoodOrbSettings } from '@/hooks/useMoodOrbSettings';
+import ColorLegendDrawer from './ColorLegendDrawer';
 import {
   saveOrbTweenState,
   loadOrbTweenState,
@@ -46,11 +48,20 @@ export default function GradientMoodOrb({
     particles: '#2EC489',
   };
   
-  const style = moodBlend || defaultStyle;
+  // Check for fallback states
+  const hasNoData = summary && summary.daysWithData === 0;
+  const mutedGrayStyle = {
+    gradient: 'radial-gradient(circle at 30% 30%, #6B7280, #4B5563, #374151)',
+    glow: 'rgba(107, 114, 128, 0.3)',
+    particles: '#9CA3AF',
+  };
+  
+  const style = hasNoData ? mutedGrayStyle : (moodBlend || defaultStyle);
   
   // Track if this is the first render (for localStorage resume)
   const isFirstRender = useRef(true);
   const [shouldAnimate, setShouldAnimate] = useState(true);
+  const [showColorLegend, setShowColorLegend] = useState(false);
   
   // On mount, check if we have a saved state that matches current state
   useEffect(() => {
@@ -139,10 +150,14 @@ export default function GradientMoodOrb({
       
       {/* Main orb with breathing animation and slow-settle gradient transition */}
       <motion.div
-        className="absolute inset-0 rounded-full"
+        className={`absolute inset-0 rounded-full ${
+          settings.highVisibility ? 'ring-3 ring-white ring-opacity-80' : ''
+        }`}
         style={{
           background: style.gradient,
-          boxShadow: `0 0 30px ${style.glow}`,
+          boxShadow: settings.highVisibility 
+            ? `0 0 40px ${style.glow}, 0 0 60px ${style.glow}, inset 0 0 20px rgba(0, 0, 0, 0.3)`
+            : `0 0 30px ${style.glow}`,
         }}
         animate={{
           scale: [1, 1.05, 1],
@@ -163,6 +178,31 @@ export default function GradientMoodOrb({
             background: 'radial-gradient(circle at 70% 30%, transparent 30%, rgba(255, 255, 255, 0.3) 70%)',
           }}
         />
+        
+        {/* Pattern overlay for color-blind accessibility */}
+        {settings.patternOverlay && summary && (
+          <div className="absolute inset-0 rounded-full overflow-hidden opacity-40">
+            {/* Warm colors (clear, breezy, aurora) get dots */}
+            {((summary.ratios.clear || 0) + (summary.ratios.breezy || 0) + (summary.ratios.aurora || 0)) > 0.3 && (
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)',
+                  backgroundSize: '8px 8px',
+                }}
+              />
+            )}
+            {/* Cool colors (foggy, stormy, cold) get lines */}
+            {((summary.ratios.foggy || 0) + (summary.ratios.stormy || 0) + (summary.ratios.cold || 0)) > 0.3 && (
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 5px)',
+                }}
+              />
+            )}
+          </div>
+        )}
         
         {/* Floating particles */}
         <div className="absolute inset-0 rounded-full overflow-hidden">
@@ -209,11 +249,42 @@ export default function GradientMoodOrb({
         </div>
       )}
       
+      {/* No data message */}
+      {hasNoData && !loading && (
+        <div className="absolute inset-0 flex items-center justify-center text-center px-6">
+          <div className="text-white drop-shadow-lg">
+            <div className="text-sm font-medium mb-1">Orb is resting</div>
+            <div className="text-xs opacity-80">Check in to reflect</div>
+          </div>
+        </div>
+      )}
+      
+      {/* Color Legend Button */}
+      {settings.showColorKey && !loading && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowColorLegend(true);
+          }}
+          className="absolute bottom-2 right-2 p-2 bg-white/90 dark:bg-gray-800/90 rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+          aria-label="Show color meanings"
+        >
+          <Info className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+        </button>
+      )}
+      
       {/* Accessibility label */}
       <span className="sr-only">
         {streak > 0 ? `${streak}-day streak! ` : ''}
+        {hasNoData ? 'No check-ins this week. ' : ''}
         Mood orb showing your week at a glance. Tap to check in.
       </span>
+      
+      {/* Color Legend Drawer */}
+      <ColorLegendDrawer
+        isOpen={showColorLegend}
+        onClose={() => setShowColorLegend(false)}
+      />
     </motion.div>
   );
 }
