@@ -23,19 +23,30 @@ export default function WeeklySnapshotCard({ onClose }: WeeklySnapshotCardProps)
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch LAST week's data (days 7-13 ago) for comparison
-    const fetchLastWeek = async () => {
-      // TODO: Need backend endpoint for custom date ranges
-      // For now, showing simplified comparison
-      setLastWeek(null);
-      setLoading(false);
+    const fetchWeekData = async () => {
+      try {
+        const now = DateTime.now().setZone('America/Edmonton');
+        
+        // Last week: 7-13 days ago (7-day window)
+        const lastWeekEnd = now.minus({ days: 7 }).toISODate();
+        const lastWeekStart = now.minus({ days: 13 }).toISODate();
+        
+        if (lastWeekStart && lastWeekEnd) {
+          const { data } = await api.checkins.getSummaryRange(lastWeekStart, lastWeekEnd);
+          setLastWeek(data || null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch last week data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     
-    fetchLastWeek();
+    fetchWeekData();
     
-    // Calculate week range
+    // Calculate week range for display
     const now = DateTime.now().setZone('America/Edmonton');
-    const weekStart = now.minus({ days: 7 }).toFormat('MMM d');
+    const weekStart = now.minus({ days: 6 }).toFormat('MMM d');
     const weekEnd = now.toFormat('MMM d');
     setWeekRange(`${weekStart} - ${weekEnd}`);
   }, []);

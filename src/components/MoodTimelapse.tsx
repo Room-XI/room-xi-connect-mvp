@@ -5,9 +5,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { DateTime } from 'luxon';
 import GradientMoodOrb from './GradientMoodOrb';
+import { useHistoricalMoodData } from '@/hooks/useHistoricalMoodData';
+import { createMoodBlend } from '@/lib/moodGradient';
 
 interface MoodTimelapseProps {
   className?: string;
@@ -15,10 +17,15 @@ interface MoodTimelapseProps {
 
 export default function MoodTimelapse({ className = '' }: MoodTimelapseProps) {
   const [currentDayOffset, setCurrentDayOffset] = useState(0); // 0 = today, 1 = yesterday, etc.
+  
+  const { summary, loading } = useHistoricalMoodData({ dayOffset: currentDayOffset });
 
   const currentDate = DateTime.now().setZone('America/Edmonton').minus({ days: currentDayOffset });
   const canGoBack = currentDayOffset < 30;
   const canGoForward = currentDayOffset > 0;
+  
+  // Create mood blend from historical summary
+  const historicalBlend = summary ? createMoodBlend(summary.ratios) : null;
 
   return (
     <div className={`bg-white dark:bg-gray-900 rounded-xl p-6 ${className}`}>
@@ -71,16 +78,29 @@ export default function MoodTimelapse({ className = '' }: MoodTimelapseProps) {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: 20 }}
         transition={{ duration: 0.2 }}
-        className="flex justify-center"
+        className="flex justify-center items-center relative"
+        style={{ minHeight: '240px' }}
       >
-        <GradientMoodOrb
-          size={200}
-          showSlowSettle={false}
-        />
+        {loading ? (
+          <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+        ) : historicalBlend ? (
+          <GradientMoodOrb
+            size={200}
+            showSlowSettle={false}
+            overrideBlend={historicalBlend}
+          />
+        ) : (
+          <div className="text-center text-gray-500 dark:text-gray-400">
+            <p className="text-sm">No mood data for this week</p>
+          </div>
+        )}
       </motion.div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
-        Showing mood orb for 7 days ending on {currentDate.toFormat('MMM d, yyyy')}
+        {summary && summary.daysWithData > 0 
+          ? `${summary.daysWithData} check-in${summary.daysWithData !== 1 ? 's' : ''} in the 7 days ending ${currentDate.toFormat('MMM d, yyyy')}`
+          : `No check-ins in the 7 days ending ${currentDate.toFormat('MMM d, yyyy')}`
+        }
       </p>
     </div>
   );

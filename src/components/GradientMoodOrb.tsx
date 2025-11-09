@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Info } from 'lucide-react';
 import { useMoodGradient } from '@/hooks/useMoodGradient';
 import { useMoodOrbSettings } from '@/hooks/useMoodOrbSettings';
 import ColorLegendDrawer from './ColorLegendDrawer';
+import type { MoodBlend } from '@/lib/moodGradient';
 import {
   saveOrbTweenState,
   loadOrbTweenState,
@@ -17,6 +18,7 @@ interface GradientMoodOrbProps {
   className?: string;
   streak?: number; // 0-7 day streak for halo ring
   showSlowSettle?: boolean; // Enable 10-minute gradual transition
+  overrideBlend?: MoodBlend | null; // For historical/timelapse views
 }
 
 /**
@@ -27,16 +29,27 @@ interface GradientMoodOrbProps {
  * - Breathing animation (8-second cycle)
  * - Streak halo ring (grows from 0-7 days)
  * - Optional slow-settle animation (10-minute transition)
+ * - Export support via canvas ref
  */
-export default function GradientMoodOrb({ 
+const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({ 
   size = 200, 
   onClick, 
   className = '',
   streak: overrideStreak,
   showSlowSettle = true,
-}: GradientMoodOrbProps) {
-  const { moodBlend, summary, loading } = useMoodGradient();
+  overrideBlend,
+}, ref) => {
+  const { moodBlend: liveMoodBlend, summary, loading } = useMoodGradient();
   const { settings } = useMoodOrbSettings();
+  
+  // Use override blend (for historical data) or live blend
+  const moodBlend = overrideBlend || liveMoodBlend;
+  
+  // Internal ref for export functionality
+  const orbRef = useRef<HTMLDivElement>(null);
+  
+  // Expose DOM element to parent for export
+  useImperativeHandle(ref, () => orbRef.current as HTMLDivElement);
   
   // Use streak from API summary if available, otherwise use prop override
   const streak = summary?.streak7 ?? overrideStreak ?? 0;
@@ -120,6 +133,7 @@ export default function GradientMoodOrb({
   
   return (
     <motion.div
+      ref={orbRef}
       className={`relative cursor-pointer ${className}`}
       style={{ width: size, height: size }}
       onClick={onClick}
@@ -287,4 +301,8 @@ export default function GradientMoodOrb({
       />
     </motion.div>
   );
-}
+});
+
+GradientMoodOrb.displayName = 'GradientMoodOrb';
+
+export default GradientMoodOrb;

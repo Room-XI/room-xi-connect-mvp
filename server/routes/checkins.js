@@ -138,6 +138,122 @@ router.get('/summary', async (req, res) => {
   }
 });
 
+// Get mood summary for custom date range (for week-over-week comparison)
+router.get('/summary-range', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required (YYYY-MM-DD format)' });
+    }
+
+    const { DateTime } = await import('luxon');
+    
+    // Get user profile for timezone
+    const [profile] = await db.select().from(profiles).where(eq(profiles.userId, req.session.userId)).limit(1);
+    const userTimezone = profile?.timezone || 'America/Edmonton';
+
+    // Parse dates and calculate window size
+    const start = DateTime.fromISO(startDate, { zone: userTimezone }).startOf('day');
+    const end = DateTime.fromISO(endDate, { zone: userTimezone }).endOf('day');
+    const windowDays = Math.ceil(end.diff(start, 'days').days);
+
+    // Get all check-ins in the range
+    const allCheckins = await db.select({
+      moodLevel16: checkins.moodLevel16,
+      moodType: checkins.moodType,
+      checkinDate: checkins.checkinDate,
+    }).from(checkins)
+      .where(
+        and(
+          eq(checkins.userId, req.session.userId),
+          sql`${checkins.timestamp} >= ${start.toJSDate()}`,
+          sql`${checkins.timestamp} <= ${end.toJSDate()}`
+        )
+      );
+
+    // Map mood values
+    const moodMap = {
+      1: 'cold',
+      2: 'stormy',
+      3: 'foggy',
+      4: 'clear',
+      5: 'breezy',
+      6: 'aurora'
+    };
+
+    // Group by date
+    const checkInsByDay = {};
+    allCheckins.forEach(checkin => {
+      const date = checkin.checkinDate;
+      if (!checkInsByDay[date]) {
+        checkInsByDay[date] = [];
+      }
+      const moodName = checkin.moodType || moodMap[checkin.moodLevel16];
+      if (moodName) {
+        checkInsByDay[date].push(moodName);
+      }
+    });
+
+    // Calculate per-day ratios with 1/N weighting
+    const ratios = {
+      cold: 0,
+      stormy: 0,
+      foggy: 0,
+      clear: 0,
+      breezy: 0,
+      aurora: 0
+    };
+
+    const daysWithData = Object.keys(checkInsByDay).length;
+    
+    if (daysWithData > 0) {
+      Object.values(checkInsByDay).forEach(dayMoods => {
+        const dayTotal = dayMoods.length;
+        const dayRatios = { cold: 0, stormy: 0, foggy: 0, clear: 0, breezy: 0, aurora: 0 };
+        
+        dayMoods.forEach(mood => {
+          dayRatios[mood] = (dayRatios[mood] || 0) + 1;
+        });
+        
+        Object.keys(dayRatios).forEach(mood => {
+          const dayMoodRatio = dayRatios[mood] / dayTotal;
+          ratios[mood] += dayMoodRatio / windowDays;
+        });
+      });
+    }
+
+    // Calculate variance
+    const moodScores = allCheckins.map(c => c.moodLevel16);
+    let variance = 0;
+    if (moodScores.length > 0) {
+      const mean = moodScores.reduce((sum, score) => sum + score, 0) / moodScores.length;
+      const squaredDiffs = moodScores.map(score => Math.pow(score - mean, 2));
+      variance = Math.sqrt(squaredDiffs.reduce((sum, diff) => sum + diff, 0) / moodScores.length) / 6;
+    }
+
+    const dominant = daysWithData > 0 
+      ? Object.entries(ratios).reduce((a, b) => a[1] > b[1] ? a : b)[0]
+      : null;
+
+    res.json({
+      ratios,
+      variance: parseFloat(variance.toFixed(2)),
+      dominant,
+      daysWithData,
+      startDate,
+      endDate,
+      windowDays
+    });
+  } catch (error) {
+    console.error('Get summary range error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get last 7 days of check-ins for mood orb gradient
 router.get('/last-7-days', async (req, res) => {
   try {
