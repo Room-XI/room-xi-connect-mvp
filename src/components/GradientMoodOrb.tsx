@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useRef, forwardRef, useCallback } from 'react';
 import { Info } from 'lucide-react';
 import { useMoodGradient } from '@/hooks/useMoodGradient';
 import { useMoodOrbSettings } from '@/hooks/useMoodOrbSettings';
@@ -49,8 +49,19 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   // Internal ref for export functionality
   const orbRef = useRef<HTMLDivElement>(null);
   
-  // Expose DOM element to parent for export
-  useImperativeHandle(ref, () => orbRef.current as HTMLDivElement);
+  // Merged ref callback to expose DOM element to parent for export
+  // This ensures both internal orbRef and forwarded ref receive the DOM node
+  const mergedRef = useCallback((node: HTMLDivElement | null) => {
+    // Update internal ref (cast to mutable to satisfy TypeScript)
+    (orbRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    
+    // Update forwarded ref (handle both function and object refs)
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    }
+  }, [ref]);
   
   // Use streak from API summary if available, otherwise use prop override
   const streak = summary?.streak7 ?? overrideStreak ?? 0;
@@ -135,7 +146,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   
   return (
     <motion.div
-      ref={orbRef}
+      ref={mergedRef}
       className={`relative cursor-pointer mood-orb-container ${className}`}
       style={{ width: size, height: size }}
       onClick={onClick}
