@@ -82,12 +82,25 @@ function formatEventWithProgram(event, program, userLat = null, userLng = null) 
 
 function sortEvents(events, userLat = null, userLng = null) {
   if (userLat !== null && userLng !== null) {
-    // Sort by distance (nearest first)
+    // Sort by distance (nearest first), then by start time
     return events.sort((a, b) => {
-      if (a.distance === null && b.distance === null) return 0;
+      if (a.distance === null && b.distance === null) {
+        // Both have no distance - sort by start time
+        if (a.startTime < b.startTime) return -1;
+        if (a.startTime > b.startTime) return 1;
+        return 0;
+      }
       if (a.distance === null) return 1;
       if (b.distance === null) return -1;
-      return a.distance - b.distance;
+      
+      // Compare distances
+      const distanceDiff = a.distance - b.distance;
+      if (distanceDiff !== 0) return distanceDiff;
+      
+      // Same distance - sort by start time
+      if (a.startTime < b.startTime) return -1;
+      if (a.startTime > b.startTime) return 1;
+      return 0;
     });
   } else {
     // Sort by day of week, then start time
@@ -214,30 +227,24 @@ router.get('/happening-now', async (req, res) => {
 });
 
 // GET /api/events/today
-// Returns remaining events today (haven't ended yet)
+// Returns ALL events for today (past, current, and future)
 router.get('/today', async (req, res) => {
   try {
     const now = DateTime.now().setZone('America/Edmonton');
     const currentDay = now.toFormat('EEEE');
-    const currentTime = now.toFormat('HH:mm:ss');
     const currentDate = now.toFormat('yyyy-MM-dd');
-    
-    const previousDay = now.minus({ days: 1 }).toFormat('EEEE');
-    const previousDate = now.minus({ days: 1 }).toFormat('yyyy-MM-dd');
     
     const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
     const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
 
-    console.log(`[today] Current time in Edmonton: ${now.toISO()}, Day: ${currentDay}, Time: ${currentTime}, Date: ${currentDate}, Previous day: ${previousDay}, Previous date: ${previousDate}`);
+    console.log(`[today] Current time in Edmonton: ${now.toISO()}, Day: ${currentDay}, Date: ${currentDate}`);
 
     // Query events that are:
     // 1. Active
-    // 2. Haven't ended yet (handles overnight events)
-    // 3. EITHER:
+    // 2. EITHER:
     //    a) One-time event on today's date (occurs_on_date = current_date)
     //    b) Recurring event (occurs_on_date IS NULL) on current day, within effective date range
-    //    c) Overnight one-time event from previous day that's still running
-    //    d) Overnight recurring event from previous day that's still running
+    // NOTE: Excludes overnight events that started yesterday
     const todayEvents = await db
       .select()
       .from(programEvents)
@@ -245,25 +252,9 @@ router.get('/today', async (req, res) => {
       .where(
         and(
           eq(programEvents.active, true),
-          // Handle overnight events: for events that haven't ended yet
-          or(
-            // Normal event (ends same day): end_time >= current_time
-            and(
-              sql`${programEvents.startTime} <= ${programEvents.endTime}`,
-              sql`${programEvents.endTime} >= ${currentTime}::time`
-            ),
-            // Overnight event: always show on current day (will end tomorrow)
-            sql`${programEvents.startTime} > ${programEvents.endTime}`
-          ),
           or(
             // One-time event happening today
             eq(programEvents.occursOnDate, new Date(currentDate)),
-            // One-time overnight event from previous day that's still running
-            and(
-              eq(programEvents.occursOnDate, new Date(previousDate)),
-              sql`${programEvents.startTime} > ${programEvents.endTime}`,
-              sql`${currentTime}::time <= ${programEvents.endTime}`
-            ),
             // Recurring event on current day within effective date range
             and(
               isNull(programEvents.occursOnDate),
@@ -275,21 +266,6 @@ router.get('/today', async (req, res) => {
               or(
                 isNull(programEvents.effectiveTo),
                 gte(programEvents.effectiveTo, new Date(currentDate))
-              )
-            ),
-            // Recurring overnight event from previous day that's still running
-            and(
-              isNull(programEvents.occursOnDate),
-              eq(programEvents.dayOfWeek, previousDay),
-              sql`${programEvents.startTime} > ${programEvents.endTime}`,
-              sql`${currentTime}::time <= ${programEvents.endTime}`,
-              or(
-                isNull(programEvents.effectiveFrom),
-                lte(programEvents.effectiveFrom, new Date(previousDate))
-              ),
-              or(
-                isNull(programEvents.effectiveTo),
-                gte(programEvents.effectiveTo, new Date(previousDate))
               )
             )
           )
