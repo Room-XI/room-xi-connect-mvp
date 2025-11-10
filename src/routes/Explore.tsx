@@ -17,7 +17,7 @@ export default function Explore() {
   const [searchParams] = useSearchParams();
   const { user } = useSession();
   const { isGateOpen, needsCheckIn, isLoading } = useExploreGate();
-  const currentView = view === 'map' ? 'map' : view === 'saved' ? 'saved' : view === 'programs' ? 'programs' : 'happening-now';
+  const currentView = view === 'happening-now' ? 'happening-now' : view === 'map' ? 'map' : view === 'saved' ? 'saved' : 'programs';
   const [crisisOpen, setCrisisOpen] = useState(false);
 
   // 8am Gate Enforcement: Redirect to check-in if gate not passed

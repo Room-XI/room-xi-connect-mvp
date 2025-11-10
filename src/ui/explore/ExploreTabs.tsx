@@ -11,7 +11,7 @@ export default function ExploreTabs({ current }: ExploreTabsProps) {
   
   const tabs = [
     { key: 'happening-now', to: '/explore/happening-now', label: 'Happening Now' },
-    { key: 'programs', to: '/explore/programs', label: 'Programs' },
+    { key: 'programs', to: '/explore', label: 'Programs' },
     { key: 'map', to: '/explore/map', label: 'Map' },
     ...(user ? [{ key: 'saved', to: '/explore/saved', label: 'Saved' }] : [])
   ];
