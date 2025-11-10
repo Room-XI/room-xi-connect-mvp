@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
-import api from '@/lib/api';
+import api, { type ProgramRecommendation } from '@/lib/api';
 import XimiConsentModal from '@/components/XimiConsentModal';
 import VoiceControls from '@/components/VoiceControls';
+import ProgramRecommendations from '@/components/ProgramRecommendations';
 
 interface XimiDockProps {
   onCrisis: () => void;
@@ -30,6 +31,8 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [recommendations, setRecommendations] = useState<ProgramRecommendation[]>([]);
+  const [hasNewRecommendations, setHasNewRecommendations] = useState(false);
 
   // Load conversation history on component mount
   useEffect(() => {
@@ -84,7 +87,41 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
     };
 
     loadConversationHistory();
+    loadRecommendations();
   }, []);
+
+  // Load recommendations on component mount
+  const loadRecommendations = async () => {
+    try {
+      const { data, error } = await api.ximi.getRecommendations({ includeTrends: true });
+      
+      if (error) {
+        console.log('[Ximi Client] No recommendations available for XimiDock:', {
+          timestamp: new Date().toISOString(),
+          error: typeof error === 'string' ? error : error,
+        });
+        return;
+      }
+
+      if (data?.recommendations && data.recommendations.length > 0) {
+        setRecommendations(data.recommendations);
+        setHasNewRecommendations(true);
+        console.log('[Ximi Client] Recommendations loaded for XimiDock:', {
+          timestamp: new Date().toISOString(),
+          count: data.recommendations.length,
+          topRecommendation: data.recommendations[0]?.title,
+        });
+      }
+    } catch (error) {
+      console.error('[Ximi Client] Exception while loading recommendations for XimiDock:', {
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+        } : error,
+      });
+    }
+  };
 
   const handleAppendTranscript = (text: string) => {
     setInputText(prev => prev + text);
@@ -324,7 +361,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
 
       {/* Floating Action Button */}
       <motion.button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+          setHasNewRecommendations(false);
+        }}
         className={`fixed bottom-24 right-4 w-14 h-14 bg-cosmic-gradient rounded-full shadow-cosmic flex items-center justify-center z-40 ${
           isOpen ? 'hidden' : ''
         }`}
@@ -333,8 +373,20 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 200, delay: 1 }}
+        aria-label={hasNewRecommendations ? 'Open Ximi chat - New recommendations available' : 'Open Ximi chat'}
       >
         <MessageCircle className="w-6 h-6 text-deepSage" />
+        
+        {/* Recommendation Badge */}
+        {hasNewRecommendations && recommendations.length > 0 && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md"
+          >
+            {recommendations.length > 9 ? '9+' : recommendations.length}
+          </motion.div>
+        )}
         
         {/* Floating particles around the button */}
         <div className="absolute inset-0 pointer-events-none">
@@ -407,6 +459,21 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
               
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-64 max-h-96">
+                {/* Recommendations Section */}
+                {recommendations.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="mb-4"
+                  >
+                    <ProgramRecommendations
+                      recommendations={recommendations}
+                      title="Programs Picked for You"
+                    />
+                  </motion.div>
+                )}
+                
                 {messages.map(message => (
                   <motion.div
                     key={message.id}

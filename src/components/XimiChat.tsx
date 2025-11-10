@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Sparkles, Users, AlertCircle } from 'lucide-react';
-import api from '@/lib/api';
+import api, { type ProgramRecommendation, type MoodTrendData } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import VoiceControls from '@/components/VoiceControls';
+import ProgramRecommendations from '@/components/ProgramRecommendations';
 
 interface Message {
   id: string;
@@ -26,11 +27,15 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
   const [isSending, setIsSending] = useState(false);
   const [mode, setMode] = useState<'sibling' | 'peer'>('sibling');
   const [showCrisisWarning, setShowCrisisWarning] = useState(false);
+  const [recommendations, setRecommendations] = useState<ProgramRecommendation[]>([]);
+  const [moodTrend, setMoodTrend] = useState<MoodTrendData | null>(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       loadConversations();
+      loadRecommendations();
     }
   }, [isOpen]);
 
@@ -40,6 +45,56 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const loadRecommendations = async () => {
+    setLoadingRecommendations(true);
+    
+    try {
+      const [trendsResult, recsResult] = await Promise.all([
+        api.ximi.getTrends('week'),
+        api.ximi.getRecommendations({ includeTrends: true }),
+      ]);
+
+      if (trendsResult.data) {
+        setMoodTrend(trendsResult.data);
+        console.log('[Ximi Client] Mood trends loaded:', {
+          timestamp: new Date().toISOString(),
+          windowType: trendsResult.data.windowType,
+          dominantMood: trendsResult.data.dominantMood,
+          trendDirection: trendsResult.data.trendDirection,
+        });
+      } else if (trendsResult.error) {
+        console.log('[Ximi Client] No mood trends available:', {
+          timestamp: new Date().toISOString(),
+          error: trendsResult.error,
+        });
+      }
+
+      if (recsResult.data?.recommendations) {
+        setRecommendations(recsResult.data.recommendations);
+        console.log('[Ximi Client] Recommendations loaded:', {
+          timestamp: new Date().toISOString(),
+          count: recsResult.data.recommendations.length,
+          topRecommendation: recsResult.data.recommendations[0]?.title,
+        });
+      } else if (recsResult.error) {
+        console.log('[Ximi Client] No recommendations available:', {
+          timestamp: new Date().toISOString(),
+          error: recsResult.error,
+        });
+      }
+    } catch (error) {
+      console.error('[Ximi Client] Exception while loading recommendations:', {
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+        } : error,
+      });
+    } finally {
+      setLoadingRecommendations(false);
+    }
   };
 
   const loadConversations = async () => {
@@ -293,6 +348,35 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                       : "Ready to talk when you are."}
                   </p>
                 </div>
+              )}
+
+              {/* Recommendations Section */}
+              {recommendations.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="border-t border-borderMutedLight pt-4"
+                >
+                  <ProgramRecommendations
+                    recommendations={recommendations}
+                    title={moodTrend ? `Programs for you (based on your ${moodTrend.dominantMood || 'recent'} mood)` : 'Recommended Programs'}
+                  />
+                </motion.div>
+              )}
+
+              {/* Loading State for Recommendations */}
+              {loadingRecommendations && recommendations.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-purple-50/30 border border-borderMutedLight rounded-xl p-4"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm text-textSecondaryLight">Loading personalized recommendations...</p>
+                  </div>
+                </motion.div>
               )}
 
               {messages.map((msg) => (

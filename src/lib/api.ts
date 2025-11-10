@@ -6,6 +6,38 @@ interface ApiResponse<T = any> {
   error?: string;
 }
 
+export interface ProgramRecommendation {
+  programId: string;
+  title: string;
+  description: string | null;
+  matchScore: number;
+  triggerReason: string;
+  tags: string[];
+  free: boolean;
+  costCents: number | null;
+  locationName: string | null;
+  address: string | null;
+  website: string | null;
+  nextStart: Date | null;
+  accessibilityNotes: string | null;
+}
+
+export interface MoodTrendData {
+  userId: string;
+  windowType: 'week' | 'month' | 'quarter';
+  windowStart: string;
+  windowEnd: string;
+  averageMoodLevel: number;
+  moodVariance: number;
+  dominantMood: string | null;
+  trendDirection: 'improving' | 'declining' | 'stable' | 'volatile';
+  consecutiveLowDays: number;
+  consecutiveHighDays: number;
+  patternsDetected: string[];
+  topWellnessConcerns: string[];
+  wellnessScores: Record<string, number>;
+}
+
 // CSRF token cache
 let csrfToken: string | null = null;
 
@@ -305,6 +337,13 @@ export const api = {
       fetchApi('/ximi/consent', {
         method: 'POST',
         body: JSON.stringify({ consent }),
+      }),
+    getTrends: (windowType: 'week' | 'month' | 'quarter' = 'week') =>
+      fetchApi<MoodTrendData>(`/ximi/trends?windowType=${windowType}`),
+    getRecommendations: (data?: { currentMood?: string; wellnessDimensions?: string[]; includeTrends?: boolean }) =>
+      fetchApi<{ recommendations: ProgramRecommendation[]; trendContext: MoodTrendData | null; count: number }>('/ximi/recommendations', {
+        method: 'POST',
+        body: JSON.stringify(data || {}),
       }),
   },
 
