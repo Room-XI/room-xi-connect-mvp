@@ -16,8 +16,20 @@ import {
   pgEnum,
   serial,
   decimal,
+  time,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+
+// Enums
+export const weekdayEnum = pgEnum("weekday", [
+  "Monday",
+  "Tuesday", 
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday"
+]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -725,4 +737,61 @@ export const moodTrendSummaries = pgTable("mood_trend_summaries", {
 }, (table) => ({
   userWindowIdx: uniqueIndex("idx_mood_trends_user_window").on(table.userId, table.windowType, table.windowStart),
   trendIdx: index("idx_mood_trends_direction").on(table.trendDirection, table.computedAt.desc()),
+}));
+
+// Program events - specific workshops, drop-in sessions, recurring programs
+export const programEvents = pgTable("program_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  
+  // Event details
+  eventName: text("event_name").notNull(),
+  description: text("description"),
+  
+  // Location (denormalized for fast distance sorting)
+  locationName: text("location_name"),
+  address: text("address"),
+  lat: text("lat"), // Denormalized from parent program or event-specific
+  lng: text("lng"),
+  
+  // Schedule - recurring events
+  dayOfWeek: weekdayEnum("day_of_week"), // null for one-time events
+  startTime: time("start_time").notNull(), // PostgreSQL time type
+  endTime: time("end_time").notNull(),
+  
+  // Schedule - one-time events and seasonal schedules
+  occursOnDate: date("occurs_on_date"), // Specific date for one-time events
+  effectiveFrom: date("effective_from"), // Start of seasonal schedule
+  effectiveTo: date("effective_to"), // End of seasonal schedule
+  
+  // Event type
+  isRecurring: boolean("is_recurring").default(true),
+  isDropIn: boolean("is_drop_in").default(false),
+  requiresRegistration: boolean("requires_registration").default(false),
+  registrationUrl: text("registration_url"),
+  registrationDeadline: text("registration_deadline"),
+  
+  // Capacity and eligibility
+  capacity: integer("capacity"),
+  ageMin: integer("age_min"),
+  ageMax: integer("age_max"),
+  
+  // Cost
+  cost: text("cost"),
+  costCents: integer("cost_cents").default(0),
+  
+  // Additional info
+  notes: text("notes"),
+  facilitator: text("facilitator"),
+  timezone: text("timezone").default("America/Edmonton"),
+  
+  // Status
+  active: boolean("active").default(true),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  programIdx: index("idx_program_events_program").on(table.programId),
+  activeTimeIdx: index("idx_program_events_active_time").on(table.active, table.dayOfWeek, table.startTime),
+  activeDateIdx: index("idx_program_events_active_date").on(table.active, table.occursOnDate),
 }));
