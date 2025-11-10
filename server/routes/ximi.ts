@@ -54,13 +54,24 @@ router.post('/chat', async (req, res) => {
       .where(eq(profiles.userId, req.session.userId))
       .limit(1);
 
+    console.log('[Ximi AI] Chat request - checking consent:', {
+      userId: req.session.userId,
+      profileExists: !!profile,
+      ximiConsent: profile?.ximiConsent,
+      ximiMode: profile?.ximiMode,
+      timestamp: new Date().toISOString(),
+    });
+
     // Check if user has consented to Ximi
     if (!profile?.ximiConsent) {
+      console.log('[Ximi AI] Chat blocked: consent not granted');
       return res.status(403).json({ 
         error: 'Ximi consent required',
         message: 'You need to accept Ximi AI terms before chatting.' 
       });
     }
+
+    console.log('[Ximi AI] Consent verified, processing chat request');
 
     const mode: XimiMode = (profile.ximiMode as XimiMode) || 'sibling';
 
@@ -184,26 +195,40 @@ router.post('/toggle-mode', async (req, res) => {
 router.post('/consent', async (req, res) => {
   try {
     if (!req.session.userId) {
+      console.log('[Ximi AI] Consent update failed: not authenticated');
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const { consent } = req.body;
 
     if (typeof consent !== 'boolean') {
+      console.log('[Ximi AI] Consent update failed: invalid consent type:', typeof consent);
       return res.status(400).json({ error: 'consent must be a boolean' });
     }
+
+    console.log('[Ximi AI] Updating consent for user:', {
+      userId: req.session.userId,
+      consent,
+      timestamp: new Date().toISOString(),
+    });
 
     await db
       .update(profiles)
       .set({ ximiConsent: consent })
       .where(eq(profiles.userId, req.session.userId));
 
+    console.log('[Ximi AI] Consent updated successfully:', {
+      userId: req.session.userId,
+      ximiConsent: consent,
+      timestamp: new Date().toISOString(),
+    });
+
     res.json({ 
       ximiConsent: consent, 
       message: consent ? 'Ximi AI enabled' : 'Ximi AI disabled' 
     });
   } catch (error) {
-    console.error('Update consent error:', error);
+    console.error('[Ximi AI] Update consent error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
