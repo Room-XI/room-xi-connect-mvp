@@ -215,10 +215,34 @@ export async function generateRecommendations(
     })
   );
 
-  // Filter out null entries and low scores
+  // Calculate 7-14 day window boundaries for post-filtering
+  const minDate = nowInEdmonton.plus({ days: 7 }).startOf('day');
+  const maxDate = nowInEdmonton.plus({ days: 14 }).endOf('day');
+
+  console.log(`[Recommendations] Filtering events to 7-14 day window: ${minDate.toISO()} to ${maxDate.toISO()}`);
+
+  // Filter out null entries, low scores, and events outside 7-14 day window
   const validEvents = scoredEvents.filter(
-    (item): item is NonNullable<typeof item> => 
-      item !== null && item.score.matchScore > 0.2
+    (item): item is NonNullable<typeof item> => {
+      if (item === null || item.score.matchScore <= 0.2) {
+        return false;
+      }
+      
+      // Enforce 7-14 day window on calculated nextStart
+      if (!item.nextStart) {
+        console.log(`[Recommendations] Excluding event ${item.event.id}: no nextStart calculated`);
+        return false;
+      }
+      
+      const nextStartDT = DateTime.fromJSDate(item.nextStart).setZone('America/Edmonton');
+      const inWindow = nextStartDT >= minDate && nextStartDT <= maxDate;
+      
+      if (!inWindow) {
+        console.log(`[Recommendations] Excluding event ${item.event.id}: nextStart ${nextStartDT.toISO()} outside 7-14 day window`);
+      }
+      
+      return inWindow;
+    }
   );
 
   // Sort by match score (descending), then by nextStart (ascending)
