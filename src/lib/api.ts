@@ -7,19 +7,39 @@ interface ApiResponse<T = any> {
 }
 
 export interface ProgramRecommendation {
+  eventId: string;
   programId: string;
+  eventName: string;
+  programTitle: string;
   title: string;
   description: string | null;
+  programDescription: string | null;
   matchScore: number;
   triggerReason: string;
   tags: string[];
+  wellnessDimensions: string[];
   free: boolean;
   costCents: number | null;
+  cost: string;
+  ageMin: number | null;
+  ageMax: number | null;
   locationName: string | null;
   address: string | null;
+  lat: string | null;
+  lng: string | null;
   website: string | null;
-  nextStart: Date | null;
   accessibilityNotes: string | null;
+  dayOfWeek: string | null;
+  startTime: string;
+  endTime: string;
+  nextStart: Date | null;
+  isDropIn: boolean;
+  requiresRegistration: boolean;
+  registrationUrl: string | null;
+  distance: number | null;
+  organizer: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
 }
 
 export interface MoodTrendData {

@@ -4,7 +4,7 @@ import { MessageCircle, X, Send, Sparkles, MapPin } from 'lucide-react';
 import api, { type ProgramRecommendation } from '@/lib/api';
 import XimiConsentModal from '@/components/XimiConsentModal';
 import VoiceControls from '@/components/VoiceControls';
-import ProgramRecommendations from '@/components/ProgramRecommendations';
+import EventCard from '@/components/EventCard';
 
 interface XimiDockProps {
   onCrisis: () => void;
@@ -563,12 +563,53 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="mb-4"
+                    className="mb-4 space-y-3"
                   >
-                    <ProgramRecommendations
-                      recommendations={recommendations}
-                      title="Programs Picked for You"
-                    />
+                    <div className="flex items-center gap-2 mb-3">
+                      <Sparkles className="w-5 h-5 text-purple-500" />
+                      <h3 className="font-display font-semibold text-deepSage text-base">
+                        Programs Picked for You
+                      </h3>
+                    </div>
+                    <div className="space-y-3">
+                      {recommendations.slice(0, 3).map((rec, index) => (
+                        <motion.div
+                          key={rec.eventId}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1, duration: 0.3 }}
+                        >
+                          <EventCard
+                            event={{
+                              eventId: rec.eventId,
+                              eventName: rec.eventName || rec.programTitle,
+                              description: rec.description,
+                              dayOfWeek: rec.dayOfWeek || '',
+                              startTime: rec.startTime || '',
+                              endTime: rec.endTime || '',
+                              isDropIn: rec.isDropIn || false,
+                              locationName: rec.locationName,
+                              address: rec.address,
+                              distance: rec.distance ?? null,
+                              ageMin: rec.ageMin,
+                              ageMax: rec.ageMax,
+                              cost: rec.cost,
+                              costCents: rec.costCents ?? 0,
+                              programId: rec.programId,
+                              programTitle: rec.programTitle,
+                              programDescription: rec.programDescription,
+                              programTags: rec.tags,
+                              organizer: rec.organizer,
+                            }}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                    {recommendations.length > 3 && (
+                      <p className="text-xs text-textSecondaryLight text-center italic mt-2">
+                        Showing top 3 of {recommendations.length} recommendations
+                      </p>
+                    )}
                   </motion.div>
                 )}
                 

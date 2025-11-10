@@ -1,6 +1,7 @@
 import { db } from '../db.js';
-import { programs, recommendationEvents, peerSuccessInsights, profiles } from '../schema.js';
-import { eq, and, gte, inArray, sql, desc } from 'drizzle-orm';
+import { programs, programEvents, recommendationEvents, peerSuccessInsights, profiles } from '../schema.js';
+import { eq, and, gte, lte, inArray, sql, desc, or, isNull } from 'drizzle-orm';
+import { DateTime } from 'luxon';
 import type { MoodTrendData } from './moodTrends.js';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 
@@ -32,19 +33,39 @@ function calculateProximityScore(distanceKm: number): number {
 }
 
 export interface ProgramRecommendation {
+  eventId: string;
   programId: string;
+  eventName: string;
+  programTitle: string;
   title: string;
   description: string | null;
+  programDescription: string | null;
   matchScore: number;
   triggerReason: string;
   tags: string[];
+  wellnessDimensions: string[];
   free: boolean;
   costCents: number | null;
+  cost: string;
+  ageMin: number | null;
+  ageMax: number | null;
   locationName: string | null;
   address: string | null;
+  lat: string | null;
+  lng: string | null;
   website: string | null;
-  nextStart: Date | null;
   accessibilityNotes: string | null;
+  dayOfWeek: string | null;
+  startTime: string;
+  endTime: string;
+  nextStart: Date | null;
+  isDropIn: boolean;
+  requiresRegistration: boolean;
+  registrationUrl: string | null;
+  distance: number | null;
+  organizer: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
 }
 
 export interface RecommendationContext {
@@ -69,6 +90,40 @@ const MOOD_TAG_MAP: Record<MoodKey, string[]> = {
 };
 
 /**
+ * Calculate the next occurrence date for an event
+ */
+function calculateNextOccurrence(event: any, nowInEdmonton: DateTime): Date | null {
+  if (event.occursOnDate) {
+    return event.occursOnDate;
+  }
+  
+  if (!event.dayOfWeek) {
+    return null;
+  }
+  
+  const dayMap: Record<string, number> = {
+    'Monday': 1,
+    'Tuesday': 2,
+    'Wednesday': 3,
+    'Thursday': 4,
+    'Friday': 5,
+    'Saturday': 6,
+    'Sunday': 7
+  };
+  
+  const targetDay = dayMap[event.dayOfWeek];
+  if (!targetDay) return null;
+  
+  const currentDay = nowInEdmonton.weekday;
+  let daysUntil = targetDay - currentDay;
+  if (daysUntil <= 0) {
+    daysUntil += 7;
+  }
+  
+  return nowInEdmonton.plus({ days: daysUntil }).toJSDate();
+}
+
+/**
  * Generate program recommendations based on user context
  */
 export async function generateRecommendations(
@@ -87,47 +142,160 @@ export async function generateRecommendations(
 
   const userCity = context.city || profile?.city;
 
-  // Fetch all available programs
-  const allPrograms = await db
-    .select()
-    .from(programs)
-    .where(sql`${programs.createdAt} IS NOT NULL`); // Basic filter to get active programs
+  // Calculate date range: 7-14 days from now in Edmonton timezone
+  const nowInEdmonton = DateTime.now().setZone('America/Edmonton');
+  const startDate = nowInEdmonton.plus({ days: 7 }).startOf('day').toJSDate();
+  const endDate = nowInEdmonton.plus({ days: 14 }).endOf('day').toJSDate();
 
-  if (allPrograms.length === 0) {
-    console.log('[Recommendations] No programs available');
+  // Get days of week in the 7-14 day window
+  const daysInWindow: string[] = [];
+  for (let i = 7; i <= 14; i++) {
+    const futureDate = nowInEdmonton.plus({ days: i });
+    const dayName = futureDate.toFormat('EEEE');
+    if (!daysInWindow.includes(dayName)) {
+      daysInWindow.push(dayName);
+    }
+  }
+
+  console.log(`[Recommendations] Looking for events between ${startDate.toISOString()} and ${endDate.toISOString()}`);
+  console.log(`[Recommendations] Days in window: ${daysInWindow.join(', ')}`);
+
+  // Format dates for SQL
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
+
+  // Fetch upcoming event occurrences (7-14 days out)
+  const upcomingEvents = await db
+    .select()
+    .from(programEvents)
+    .leftJoin(programs, eq(programEvents.programId, programs.id))
+    .where(
+      and(
+        eq(programEvents.active, true),
+        or(
+          // One-time events within the 7-14 day window
+          and(
+            sql`${programEvents.occursOnDate} IS NOT NULL`,
+            sql`${programEvents.occursOnDate} >= ${startDateStr}::date`,
+            sql`${programEvents.occursOnDate} <= ${endDateStr}::date`
+          ),
+          // Recurring events on matching days within effective date range
+          and(
+            isNull(programEvents.occursOnDate),
+            inArray(programEvents.dayOfWeek, daysInWindow as any),
+            or(
+              isNull(programEvents.effectiveFrom),
+              sql`${programEvents.effectiveFrom} <= ${endDateStr}::date`
+            ),
+            or(
+              isNull(programEvents.effectiveTo),
+              sql`${programEvents.effectiveTo} >= ${startDateStr}::date`
+            )
+          )
+        )
+      )
+    );
+
+  if (upcomingEvents.length === 0) {
+    console.log('[Recommendations] No upcoming events available in 7-14 day window');
     return [];
   }
 
-  console.log(`[Recommendations] Found ${allPrograms.length} programs to score`);
+  console.log(`[Recommendations] Found ${upcomingEvents.length} upcoming events to score`);
 
-  // Score each program
-  const scoredPrograms = await Promise.all(
-    allPrograms.map(async (program) => {
-      const score = await scoreProgram(program, context);
-      return { program, score };
+  // Score each event with its parent program data
+  const scoredEvents = await Promise.all(
+    upcomingEvents.map(async ({ program_events: event, programs: program }) => {
+      if (!program) return null;
+      
+      const score = await scoreEvent(event, program, context);
+      const nextStart = calculateNextOccurrence(event, nowInEdmonton);
+      
+      return { event, program, score, nextStart };
     })
   );
 
-  // Filter out low scores and sort by score
-  const recommendations = scoredPrograms
-    .filter(({ score }) => score.matchScore > 0.2)
-    .sort((a, b) => b.score.matchScore - a.score.matchScore)
+  // Filter out null entries and low scores
+  const validEvents = scoredEvents.filter(
+    (item): item is NonNullable<typeof item> => 
+      item !== null && item.score.matchScore > 0.2
+  );
+
+  // Sort by match score (descending), then by nextStart (ascending)
+  validEvents.sort((a, b) => {
+    if (b.score.matchScore !== a.score.matchScore) {
+      return b.score.matchScore - a.score.matchScore;
+    }
+    if (a.nextStart && b.nextStart) {
+      return a.nextStart.getTime() - b.nextStart.getTime();
+    }
+    if (a.nextStart) return -1;
+    if (b.nextStart) return 1;
+    return 0;
+  });
+
+  // Take top results and format response
+  const recommendations = validEvents
     .slice(0, maxResults)
-    .map(({ program, score }) => ({
-      programId: program.id,
-      title: program.title,
-      description: program.description,
-      matchScore: score.matchScore,
-      triggerReason: score.triggerReason,
-      tags: program.tags,
-      free: program.free,
-      costCents: program.costCents,
-      locationName: program.locationName,
-      address: program.address,
-      website: program.website,
-      nextStart: program.nextStart,
-      accessibilityNotes: program.accessibilityNotes,
-    }));
+    .map(({ event, program, score, nextStart }) => {
+      let distance: number | null = null;
+      
+      if (context.userLat !== undefined && context.userLng !== undefined) {
+        const eventLat = event.lat || program.lat;
+        const eventLng = event.lng || program.lng;
+        
+        if (eventLat && eventLng) {
+          try {
+            const lat = parseFloat(eventLat);
+            const lng = parseFloat(eventLng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              distance = calculateDistance(context.userLat, context.userLng, lat, lng);
+            }
+          } catch (error) {
+            console.error('[Recommendations] Error calculating distance:', error);
+          }
+        }
+      }
+
+      const finalCostCents = event.costCents ?? program.costCents ?? 0;
+      const costString = finalCostCents === 0 ? 'Free' : `$${(finalCostCents / 100).toFixed(2)}`;
+
+      return {
+        eventId: event.id,
+        programId: program.id,
+        eventName: event.eventName,
+        programTitle: program.title,
+        title: event.eventName,
+        description: event.description || program.description,
+        programDescription: program.description,
+        matchScore: score.matchScore,
+        triggerReason: score.triggerReason,
+        tags: program.tags,
+        wellnessDimensions: program.wellnessDimensions || [],
+        free: finalCostCents === 0,
+        costCents: finalCostCents,
+        cost: costString,
+        ageMin: event.ageMin ?? program.ageMin ?? null,
+        ageMax: event.ageMax ?? program.ageMax ?? null,
+        locationName: event.locationName || program.locationName,
+        address: event.address || program.address,
+        lat: event.lat || program.lat,
+        lng: event.lng || program.lng,
+        website: program.website,
+        accessibilityNotes: program.accessibilityNotes,
+        dayOfWeek: event.dayOfWeek,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        nextStart,
+        isDropIn: event.isDropIn || false,
+        requiresRegistration: event.requiresRegistration || false,
+        registrationUrl: event.registrationUrl,
+        distance,
+        organizer: program.organizer,
+        contactEmail: program.contactEmail,
+        contactPhone: program.contactPhone,
+      };
+    });
 
   console.log(`[Recommendations] Generated ${recommendations.length} recommendations`);
 
@@ -135,9 +303,10 @@ export async function generateRecommendations(
 }
 
 /**
- * Score a program based on user context
+ * Score an event based on user context (event + parent program data)
  */
-async function scoreProgram(
+async function scoreEvent(
+  event: any,
   program: any,
   context: RecommendationContext
 ): Promise<{ matchScore: number; triggerReason: string }> {
@@ -145,7 +314,7 @@ async function scoreProgram(
   let proximityScore = 0;
   const reasons: string[] = [];
 
-  // 1. Mood tag matching (0-0.4 points)
+  // 1. Mood tag matching (0-0.4 points) - use program tags
   if (context.currentMood) {
     const moodTags = MOOD_TAG_MAP[context.currentMood] || [];
     const matchingTags = program.tags.filter((tag: string) =>
@@ -180,26 +349,36 @@ async function scoreProgram(
     relevanceScore += trendScore;
   }
 
-  // 4. Barrier considerations (adjust score)
-  const barrierAdjustment = scoreBarriers(program, context);
+  // 4. Barrier considerations (adjust score) - use event-specific cost if available
+  const eventCost = event.costCents ?? program.costCents;
+  const barrierAdjustment = scoreBarriers({ ...program, costCents: eventCost, free: eventCost === 0 }, context);
   relevanceScore = Math.max(0, relevanceScore + barrierAdjustment);
 
-  // 5. Historical effectiveness (0-0.2 points)
+  // 5. Historical effectiveness (0-0.2 points) - based on parent program
   const peerScore = await scorePeerSuccess(program.id);
   relevanceScore += peerScore;
   if (peerScore > 0.1) {
     reasons.push('highly rated by peers');
   }
 
-  // 6. Proximity scoring (only if prioritizeNearby and location available)
+  // 6. Drop-in boost for immediacy (0-0.1 points)
+  if (event.isDropIn) {
+    relevanceScore += 0.1;
+    reasons.push('drop-in welcome');
+  }
+
+  // 7. Proximity scoring (only if prioritizeNearby and location available)
   if (context.prioritizeNearby && context.userLat !== undefined && context.userLng !== undefined) {
-    if (program.lat && program.lng) {
+    const eventLat = event.lat || program.lat;
+    const eventLng = event.lng || program.lng;
+    
+    if (eventLat && eventLng) {
       try {
-        const programLat = parseFloat(program.lat);
-        const programLng = parseFloat(program.lng);
+        const lat = parseFloat(eventLat);
+        const lng = parseFloat(eventLng);
         
-        if (!isNaN(programLat) && !isNaN(programLng)) {
-          const distance = calculateDistance(context.userLat, context.userLng, programLat, programLng);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const distance = calculateDistance(context.userLat, context.userLng, lat, lng);
           proximityScore = calculateProximityScore(distance);
           
           if (proximityScore > 0.15) {
