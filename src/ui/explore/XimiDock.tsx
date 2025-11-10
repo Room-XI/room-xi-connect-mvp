@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 import XimiConsentModal from '@/components/XimiConsentModal';
+import VoiceControls from '@/components/VoiceControls';
 
 interface XimiDockProps {
   onCrisis: () => void;
@@ -73,6 +74,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
 
     loadConversationHistory();
   }, []);
+
+  const handleAppendTranscript = (text: string) => {
+    setInputText(prev => prev + text);
+  };
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isTyping) return;
@@ -342,7 +347,7 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                 {messages.map(message => (
                   <motion.div
                     key={message.id}
-                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start items-start gap-2'}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
@@ -356,6 +361,13 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                     >
                       <p className="text-sm">{message.text}</p>
                     </div>
+                    {!message.isUser && (
+                      <VoiceControls
+                        mode="playback"
+                        getTextToSpeak={() => message.text}
+                        className="flex-shrink-0 mt-1"
+                      />
+                    )}
                   </motion.div>
                 ))}
                 
@@ -388,6 +400,13 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
               
               {/* Input */}
               <div className="p-4 border-t border-borderMutedLight">
+                <div className="mb-3">
+                  <VoiceControls
+                    mode="input"
+                    onAppendTranscript={handleAppendTranscript}
+                    className="mb-2"
+                  />
+                </div>
                 <div className="flex space-x-3">
                   <input
                     type="text"

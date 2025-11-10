@@ -297,7 +297,14 @@ export async function generateXimiResponse(
         crisisKeywords: [],
       };
     } catch (error: any) {
-      console.error(`Ximi AI error with ${modelToUse} (attempt ${attempt}/${maxRetries}):`, error);
+      console.error(`[Ximi AI] Error with ${modelToUse} (attempt ${attempt}/${maxRetries}):`, {
+        message: error?.message,
+        status: error?.status,
+        code: error?.code,
+        type: error?.type,
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? 'SET' : 'MISSING',
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'MISSING',
+      });
       lastError = error;
       
       // Check if it's a rate limit error (status 429) or a server error (5xx)
@@ -333,8 +340,14 @@ export async function generateXimiResponse(
   }
   
   // Log the final error for debugging (using Replit AI Integrations)
-  console.error('Ximi AI failed after all retries:', lastError);
-  console.log('Ensure AI_INTEGRATIONS_OPENAI_API_KEY and AI_INTEGRATIONS_OPENAI_BASE_URL are set by Replit AI Integrations');
+  console.error('[Ximi AI] Failed after all retries:', {
+    error: lastError?.message || lastError,
+    modelAttempted: modelToUse,
+    env: {
+      hasApiKey: !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    },
+  });
   
   // Graceful fallback
   const fallbackMessage = mode === 'sibling'
