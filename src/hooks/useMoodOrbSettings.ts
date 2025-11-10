@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useSession } from '@/lib/session';
 import api from '@/lib/api';
 
 export interface MoodOrbSettings {
@@ -12,17 +13,25 @@ export interface MoodOrbSettings {
   showColorKey: boolean;
 }
 
+const defaultSettings: MoodOrbSettings = {
+  highVisibility: false,
+  patternOverlay: false,
+  showColorKey: false,
+};
+
 export function useMoodOrbSettings() {
-  const [settings, setSettings] = useState<MoodOrbSettings>({
-    highVisibility: false,
-    patternOverlay: false,
-    showColorKey: false,
-  });
+  const { user, loading: sessionLoading } = useSession();
+  const [settings, setSettings] = useState<MoodOrbSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch settings from user profile
   const fetchSettings = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -50,6 +59,11 @@ export function useMoodOrbSettings() {
 
   // Update a single setting
   const updateSetting = async (key: keyof MoodOrbSettings, value: boolean) => {
+    if (!user) {
+      setError('Must be logged in to update settings');
+      return;
+    }
+
     try {
       const { error: apiError } = await api.profile.update({ [key]: value });
       
@@ -68,12 +82,14 @@ export function useMoodOrbSettings() {
   };
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (!sessionLoading) {
+      fetchSettings();
+    }
+  }, [user, sessionLoading]);
 
   return {
     settings,
-    loading,
+    loading: sessionLoading || loading,
     error,
     updateSetting,
     refetch: fetchSettings,
