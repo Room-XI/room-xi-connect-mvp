@@ -30,12 +30,12 @@ export interface RecommendationContext {
 }
 
 const MOOD_TAG_MAP: Record<MoodKey, string[]> = {
-  cold: ['low_energy', 'self_care', 'gentle', 'creative', 'mindfulness'],
-  stormy: ['emotional_support', 'calming', 'mindfulness', 'creative', 'social'],
-  foggy: ['clarity', 'structure', 'creative', 'physical', 'mindfulness'],
-  clear: ['maintenance', 'social', 'creative', 'physical', 'skills'],
-  breezy: ['active', 'social', 'physical', 'adventure', 'creative'],
-  aurora: ['celebration', 'social', 'active', 'creative', 'leadership'],
+  cold: ['quiet', 'gentle', 'creative', 'arts', 'mental-health', 'indoor', 'calm', 'mindfulness', 'self-care'],
+  stormy: ['mental-health', 'community', 'quiet', 'creative', 'arts', 'support', 'counselling', 'indoor'],
+  foggy: ['creative', 'arts', 'learning', 'tech', 'mental-health', 'community', 'indoor', 'structure'],
+  clear: ['community', 'social', 'creative', 'arts', 'learning', 'tech', 'sports', 'indoor'],
+  breezy: ['sports', 'outdoor', 'community', 'active', 'drop-in', 'creative', 'physical'],
+  aurora: ['community', 'social', 'leadership', 'creative', 'sports', 'outdoor', 'active', 'drop-in'],
 };
 
 /**

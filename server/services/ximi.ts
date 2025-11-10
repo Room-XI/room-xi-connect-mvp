@@ -334,8 +334,10 @@ export async function generateXimiResponse(
   // Retry logic for rate limits and transient errors
   const maxRetries = 3;
   let lastError: any;
-  let modelToUse = 'gpt-5';  // Start with gpt-5 (newest model released August 7, 2025)
-  let useGpt5Params = true;
+  // Use gpt-4o-mini as default for now (more reliable with Replit AI Integrations)
+  // TODO: Re-enable gpt-5 once confirmed working with Replit
+  let modelToUse = 'gpt-4o-mini';
+  let useGpt5Params = false;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -369,8 +371,25 @@ export async function generateXimiResponse(
 
       const completion = await openai.chat.completions.create(completionParams);
 
-      const responseText = completion.choices[0]?.message?.content?.trim() || 
-        "I'm here if you want to talk more.";
+      // Log the completion for debugging
+      console.log(`[Ximi AI] OpenAI response received:`, {
+        model: modelToUse,
+        hasChoices: !!completion.choices,
+        choicesLength: completion.choices?.length,
+        hasContent: !!completion.choices?.[0]?.message?.content,
+        contentLength: completion.choices?.[0]?.message?.content?.length || 0,
+        finishReason: completion.choices?.[0]?.finish_reason,
+      });
+
+      const responseText = completion.choices[0]?.message?.content?.trim();
+      
+      // Check if we got an empty response
+      if (!responseText) {
+        console.error(`[Ximi AI] Empty response from ${modelToUse}:`, {
+          completion: JSON.stringify(completion, null, 2),
+        });
+        throw new Error('Empty response from OpenAI API');
+      }
 
       // Check if AI detected crisis (should respond with CRISIS_DETECTED_ESCALATE_NOW)
       if (responseText.includes('CRISIS_DETECTED_ESCALATE_NOW')) {

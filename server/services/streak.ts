@@ -35,7 +35,12 @@ export function calculateStreak(
   }
 
   // Parse timestamps in user's local timezone
-  const last = DateTime.fromISO(lastCheckinDate, { zone: tz });
+  // Handle date-only strings (YYYY-MM-DD) by appending start-of-day time
+  const normalizedLastDate = lastCheckinDate.includes('T') 
+    ? lastCheckinDate 
+    : `${lastCheckinDate}T00:00:00`;
+  
+  const last = DateTime.fromISO(normalizedLastDate, { zone: tz });
   const now = DateTime.fromISO(checkinTimestamp, { zone: tz });
 
   // Validate parsed dates
