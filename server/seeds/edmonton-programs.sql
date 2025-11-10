@@ -9,13 +9,13 @@ DELETE FROM programs WHERE title LIKE 'Test %';
 INSERT INTO programs (
   title, 
   description, 
-  organization, 
+  organizer, 
   location_name, 
   address, 
   city, 
   postal_code, 
-  latitude, 
-  longitude,
+  lat, 
+  lng,
   tags,
   wellness_dimensions,
   age_min,
@@ -24,7 +24,7 @@ INSERT INTO programs (
   drop_in,
   contact_email,
   contact_phone,
-  website_url,
+  website,
   created_at,
   updated_at
 ) VALUES
