@@ -1,8 +1,10 @@
+/// <reference path="../types/session.d.ts" />
+
 import express from 'express';
 import { db } from '../db.js';
 import { ximiConversations, profiles, checkins } from '../schema.js';
 import { eq } from 'drizzle-orm';
-import { generateXimiResponse, generateFollowUpPrompt, type XimiMode } from '../services/ximi.ts';
+import { generateXimiResponse, generateFollowUpPrompt, type XimiMode } from '../services/ximi.js';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 
 const router = express.Router();
