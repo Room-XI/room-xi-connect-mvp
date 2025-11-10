@@ -4,14 +4,15 @@ import { motion } from 'framer-motion';
 import { useSession } from '@/lib/session';
 
 interface ExploreTabsProps {
-  current: 'programs' | 'map' | 'saved';
+  current: 'happening-now' | 'programs' | 'map' | 'saved';
 }
 
 export default function ExploreTabs({ current }: ExploreTabsProps) {
   const { user } = useSession();
   
   const tabs = [
-    { key: 'programs', to: '/explore', label: 'Programs' },
+    { key: 'happening-now', to: '/explore/happening-now', label: 'Happening Now' },
+    { key: 'programs', to: '/explore/programs', label: 'Programs' },
     { key: 'map', to: '/explore/map', label: 'Map' },
     ...(user ? [{ key: 'saved', to: '/explore/saved', label: 'Saved' }] : [])
   ];
@@ -20,7 +21,7 @@ export default function ExploreTabs({ current }: ExploreTabsProps) {
     <div 
       role="tablist" 
       aria-label="Explore views" 
-      className={`segmented-control ${user ? 'grid-cols-3' : 'grid-cols-2'}`}
+      className={`segmented-control ${user ? 'grid-cols-4' : 'grid-cols-3'}`}
     >
       {tabs.map(tab => (
         <Link
