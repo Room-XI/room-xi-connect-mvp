@@ -22,7 +22,7 @@ export const MOODS: MoodConfig[] = [
     icon: Snowflake,
     score: 1,
     desc: 'Numb, withdrawn, low energy',
-    color: { h: 210, s: 40, l: 70 },
+    color: { h: 222, s: 25, l: 16 },
     copyHint: 'Feeling cold or numb?',
   },
   {
@@ -32,7 +32,7 @@ export const MOODS: MoodConfig[] = [
     icon: CloudLightning,
     score: 2,
     desc: 'Overwhelmed, heavy feelings',
-    color: { h: 250, s: 70, l: 40 },
+    color: { h: 13, s: 76, l: 64 },
     copyHint: 'Feeling heavy or overwhelmed?',
   },
   {
@@ -42,7 +42,7 @@ export const MOODS: MoodConfig[] = [
     icon: CloudFog,
     score: 3,
     desc: 'Unclear, confused, meh',
-    color: { h: 220, s: 10, l: 75 },
+    color: { h: 142, s: 13, l: 50 },
     copyHint: 'Feeling unclear or meh?',
   },
   {
@@ -52,7 +52,7 @@ export const MOODS: MoodConfig[] = [
     icon: Sun,
     score: 4,
     desc: 'Calm, stable, doing okay',
-    color: { h: 48, s: 96, l: 56 },
+    color: { h: 44, s: 67, l: 54 },
     copyHint: 'Feeling calm and okay.',
   },
   {
@@ -62,7 +62,7 @@ export const MOODS: MoodConfig[] = [
     icon: Zap,
     score: 5,
     desc: 'Upbeat, energized, motivated',
-    color: { h: 172, s: 70, l: 48 },
+    color: { h: 156, s: 62, l: 47 },
     copyHint: 'Feeling upbeat and energized!',
   },
   {
@@ -72,7 +72,7 @@ export const MOODS: MoodConfig[] = [
     icon: Sparkles,
     score: 6,
     desc: 'Amazing, glowing, best mood',
-    color: { h: 285, s: 70, l: 60 },
+    color: { h: 81, s: 51, l: 57 },
     copyHint: 'Feeling amazing—glowing!',
   },
 ];
