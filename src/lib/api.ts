@@ -491,6 +491,38 @@ export const api = {
       return fetchApi(`/admin/audit-logs${query ? `?${query}` : ''}`);
     },
   },
+
+  // Events - Real-time program event finder
+  events: {
+    happeningNow: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.set('userLat', userLat.toString());
+      if (userLng !== undefined) params.set('userLng', userLng.toString());
+      const query = params.toString();
+      return fetchApi(`/events/happening-now${query ? `?${query}` : ''}`);
+    },
+    today: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.set('userLat', userLat.toString());
+      if (userLng !== undefined) params.set('userLng', userLng.toString());
+      const query = params.toString();
+      return fetchApi(`/events/today${query ? `?${query}` : ''}`);
+    },
+    thisWeekend: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.set('userLat', userLat.toString());
+      if (userLng !== undefined) params.set('userLng', userLng.toString());
+      const query = params.toString();
+      return fetchApi(`/events/this-weekend${query ? `?${query}` : ''}`);
+    },
+    later: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.set('userLat', userLat.toString());
+      if (userLng !== undefined) params.set('userLng', userLng.toString());
+      const query = params.toString();
+      return fetchApi(`/events/later${query ? `?${query}` : ''}`);
+    },
+  },
 };
 
 export default api;

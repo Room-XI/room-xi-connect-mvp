@@ -23,7 +23,7 @@ export default function App() {
   }
 
   // Define public routes that don't require authentication
-  const publicRoutes = ['/auth', '/explore', '/program', '/transparency'];
+  const publicRoutes = ['/auth', '/explore', '/events', '/program', '/transparency'];
   const currentPath = window.location.pathname;
   const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
 

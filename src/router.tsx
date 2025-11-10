@@ -13,6 +13,7 @@ const LoadingFallback = () => (
 // Lazy load routes to reduce initial bundle size
 const Home = lazy(() => import('./routes/Home'));
 const Explore = lazy(() => import('./routes/Explore'));
+const Events = lazy(() => import('./routes/Events'));
 const QRScan = lazy(() => import('./routes/QRScan'));
 const Me = lazy(() => import('./routes/Me'));
 const ProgramDetail = lazy(() => import('./routes/ProgramDetail'));
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
       { path: 'home', element: withSuspense(Home) },
       { path: 'explore', element: withSuspense(Explore) },
       { path: 'explore/:view', element: withSuspense(Explore) },
+      { path: 'events', element: withSuspense(Events) },
       { path: 'program/:id', element: withSuspense(ProgramDetail) },
       { path: 'qr', element: withSuspense(QRScan) },
       { path: 'me', element: withSuspense(Me) },

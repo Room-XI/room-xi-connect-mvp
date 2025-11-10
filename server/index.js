@@ -59,6 +59,7 @@ async function createServer() {
   // Import API routes
   const { default: authRoutes } = await import('./routes/auth.js');
   const { default: programRoutes } = await import('./routes/programs.js');
+  const { default: eventsRoutes } = await import('./routes/events.js');
   const { default: checkinRoutes } = await import('./routes/checkins.js');
   const { default: profileRoutes } = await import('./routes/profile.js');
   const { default: xidRoutes } = await import('./routes/xid.js');
@@ -85,6 +86,7 @@ async function createServer() {
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   app.use('/api/auth', authLimiter, authRoutes);
   app.use('/api/programs', programRoutes);
+  app.use('/api/events', eventsRoutes);
   app.use('/api/crisis', crisisRoutes);
   app.use('/api/transparency', transparencyRoutes);
   
