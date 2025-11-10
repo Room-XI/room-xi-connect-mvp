@@ -3,14 +3,14 @@ import { motion } from 'framer-motion';
 import { useSession } from '@/lib/session';
 
 interface ExploreTabsProps {
-  current: 'happening-now' | 'programs' | 'map' | 'saved';
+  current: 'today' | 'programs' | 'map' | 'saved';
 }
 
 export default function ExploreTabs({ current }: ExploreTabsProps) {
   const { user } = useSession();
   
   const tabs = [
-    { key: 'happening-now', to: '/explore/happening-now', label: 'Happening Now' },
+    { key: 'today', to: '/explore/today', label: 'Today' },
     { key: 'programs', to: '/explore', label: 'Programs' },
     { key: 'map', to: '/explore/map', label: 'Map' },
     ...(user ? [{ key: 'saved', to: '/explore/saved', label: 'Saved' }] : [])

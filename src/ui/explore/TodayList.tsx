@@ -26,7 +26,7 @@ interface Event {
   organizer: string | null;
 }
 
-export default function HappeningNowList() {
+export default function TodayList() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

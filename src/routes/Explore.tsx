@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ExploreTabs from '@/ui/explore/ExploreTabs';
-import HappeningNowList from '@/ui/explore/HappeningNowList';
+import TodayList from '@/ui/explore/TodayList';
 import ProgramList from '@/ui/explore/ProgramList';
 import ProgramMap from '@/ui/explore/ProgramMap';
 import SavedList from '@/ui/explore/SavedList';
@@ -17,7 +17,7 @@ export default function Explore() {
   const [searchParams] = useSearchParams();
   const { user } = useSession();
   const { isGateOpen, needsCheckIn, isLoading } = useExploreGate();
-  const currentView = view === 'happening-now' ? 'happening-now' : view === 'map' ? 'map' : view === 'saved' ? 'saved' : 'programs';
+  const currentView = view === 'today' ? 'today' : view === 'map' ? 'map' : view === 'saved' ? 'saved' : 'programs';
   const [crisisOpen, setCrisisOpen] = useState(false);
 
   // 8am Gate Enforcement: Redirect to check-in if gate not passed
@@ -88,7 +88,7 @@ export default function Explore() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
         >
-          {currentView === 'happening-now' && <HappeningNowList />}
+          {currentView === 'today' && <TodayList />}
           {currentView === 'programs' && <ProgramList />}
           {currentView === 'map' && <ProgramMap />}
           {currentView === 'saved' && <SavedList />}
