@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin } from 'lucide-react';
 import FilterBar, { Filters } from './FilterBar';
 import ProgramCard from './ProgramCard';
 import api from '@/lib/api';
@@ -39,12 +38,16 @@ interface ProgramEvent {
   distance?: number | null;
 }
 
-export default function ProgramList() {
+interface ProgramListProps {
+  userLocation: { lat: number; lng: number } | null;
+  locationPermission: 'granted' | 'denied' | 'prompt';
+  locationEnabled: boolean;
+}
+
+export default function ProgramList({ userLocation, locationPermission, locationEnabled }: ProgramListProps) {
   const [events, setEvents] = useState<ProgramEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<ProgramEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [filters, setFilters] = useState<Filters>({
     tags: [] as string[],
     free: false,
@@ -56,51 +59,19 @@ export default function ProgramList() {
   });
 
   useEffect(() => {
-    requestUserLocation();
-  }, []);
-
-  useEffect(() => {
     loadEvents();
-  }, [userLocation]);
+  }, [userLocation, locationEnabled]);
 
   useEffect(() => {
     applyFilters();
   }, [events, filters]);
 
-  const requestUserLocation = () => {
-    const cachedLocation = sessionStorage.getItem('userLocation');
-    if (cachedLocation) {
-      const { lat, lng } = JSON.parse(cachedLocation);
-      setUserLocation({ lat, lng });
-      setLocationPermission('granted');
-      return;
-    }
-
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setUserLocation(location);
-          setLocationPermission('granted');
-          sessionStorage.setItem('userLocation', JSON.stringify(location));
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          setLocationPermission('denied');
-        }
-      );
-    }
-  };
-
   const loadEvents = async () => {
     try {
       setLoading(true);
       
-      const lat = userLocation?.lat;
-      const lng = userLocation?.lng;
+      const lat = locationEnabled && userLocation ? userLocation.lat : undefined;
+      const lng = locationEnabled && userLocation ? userLocation.lng : undefined;
       const { data, error } = await api.programOccurrences.list(lat, lng);
 
       if (error) {
@@ -167,22 +138,14 @@ export default function ProgramList() {
         programs={events}
         filters={filters}
         onFilterChange={handleFilterChange}
+        hasLocation={locationEnabled && locationPermission === 'granted'}
       />
 
-      {/* Results Count and Location Permission */}
+      {/* Results Count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-textSecondaryLight">
           {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
         </p>
-        {locationPermission === 'denied' && (
-          <button
-            onClick={requestUserLocation}
-            className="text-xs text-teal hover:underline flex items-center gap-1"
-          >
-            <MapPin className="w-3 h-3" />
-            Enable location
-          </button>
-        )}
       </div>
 
       {/* Event List */}

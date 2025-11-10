@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, MapPin, AlertCircle, RefreshCcw } from 'lucide-react';
+import { Clock, AlertCircle, RefreshCcw } from 'lucide-react';
 import api from '@/lib/api';
 import EventCard from '@/components/EventCard';
 import FilterBar from './FilterBar';
@@ -35,13 +35,17 @@ interface Filters {
   maxDistance?: number | null;
 }
 
-export default function TodayList() {
+interface TodayListProps {
+  userLocation: { lat: number; lng: number } | null;
+  locationPermission: 'granted' | 'denied' | 'prompt';
+  locationEnabled: boolean;
+}
+
+export default function TodayList({ userLocation, locationPermission, locationEnabled }: TodayListProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [filters, setFilters] = useState<Filters>({
     tags: [],
@@ -60,16 +64,12 @@ export default function TodayList() {
   }, []);
 
   useEffect(() => {
-    requestUserLocation();
-  }, []);
-
-  useEffect(() => {
     fetchEvents();
-  }, [userLocation]);
+  }, [userLocation, locationEnabled]);
 
   useEffect(() => {
     applyFilters();
-  }, [events, filters]);
+  }, [events, filters, userLocation, locationEnabled]);
 
   const parseTimeToHour = (timeString: string): number => {
     const [hours] = timeString.split(':').map(Number);
@@ -109,7 +109,7 @@ export default function TodayList() {
       filtered = filtered.filter(event => event.isDropIn === true);
     }
 
-    if (filters.maxDistance !== null && filters.maxDistance !== undefined && filters.maxDistance > 0 && userLocation) {
+    if (filters.maxDistance !== null && filters.maxDistance !== undefined && filters.maxDistance > 0 && locationEnabled && userLocation) {
       filtered = filtered.filter(event => 
         event.distance !== null && event.distance <= filters.maxDistance!
       );
@@ -130,41 +130,13 @@ export default function TodayList() {
            (filters.maxDistance !== null && filters.maxDistance !== undefined && filters.maxDistance > 0);
   };
 
-  const requestUserLocation = () => {
-    const cachedLocation = sessionStorage.getItem('userLocation');
-    if (cachedLocation) {
-      const { lat, lng } = JSON.parse(cachedLocation);
-      setUserLocation({ lat, lng });
-      setLocationPermission('granted');
-      return;
-    }
-
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setUserLocation(location);
-          setLocationPermission('granted');
-          sessionStorage.setItem('userLocation', JSON.stringify(location));
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          setLocationPermission('denied');
-        }
-      );
-    }
-  };
-
   const fetchEvents = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const lat = userLocation?.lat;
-      const lng = userLocation?.lng;
+      const lat = locationEnabled && userLocation ? userLocation.lat : undefined;
+      const lng = locationEnabled && userLocation ? userLocation.lng : undefined;
       const response = await api.events.today(lat, lng);
 
       if (response.error) {
@@ -231,20 +203,9 @@ export default function TodayList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-textSecondaryLight">
-          <Clock className="w-4 h-4" />
-          <span>{formatCurrentTime()}</span>
-        </div>
-        {locationPermission === 'denied' && (
-          <button
-            onClick={requestUserLocation}
-            className="text-xs text-teal hover:underline flex items-center gap-1"
-          >
-            <MapPin className="w-3 h-3" />
-            Enable location
-          </button>
-        )}
+      <div className="flex items-center gap-2 text-sm text-textSecondaryLight">
+        <Clock className="w-4 h-4" />
+        <span>{formatCurrentTime()}</span>
       </div>
 
       {events.length > 0 && (
@@ -255,7 +216,7 @@ export default function TodayList() {
           showTimeOfDay={true}
           showDropIn={true}
           showDistance={true}
-          hasLocation={locationPermission === 'granted'}
+          hasLocation={locationEnabled && locationPermission === 'granted'}
         />
       )}
 
