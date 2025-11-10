@@ -565,3 +565,156 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   userIdx: index("push_subscriptions_user_idx").on(table.userId),
   userEndpointIdx: uniqueIndex("push_subscriptions_user_endpoint_idx").on(table.userId, table.endpoint),
 }));
+
+// ========================================
+// PHASE 0-2: Care Navigator Infrastructure
+// ========================================
+
+// Track when Ximi recommends programs and user responses
+export const recommendationEvents = pgTable("recommendation_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  ximiConversationId: uuid("ximi_conversation_id").references(() => ximiConversations.id, { onDelete: "set null" }),
+  
+  // Recommendation context
+  recommendationType: text("recommendation_type").notNull(), // 'proactive_nudge', 'direct_ask', 'crisis_bridge', 'follow_up'
+  moodTrend: text("mood_trend"), // 'declining', 'stable_low', 'improving', etc.
+  triggerReason: text("trigger_reason"), // Why Ximi recommended this
+  matchScore: decimal("match_score", { precision: 3, scale: 2 }), // How well it matched user needs (0-1)
+  
+  // User response
+  userAction: text("user_action"), // 'viewed', 'saved', 'registered', 'dismissed', 'deferred'
+  actionTimestamp: timestamp("action_timestamp", { withTimezone: true }),
+  userFeedback: text("user_feedback"), // Optional feedback text
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("idx_recommendation_events_user").on(table.userId, table.createdAt.desc()),
+  programIdx: index("idx_recommendation_events_program").on(table.programId, table.createdAt.desc()),
+  actionIdx: index("idx_recommendation_events_action").on(table.userAction, table.createdAt.desc()),
+}));
+
+// Track post-program outcomes and reflections (privacy-safe, anonymized aggregation)
+export const outcomeEvents = pgTable("outcome_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  recommendationEventId: uuid("recommendation_event_id").references(() => recommendationEvents.id, { onDelete: "set null" }),
+  
+  // Attendance tracking
+  attended: boolean("attended").notNull(),
+  attendanceDate: date("attendance_date"),
+  sessionsAttended: integer("sessions_attended").default(1),
+  
+  // Post-program reflection (collected via Ximi follow-up)
+  helpfulnessRating: integer("helpfulness_rating"), // 1-5 scale
+  wouldRecommend: boolean("would_recommend"),
+  reflectionText: text("reflection_text"), // Open-ended feedback
+  moodBefore: text("mood_before"), // Mood type before program
+  moodAfter: text("mood_after"), // Mood type after program
+  
+  // Barriers encountered (for future barrier reduction)
+  barriersEncountered: text("barriers_encountered").array().default(sql`'{}'`), // ['transportation', 'cost', 'scheduling', 'social_anxiety']
+  barriersResolved: boolean("barriers_resolved").default(false),
+  
+  // Follow-up metadata
+  followUpCount: integer("follow_up_count").default(0),
+  lastFollowUpAt: timestamp("last_follow_up_at", { withTimezone: true }),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("idx_outcome_events_user").on(table.userId, table.createdAt.desc()),
+  programIdx: index("idx_outcome_events_program").on(table.programId, table.createdAt.desc()),
+  attendedIdx: index("idx_outcome_events_attended").on(table.attended, table.programId),
+}));
+
+// Provider integration feeds (stub for future real-time data)
+export const providerFeeds = pgTable("provider_feeds", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  
+  // Real-time availability data (when providers integrate)
+  spotsAvailable: integer("spots_available"),
+  totalCapacity: integer("total_capacity"),
+  waitlistLength: integer("waitlist_length"),
+  nextSessionDate: timestamp("next_session_date", { withTimezone: true }),
+  registrationOpen: boolean("registration_open").default(true),
+  
+  // Provider metadata
+  providerApiKey: text("provider_api_key"), // Hashed API key for verification
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  syncStatus: text("sync_status").default("pending"), // 'pending', 'active', 'stale', 'error'
+  syncErrorMessage: text("sync_error_message"),
+  
+  // Integration configuration
+  webhookUrl: text("webhook_url"),
+  pollingInterval: integer("polling_interval").default(3600), // Seconds between polls
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  programIdx: uniqueIndex("idx_provider_feeds_program").on(table.programId),
+  syncStatusIdx: index("idx_provider_feeds_sync_status").on(table.syncStatus, table.lastSyncedAt),
+}));
+
+// Aggregated peer success insights (anonymized, privacy-safe)
+export const peerSuccessInsights = pgTable("peer_success_insights", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  
+  // Aggregation period
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  
+  // Anonymized metrics (minimum 5 users to preserve k-anonymity)
+  totalResponses: integer("total_responses").notNull(),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+  recommendationRate: decimal("recommendation_rate", { precision: 3, scale: 2 }), // % who would recommend
+  
+  // Mood impact (before/after aggregation)
+  moodImprovementRate: decimal("mood_improvement_rate", { precision: 3, scale: 2 }),
+  commonBarriers: text("common_barriers").array().default(sql`'{}'`),
+  
+  // Privacy compliance
+  differentialPrivacyApplied: boolean("differential_privacy_applied").default(true),
+  kAnonymityThreshold: integer("k_anonymity_threshold").default(5),
+  suppressed: boolean("suppressed").default(false), // True if < threshold
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  programPeriodIdx: uniqueIndex("idx_peer_success_program_period").on(table.programId, table.periodStart),
+  suppressedIdx: index("idx_peer_success_suppressed").on(table.suppressed, table.programId),
+}));
+
+// Mood trend summaries (computed daily for longitudinal analysis)
+export const moodTrendSummaries = pgTable("mood_trend_summaries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Time window
+  windowType: text("window_type").notNull(), // 'week', 'month', 'quarter'
+  windowStart: date("window_start").notNull(),
+  windowEnd: date("window_end").notNull(),
+  
+  // Aggregated mood metrics
+  averageMoodLevel: decimal("average_mood_level", { precision: 3, scale: 2 }),
+  moodVariance: decimal("mood_variance", { precision: 5, scale: 3 }),
+  dominantMood: text("dominant_mood"),
+  trendDirection: text("trend_direction"), // 'improving', 'stable', 'declining'
+  
+  // Pattern detection
+  consecutiveLowDays: integer("consecutive_low_days").default(0),
+  consecutiveHighDays: integer("consecutive_high_days").default(0),
+  patternsDetected: text("patterns_detected").array().default(sql`'{}'`), // ['weekend_dip', 'weekly_cycle', etc]
+  
+  // Wellness dimension correlations
+  topWellnessConcerns: text("top_wellness_concerns").array().default(sql`'{}'`),
+  wellnessScores: jsonb("wellness_scores"), // {physical: 3.5, emotional: 2.8, etc}
+  
+  computedAt: timestamp("computed_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userWindowIdx: uniqueIndex("idx_mood_trends_user_window").on(table.userId, table.windowType, table.windowStart),
+  trendIdx: index("idx_mood_trends_direction").on(table.trendDirection, table.computedAt.desc()),
+}));
