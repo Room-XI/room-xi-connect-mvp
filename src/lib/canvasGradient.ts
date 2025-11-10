@@ -180,8 +180,9 @@ function interpolateColor(
   
   // Smooth transition from center (uniform) to edge (angular) using smoothstep
   // This eliminates discontinuities and creates seamless center blend
+  // Gentler power curve (0.6) for wider, dreamier center blend zone
   const smoothstep = (t: number) => t * t * (3 - 2 * t);
-  const angularInfluence = smoothstep(Math.pow(distanceRatio, 0.8));
+  const angularInfluence = smoothstep(Math.pow(distanceRatio, 0.6));
   
   // Calculate contribution from each color stop
   stops.forEach(stop => {
