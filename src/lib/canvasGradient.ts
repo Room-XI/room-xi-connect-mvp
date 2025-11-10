@@ -175,7 +175,15 @@ function interpolateColor(
   let totalL = 0;
   let totalWeight = 0;
   
-  // Calculate contribution from each color stop based on angular distance
+  // Distance-based blending: center blends ALL colors equally, edges use angular weighting
+  const distanceRatio = distance / radius;
+  
+  // Smooth transition from center (uniform) to edge (angular) using smoothstep
+  // This eliminates discontinuities and creates seamless center blend
+  const smoothstep = (t: number) => t * t * (3 - 2 * t);
+  const angularInfluence = smoothstep(Math.pow(distanceRatio, 0.8));
+  
+  // Calculate contribution from each color stop
   stops.forEach(stop => {
     // Angular distance (handle wrap-around)
     let angleDiff = Math.abs(angle - stop.angle);
@@ -183,10 +191,14 @@ function interpolateColor(
       angleDiff = 2 * Math.PI - angleDiff;
     }
     
-    // Weight falls off with angular distance (Gaussian-like)
-    // WIDER spread for ultra-smooth dreamy blends
-    const sigma = Math.PI / 2; // Increased from π/3 for softer transitions
-    const weight = stop.weight * Math.exp(-(angleDiff * angleDiff) / (2 * sigma * sigma));
+    // Wide Gaussian spread for dreamy blends
+    const sigma = Math.PI / 2;
+    const angularWeight = Math.exp(-(angleDiff * angleDiff) / (2 * sigma * sigma));
+    
+    // Smoothly interpolate: center uses uniform weight (1), edges use angular weight
+    // No discontinuities - continuous smooth transition
+    const blendWeight = (1 - angularInfluence) + angularInfluence * angularWeight;
+    const weight = stop.weight * blendWeight;
     
     // Convert hue to radians and use circular averaging (unit vectors)
     const hueRad = (stop.hue * Math.PI) / 180;

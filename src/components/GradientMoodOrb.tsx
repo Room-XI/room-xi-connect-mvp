@@ -127,7 +127,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
     const options: CanvasGradientOptions = {
       ratios: ratios as Record<MoodKey, number>,
       size,
-      blurRadius: 50, // Ultra-soft dreamy blur (increased from 20px)
+      blurRadius: 70, // Ultra-dreamy atmospheric blur (matching reference image)
       highContrast: settings.highVisibility,
       showPatterns: settings.patternOverlay,
     };
