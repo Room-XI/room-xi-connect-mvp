@@ -5,6 +5,8 @@ import { db } from '../db.js';
 import { ximiConversations, profiles, checkins } from '../schema.js';
 import { eq } from 'drizzle-orm';
 import { generateXimiResponse, generateFollowUpPrompt, type XimiMode } from '../services/ximi.js';
+import { getLatestMoodTrend, computeMoodTrends, storeMoodTrends } from '../services/moodTrends.js';
+import { getRecommendationsWithContext } from '../services/recommendations.js';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 
 const router = express.Router();
@@ -75,11 +77,27 @@ router.post('/chat', async (req, res) => {
 
     const mode: XimiMode = (profile.ximiMode as XimiMode) || 'sibling';
 
-    // Generate Ximi response
+    // Get mood trend for context
+    const moodTrend = await getLatestMoodTrend(req.session.userId, 'week');
+
+    // Get program recommendations if trend data is available
+    let recommendations = [];
+    if (moodTrend) {
+      recommendations = await getRecommendationsWithContext(
+        req.session.userId,
+        moodType as MoodKey,
+        wellnessDimensions,
+        moodTrend
+      );
+    }
+
+    // Generate Ximi response with trend and recommendation context
     const ximiResponse = await generateXimiResponse(message, {
       moodType: moodType as MoodKey,
       wellnessDimensions,
       mode,
+      moodTrend,
+      recommendations: recommendations.slice(0, 3),
     });
 
     // Save conversation to database
@@ -101,6 +119,8 @@ router.post('/chat', async (req, res) => {
     res.json({
       ...conversation,
       crisisDetected: ximiResponse.crisisDetected,
+      trendContext: moodTrend,
+      recommendationsIncluded: recommendations.length > 0,
     });
   } catch (error) {
     console.error('Ximi chat error:', error);
@@ -236,6 +256,85 @@ router.post('/consent', async (req, res) => {
     });
   } catch (error) {
     console.error('[Ximi AI] Update consent error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user's mood trends
+router.get('/trends', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const windowType = (req.query.windowType as string) || 'week';
+
+    if (!['week', 'month', 'quarter'].includes(windowType)) {
+      return res.status(400).json({ error: 'Invalid windowType. Must be "week", "month", or "quarter"' });
+    }
+
+    console.log(`[Ximi AI] Fetching ${windowType} trends for user ${req.session.userId}`);
+
+    // Try to get latest trend from database
+    let trend = await getLatestMoodTrend(req.session.userId, windowType as 'week' | 'month' | 'quarter');
+
+    // If no trend exists or it's stale, compute new trend
+    if (!trend) {
+      console.log('[Ximi AI] No existing trend found, computing new trend...');
+      const trendData = await computeMoodTrends(req.session.userId, windowType as 'week' | 'month' | 'quarter');
+      
+      if (trendData) {
+        await storeMoodTrends(trendData);
+        trend = trendData;
+      }
+    }
+
+    if (!trend) {
+      return res.status(404).json({ 
+        error: 'No trend data available',
+        message: 'Not enough check-in data to compute trends' 
+      });
+    }
+
+    res.json(trend);
+  } catch (error) {
+    console.error('[Ximi AI] Get trends error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get personalized program recommendations
+router.post('/recommendations', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { currentMood, wellnessDimensions, includetrends } = req.body;
+
+    console.log('[Ximi AI] Generating recommendations for user', req.session.userId);
+
+    // Get mood trend if requested
+    let moodTrend = null;
+    if (includetrends !== false) {
+      moodTrend = await getLatestMoodTrend(req.session.userId, 'week');
+    }
+
+    // Generate recommendations
+    const recommendations = await getRecommendationsWithContext(
+      req.session.userId,
+      currentMood as MoodKey,
+      wellnessDimensions,
+      moodTrend
+    );
+
+    res.json({
+      recommendations,
+      trendContext: moodTrend,
+      count: recommendations.length,
+    });
+  } catch (error) {
+    console.error('[Ximi AI] Get recommendations error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { captureAllWeeklySnapshots } from '../routes/orbSnapshots.js';
 import { checkMorningNudges } from '../routes/notifications.js';
 import { sendCheckinReminder, pushEnabled } from './pushNotification.ts';
+import { computeTrendsForAllUsers } from './moodTrends.ts';
 import { db } from '../db.js';
 import { privacyConsents, checkins, profiles } from '../schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -70,6 +71,18 @@ function shouldRunMorningNudge() {
   
   // Run at 10:00-10:05 to account for timing variations
   return hour === 10 && minute >= 0 && minute < 5;
+}
+
+/**
+ * Check if current time matches Monday 09:00 AM America/Edmonton for trend computation
+ */
+function shouldRunTrendComputation() {
+  const now = DateTime.now().setZone('America/Edmonton');
+  const hour = now.hour;
+  const minute = now.minute;
+  
+  // Run at 09:00-09:05 on Mondays (weekday 1 in Luxon)
+  return now.weekday === 1 && hour === 9 && minute >= 0 && minute < 5;
 }
 
 /**
@@ -173,6 +186,18 @@ async function runScheduledTasks() {
         console.log('[Scheduler] Morning nudge check completed');
       } catch (error) {
         console.error('[Scheduler] Failed to check morning nudges:', error);
+      }
+    }
+    
+    // Check if we should run trend computation at 9:00 AM on Mondays
+    if (shouldRunTrendComputation()) {
+      console.log('[Scheduler] Running mood trend computation for all users...');
+      
+      try {
+        await computeTrendsForAllUsers();
+        console.log('[Scheduler] Trend computation completed');
+      } catch (error) {
+        console.error('[Scheduler] Failed to compute trends:', error);
       }
     }
   } catch (error) {

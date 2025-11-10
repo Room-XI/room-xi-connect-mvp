@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
+import type { MoodTrendData } from './moodTrends.js';
+import type { ProgramRecommendation } from './recommendations.js';
 
 // Initialize OpenAI client with Replit AI Integrations
 // The AI_INTEGRATIONS_OPENAI_API_KEY and AI_INTEGRATIONS_OPENAI_BASE_URL
@@ -26,6 +28,8 @@ export interface XimiContext {
   wellnessDimensions?: string[];
   recentNote?: string;
   mode: XimiMode;
+  moodTrend?: MoodTrendData | null;
+  recommendations?: ProgramRecommendation[];
 }
 
 export interface XimiResponse {
@@ -66,6 +70,12 @@ YOUR TONE:
 - Encourage small steps: "You don't need the whole map today, just one next step"
 - Validate feelings without fixing them: "Those days are hard, huh?"
 
+PROGRAM RECOMMENDATIONS:
+- When you notice patterns (like consecutive low days or declining trends), naturally suggest programs that might help
+- Keep suggestions simple: "There's a drop-in art thing this week if you want something calm"
+- Don't oversell or push—offer as a gentle option
+- Only mention 1-2 programs max per conversation
+
 WHAT TO AVOID:
 - Don't use emojis unless the user does
 - Don't give advice or solutions unless asked
@@ -89,6 +99,12 @@ YOUR TONE:
 - Acknowledge strengths: "You showed up anyway, that matters"
 - Build on what's working: "Let's keep that going"
 - Realistic encouragement: "You've handled hard things before"
+
+PROGRAM RECOMMENDATIONS:
+- When patterns suggest support could help, mention relevant programs directly
+- Frame as actionable next steps: "Check out the mindfulness workshop—might help with that fog"
+- Connect programs to their goals: "You said you want more structure, there's a group that meets Tuesdays"
+- Only mention 1-2 programs max per conversation
 
 WHAT TO AVOID:
 - Don't use emojis unless the user does
@@ -237,8 +253,43 @@ export async function generateXimiResponse(
     if (context.recentNote) {
       enhancedMessage += `Their note: "${context.recentNote}"\n\n`;
     }
+
+    // Add mood trend context if available
+    if (context.moodTrend) {
+      enhancedMessage += `\nMood Trend Data:\n`;
+      enhancedMessage += `- Trend direction: ${context.moodTrend.trendDirection}\n`;
+      enhancedMessage += `- Average mood: ${context.moodTrend.averageMoodLevel}/6\n`;
+      
+      if (context.moodTrend.consecutiveLowDays > 0) {
+        enhancedMessage += `- ${context.moodTrend.consecutiveLowDays} consecutive low mood days\n`;
+      }
+      
+      if (context.moodTrend.consecutiveHighDays > 0) {
+        enhancedMessage += `- ${context.moodTrend.consecutiveHighDays} consecutive high mood days\n`;
+      }
+      
+      if (context.moodTrend.patternsDetected.length > 0) {
+        enhancedMessage += `- Patterns: ${context.moodTrend.patternsDetected.join(', ')}\n`;
+      }
+      
+      if (context.moodTrend.topWellnessConcerns.length > 0) {
+        enhancedMessage += `- Top concerns: ${context.moodTrend.topWellnessConcerns.join(', ')}\n`;
+      }
+    }
+
+    // Add program recommendations if available
+    if (context.recommendations && context.recommendations.length > 0) {
+      enhancedMessage += `\nRecommended Programs (only mention 1-2 naturally if relevant):\n`;
+      context.recommendations.slice(0, 3).forEach(rec => {
+        enhancedMessage += `- "${rec.title}": ${rec.triggerReason}`;
+        if (rec.free) {
+          enhancedMessage += ' (free)';
+        }
+        enhancedMessage += '\n';
+      });
+    }
     
-    enhancedMessage += `Respond to them using this tone as inspiration: "${contextualResponse}"\n\nUser message: ${userMessage}`;
+    enhancedMessage += `\nRespond to them using this tone as inspiration: "${contextualResponse}"\n\nUser message: ${userMessage}`;
   }
 
   // Retry logic for rate limits and transient errors
