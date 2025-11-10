@@ -212,10 +212,17 @@ router.post('/consent', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
 
+    // Use UPSERT to create profile if it doesn't exist
     await db
-      .update(profiles)
-      .set({ ximiConsent: consent })
-      .where(eq(profiles.userId, req.session.userId));
+      .insert(profiles)
+      .values({
+        userId: req.session.userId,
+        ximiConsent: consent,
+      })
+      .onConflictDoUpdate({
+        target: profiles.userId,
+        set: { ximiConsent: consent }
+      });
 
     console.log('[Ximi AI] Consent updated successfully:', {
       userId: req.session.userId,
