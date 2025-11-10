@@ -207,6 +207,17 @@ export const api = {
     },
   },
 
+  // Program Occurrences (individual events from programEvents table)
+  programOccurrences: {
+    list: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.append('userLat', userLat.toString());
+      if (userLng !== undefined) params.append('userLng', userLng.toString());
+      const queryString = params.toString();
+      return fetchApi(`/events/program-occurrences${queryString ? `?${queryString}` : ''}`);
+    },
+  },
+
   // Check-ins
   checkins: {
     list: () => fetchApi('/checkins'),
@@ -525,4 +536,5 @@ export const api = {
   },
 };
 
+export { fetchApi };
 export default api;

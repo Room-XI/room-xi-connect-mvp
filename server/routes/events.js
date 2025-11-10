@@ -490,4 +490,68 @@ router.get('/later', async (req, res) => {
   }
 });
 
+// GET /api/events/program-occurrences
+// Returns all active program events for browsing (used in Programs tab)
+router.get('/program-occurrences', async (req, res) => {
+  try {
+    const isAuthenticated = !!req.session.userId;
+    const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
+    const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
+
+    let query = db
+      .select()
+      .from(programEvents)
+      .innerJoin(programs, eq(programEvents.programId, programs.id))
+      .where(eq(programEvents.active, true));
+
+    if (!isAuthenticated) {
+      // Guest users: Show events for the next 30 days (privacy-first with reasonable access)
+      const edmontonNow = DateTime.now().setZone('America/Edmonton');
+      const windowStart = edmontonNow.startOf('day').toJSDate();
+      const windowEnd = edmontonNow.plus({ days: 30 }).endOf('day').toJSDate();
+      
+      query = query.where(
+        and(
+          eq(programEvents.active, true),
+          or(
+            // Recurring events (no specific date) within effective date range
+            and(
+              isNull(programEvents.occursOnDate),
+              or(
+                isNull(programEvents.effectiveFrom),
+                lte(programEvents.effectiveFrom, windowEnd)
+              ),
+              or(
+                isNull(programEvents.effectiveTo),
+                gte(programEvents.effectiveTo, windowStart)
+              )
+            ),
+            // One-time events within next 30 days
+            and(
+              sql`${programEvents.occursOnDate} IS NOT NULL`,
+              gte(programEvents.occursOnDate, windowStart),
+              lte(programEvents.occursOnDate, windowEnd)
+            )
+          )
+        )
+      ).limit(100); // Prevent catalog scraping
+    }
+
+    const results = await query;
+
+    // Format events with program data
+    const formattedEvents = results.map(({ program_events: event, programs: program }) =>
+      formatEventWithProgram(event, program, userLat, userLng)
+    );
+
+    // Sort events
+    const sortedEvents = sortEvents(formattedEvents, userLat, userLng);
+
+    res.json(sortedEvents);
+  } catch (error) {
+    console.error('[program-occurrences] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 export default router;

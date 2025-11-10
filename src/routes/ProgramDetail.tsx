@@ -18,9 +18,10 @@ import {
   Star,
   ThumbsUp,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Navigation
 } from 'lucide-react';
-import api from '@/lib/api';
+import api, { fetchApi } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { addToQueue } from '@/lib/queue';
 
@@ -36,6 +37,8 @@ interface Program {
   cost_cents: number | null;
   location_name: string | null;
   address: string | null;
+  lat: string | null;
+  lng: string | null;
   organizer: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -106,7 +109,7 @@ export default function ProgramDetail() {
   const loadPeerInsights = async () => {
     try {
       setLoadingInsights(true);
-      const { data } = await api.get(`/api/outcomes/program/${id}`);
+      const { data } = await fetchApi(`/outcomes/program/${id}`);
       setPeerInsights(data);
     } catch (error) {
       console.error('Error loading peer insights:', error);
@@ -213,6 +216,30 @@ export default function ProgramDetail() {
   const formatCost = (cents: number | null) => {
     if (cents === null) return null;
     return `$${(cents / 100).toFixed(2)}`;
+  };
+
+  const openDirections = () => {
+    if (!program?.lat || !program?.lng) return;
+
+    const lat = parseFloat(program.lat);
+    const lng = parseFloat(program.lng);
+    const destination = `${lat},${lng}`;
+    const label = encodeURIComponent(program.location_name || program.title);
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+
+    let url: string;
+
+    if (isIOS) {
+      url = `maps://maps.apple.com/?daddr=${destination}&q=${label}`;
+    } else if (isAndroid) {
+      url = `geo:0,0?q=${destination}(${label})`;
+    } else {
+      url = `https://www.google.com/maps/dir/?api=1&destination=${destination}&query=${label}`;
+    }
+
+    window.open(url, '_blank');
   };
 
   if (loading) {
@@ -430,7 +457,7 @@ export default function ProgramDetail() {
             <h3 className="font-semibold text-deepSage">Location</h3>
             <div className="flex items-start space-x-3">
               <MapPin className="w-5 h-5 text-gold mt-0.5" />
-              <div>
+              <div className="flex-1">
                 {program.location_name && (
                   <p className="font-medium text-deepSage">
                     {program.location_name}
@@ -443,6 +470,15 @@ export default function ProgramDetail() {
                 )}
               </div>
             </div>
+            {program.lat && program.lng && (
+              <button
+                onClick={openDirections}
+                className="w-full cosmic-button flex items-center justify-center space-x-2"
+              >
+                <Navigation className="w-5 h-5" />
+                <span>Get Directions</span>
+              </button>
+            )}
           </div>
         )}
 

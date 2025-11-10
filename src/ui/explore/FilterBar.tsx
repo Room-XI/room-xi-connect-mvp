@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, ChevronDown } from 'lucide-react';
 
 interface Program {
-  tags: string[];
-  free: boolean;
-  indoor: boolean | null;
-  outdoor: boolean | null;
+  tags?: string[];
+  programTags?: string[];
+  free?: boolean;
+  indoor?: boolean | null;
+  outdoor?: boolean | null;
 }
 
 interface Filters {
@@ -29,7 +30,8 @@ export default function FilterBar({ programs, filters, onFilterChange }: FilterB
   const availableTags = useMemo(() => {
     const tagSet = new Set<string>();
     programs.forEach(program => {
-      program.tags.forEach(tag => tagSet.add(tag));
+      const tags = program.tags || program.programTags || [];
+      tags.forEach(tag => tagSet.add(tag));
     });
     return Array.from(tagSet).sort();
   }, [programs]);
