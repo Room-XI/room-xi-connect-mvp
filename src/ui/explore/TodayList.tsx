@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Clock, MapPin, AlertCircle, RefreshCcw } from 'lucide-react';
 import api from '@/lib/api';
 import EventCard from '@/components/EventCard';
+import FilterBar from './FilterBar';
 
 interface Event {
   eventId: string;
@@ -26,13 +27,29 @@ interface Event {
   organizer: string | null;
 }
 
+interface Filters {
+  tags: string[];
+  free: boolean;
+  timeOfDay?: string[];
+  dropIn?: boolean;
+  maxDistance?: number | null;
+}
+
 export default function TodayList() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [filters, setFilters] = useState<Filters>({
+    tags: [],
+    free: false,
+    timeOfDay: [],
+    dropIn: false,
+    maxDistance: null,
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -49,6 +66,69 @@ export default function TodayList() {
   useEffect(() => {
     fetchEvents();
   }, [userLocation]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [events, filters]);
+
+  const parseTimeToHour = (timeString: string): number => {
+    const [hours] = timeString.split(':').map(Number);
+    return hours;
+  };
+
+  const categorizeTimeOfDay = (startTime: string): string => {
+    const hour = parseTimeToHour(startTime);
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
+  };
+
+  const applyFilters = () => {
+    let filtered = [...events];
+
+    if (filters.tags.length > 0) {
+      filtered = filtered.filter(event =>
+        filters.tags.some(tag => event.programTags?.includes(tag))
+      );
+    }
+
+    if (filters.free) {
+      filtered = filtered.filter(event => 
+        event.costCents === 0 || event.cost === 'Free'
+      );
+    }
+
+    if (filters.timeOfDay && filters.timeOfDay.length > 0) {
+      filtered = filtered.filter(event => {
+        const eventTimeOfDay = categorizeTimeOfDay(event.startTime);
+        return filters.timeOfDay!.includes(eventTimeOfDay);
+      });
+    }
+
+    if (filters.dropIn) {
+      filtered = filtered.filter(event => event.isDropIn === true);
+    }
+
+    if (filters.maxDistance !== null && filters.maxDistance !== undefined && filters.maxDistance > 0 && userLocation) {
+      filtered = filtered.filter(event => 
+        event.distance !== null && event.distance <= filters.maxDistance!
+      );
+    }
+
+    setFilteredEvents(filtered);
+  };
+
+  const handleFilterChange = (newFilters: Filters) => {
+    setFilters(newFilters);
+  };
+
+  const hasActiveFilters = () => {
+    return filters.tags.length > 0 || 
+           filters.free || 
+           (filters.timeOfDay && filters.timeOfDay.length > 0) ||
+           filters.dropIn || 
+           (filters.maxDistance !== null && filters.maxDistance !== undefined && filters.maxDistance > 0);
+  };
 
   const requestUserLocation = () => {
     const cachedLocation = sessionStorage.getItem('userLocation');
@@ -167,6 +247,18 @@ export default function TodayList() {
         )}
       </div>
 
+      {events.length > 0 && (
+        <FilterBar
+          programs={events}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          showTimeOfDay={true}
+          showDropIn={true}
+          showDistance={true}
+          hasLocation={locationPermission === 'granted'}
+        />
+      )}
+
       {events.length === 0 ? (
         <motion.div
           className="cosmic-card p-8 text-center"
@@ -183,12 +275,37 @@ export default function TodayList() {
             Check the Programs tab to browse all upcoming events, or try again tomorrow.
           </p>
         </motion.div>
+      ) : filteredEvents.length === 0 ? (
+        <motion.div
+          className="cosmic-card p-8 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-teal/20 to-sage/20 flex items-center justify-center">
+            <Clock className="w-8 h-8 text-teal" />
+          </div>
+          <h3 className="text-lg font-semibold text-deepSage mb-2">
+            No events match your filters
+          </h3>
+          <p className="text-sm text-textSecondaryLight mb-4">
+            Try adjusting your filters to see more events.
+          </p>
+          <button
+            onClick={() => setFilters({ tags: [], free: false, timeOfDay: [], dropIn: false, maxDistance: null })}
+            className="cosmic-button-secondary"
+          >
+            Clear all filters
+          </button>
+        </motion.div>
       ) : (
         <div className="space-y-4">
           <div className="text-sm font-medium text-deepSage">
-            {events.length} {events.length === 1 ? 'event' : 'events'} today
+            {hasActiveFilters() 
+              ? `${filteredEvents.length} of ${events.length} events`
+              : `${events.length} ${events.length === 1 ? 'event' : 'events'} today`
+            }
           </div>
-          {events.map((event) => (
+          {filteredEvents.map((event) => (
             <EventCard key={event.eventId} event={event} />
           ))}
         </div>

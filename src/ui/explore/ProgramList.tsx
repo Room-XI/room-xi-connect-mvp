@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin } from 'lucide-react';
-import FilterBar from './FilterBar';
+import FilterBar, { Filters } from './FilterBar';
 import ProgramCard from './ProgramCard';
 import api from '@/lib/api';
 
@@ -45,11 +45,14 @@ export default function ProgramList() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     tags: [] as string[],
     free: false,
     indoor: false,
     outdoor: false,
+    timeOfDay: undefined,
+    dropIn: undefined,
+    maxDistance: undefined,
   });
 
   useEffect(() => {
@@ -131,7 +134,7 @@ export default function ProgramList() {
     setFilteredEvents(filtered);
   };
 
-  const handleFilterChange = (newFilters: typeof filters) => {
+  const handleFilterChange = (newFilters: Filters) => {
     setFilters(newFilters);
   };
 
@@ -196,7 +199,15 @@ export default function ProgramList() {
               No events match your current filters.
             </p>
             <button
-              onClick={() => setFilters({ tags: [], free: false, indoor: false, outdoor: false })}
+              onClick={() => setFilters({ 
+                tags: [], 
+                free: false, 
+                indoor: false, 
+                outdoor: false,
+                timeOfDay: undefined,
+                dropIn: undefined,
+                maxDistance: undefined,
+              })}
               className="mt-4 text-sm font-medium text-teal hover:text-teal/80 transition-colors"
             >
               Clear all filters
