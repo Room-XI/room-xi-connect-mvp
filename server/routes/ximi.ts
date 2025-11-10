@@ -81,13 +81,16 @@ router.post('/chat', async (req, res) => {
     const moodTrend = await getLatestMoodTrend(req.session.userId, 'week');
 
     // Get program recommendations if trend data is available
-    let recommendations = [];
+    let recommendations: any[] = [];
     if (moodTrend) {
       recommendations = await getRecommendationsWithContext(
         req.session.userId,
         moodType as MoodKey,
         wellnessDimensions,
-        moodTrend
+        moodTrend,
+        undefined,
+        undefined,
+        false
       );
     }
 
@@ -310,12 +313,15 @@ router.post('/recommendations', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { currentMood, wellnessDimensions, includetrends } = req.body;
+    const { currentMood, wellnessDimensions, includetrends, userLat, userLng, prioritizeNearby } = req.body;
 
-    console.log('[Ximi AI] Generating recommendations for user', req.session.userId);
+    console.log('[Ximi AI] Generating recommendations for user', req.session.userId, {
+      hasLocation: !!(userLat && userLng),
+      prioritizeNearby: prioritizeNearby || false,
+    });
 
     // Get mood trend if requested
-    let moodTrend = null;
+    let moodTrend: any = null;
     if (includetrends !== false) {
       moodTrend = await getLatestMoodTrend(req.session.userId, 'week');
     }
@@ -325,7 +331,10 @@ router.post('/recommendations', async (req, res) => {
       req.session.userId,
       currentMood as MoodKey,
       wellnessDimensions,
-      moodTrend
+      moodTrend,
+      userLat,
+      userLng,
+      prioritizeNearby
     );
 
     res.json({

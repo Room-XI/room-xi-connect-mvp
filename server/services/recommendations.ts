@@ -4,6 +4,33 @@ import { eq, and, gte, inArray, sql, desc } from 'drizzle-orm';
 import type { MoodTrendData } from './moodTrends.js';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 
+/**
+ * Calculate distance between two points using Haversine formula
+ */
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  
+  return Math.round(distance * 10) / 10;
+}
+
+/**
+ * Calculate proximity score based on distance
+ * Returns a score between 0 and 0.3
+ */
+function calculateProximityScore(distanceKm: number): number {
+  if (distanceKm > 40) return 0;
+  return Math.max(0, 0.3 - (distanceKm / 40) * 0.3);
+}
+
 export interface ProgramRecommendation {
   programId: string;
   title: string;
@@ -27,6 +54,9 @@ export interface RecommendationContext {
   moodTrend?: MoodTrendData | null;
   city?: string | null;
   maxResults?: number;
+  userLat?: number;
+  userLng?: number;
+  prioritizeNearby?: boolean;
 }
 
 const MOOD_TAG_MAP: Record<MoodKey, string[]> = {
@@ -111,7 +141,8 @@ async function scoreProgram(
   program: any,
   context: RecommendationContext
 ): Promise<{ matchScore: number; triggerReason: string }> {
-  let score = 0;
+  let relevanceScore = 0;
+  let proximityScore = 0;
   const reasons: string[] = [];
 
   // 1. Mood tag matching (0-0.4 points)
@@ -123,7 +154,7 @@ async function scoreProgram(
 
     if (matchingTags.length > 0) {
       const tagScore = Math.min(matchingTags.length * 0.1, 0.4);
-      score += tagScore;
+      relevanceScore += tagScore;
       reasons.push(`matches your ${context.currentMood} mood`);
     }
   }
@@ -138,7 +169,7 @@ async function scoreProgram(
 
     if (matchingDimensions.length > 0) {
       const dimScore = Math.min(matchingDimensions.length * 0.15, 0.3);
-      score += dimScore;
+      relevanceScore += dimScore;
       reasons.push(`addresses ${context.wellnessDimensions.join(', ')}`);
     }
   }
@@ -146,27 +177,56 @@ async function scoreProgram(
   // 3. Trend-based scoring (0-0.3 points)
   if (context.moodTrend) {
     const trendScore = scoreTrendMatch(program, context.moodTrend, reasons);
-    score += trendScore;
+    relevanceScore += trendScore;
   }
 
   // 4. Barrier considerations (adjust score)
   const barrierAdjustment = scoreBarriers(program, context);
-  score = Math.max(0, score + barrierAdjustment);
+  relevanceScore = Math.max(0, relevanceScore + barrierAdjustment);
 
   // 5. Historical effectiveness (0-0.2 points)
   const peerScore = await scorePeerSuccess(program.id);
-  score += peerScore;
+  relevanceScore += peerScore;
   if (peerScore > 0.1) {
     reasons.push('highly rated by peers');
   }
 
+  // 6. Proximity scoring (only if prioritizeNearby and location available)
+  if (context.prioritizeNearby && context.userLat !== undefined && context.userLng !== undefined) {
+    if (program.lat && program.lng) {
+      try {
+        const programLat = parseFloat(program.lat);
+        const programLng = parseFloat(program.lng);
+        
+        if (!isNaN(programLat) && !isNaN(programLng)) {
+          const distance = calculateDistance(context.userLat, context.userLng, programLat, programLng);
+          proximityScore = calculateProximityScore(distance);
+          
+          if (proximityScore > 0.15) {
+            reasons.push(`${distance}km away`);
+          }
+        }
+      } catch (error) {
+        console.error('[Recommendations] Error calculating distance:', error);
+      }
+    }
+  }
+
+  // Calculate final score
+  let finalScore: number;
+  if (context.prioritizeNearby && proximityScore > 0) {
+    finalScore = 0.7 * relevanceScore + 0.3 * proximityScore;
+  } else {
+    finalScore = relevanceScore;
+  }
+
   // Normalize score to 0-1 range
-  score = Math.min(score, 1.0);
+  finalScore = Math.min(finalScore, 1.0);
 
   // Generate trigger reason
   const triggerReason = generateTriggerReason(context, reasons);
 
-  return { matchScore: parseFloat(score.toFixed(2)), triggerReason };
+  return { matchScore: parseFloat(finalScore.toFixed(2)), triggerReason };
 }
 
 /**
@@ -383,7 +443,10 @@ export async function getRecommendationsWithContext(
   userId: string,
   currentMood?: MoodKey,
   wellnessDimensions?: string[],
-  moodTrend?: MoodTrendData | null
+  moodTrend?: MoodTrendData | null,
+  userLat?: number,
+  userLng?: number,
+  prioritizeNearby?: boolean
 ): Promise<ProgramRecommendation[]> {
   const context: RecommendationContext = {
     userId,
@@ -391,6 +454,9 @@ export async function getRecommendationsWithContext(
     wellnessDimensions,
     moodTrend,
     maxResults: 5,
+    userLat,
+    userLng,
+    prioritizeNearby: prioritizeNearby || false,
   };
 
   const recommendations = await generateRecommendations(context);

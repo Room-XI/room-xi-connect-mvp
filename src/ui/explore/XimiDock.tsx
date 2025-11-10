@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles, MapPin } from 'lucide-react';
 import api, { type ProgramRecommendation } from '@/lib/api';
 import XimiConsentModal from '@/components/XimiConsentModal';
 import VoiceControls from '@/components/VoiceControls';
@@ -33,8 +33,16 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [recommendations, setRecommendations] = useState<ProgramRecommendation[]>([]);
   const [hasNewRecommendations, setHasNewRecommendations] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [prioritizeNearby, setPrioritizeNearby] = useState(false);
 
-  // Load conversation history on component mount
+  // Request user location on component mount
+  useEffect(() => {
+    requestUserLocation();
+  }, []);
+
+  // Load conversation history and recommendations when location is ready
   useEffect(() => {
     const loadConversationHistory = async () => {
       try {
@@ -88,12 +96,53 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
 
     loadConversationHistory();
     loadRecommendations();
-  }, []);
+  }, [userLocation, prioritizeNearby]);
 
-  // Load recommendations on component mount
+  const requestUserLocation = () => {
+    const cachedLocation = sessionStorage.getItem('userLocation');
+    if (cachedLocation) {
+      const { lat, lng } = JSON.parse(cachedLocation);
+      setUserLocation({ lat, lng });
+      setLocationPermission('granted');
+      return;
+    }
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setUserLocation(location);
+          setLocationPermission('granted');
+          sessionStorage.setItem('userLocation', JSON.stringify(location));
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          setLocationPermission('denied');
+        }
+      );
+    }
+  };
+
+  // Load recommendations with optional location data
   const loadRecommendations = async () => {
     try {
-      const { data, error } = await api.ximi.getRecommendations({ includeTrends: true });
+      const requestData: {
+        includeTrends: boolean;
+        userLat?: number;
+        userLng?: number;
+        prioritizeNearby?: boolean;
+      } = { includeTrends: true };
+
+      if (prioritizeNearby && userLocation) {
+        requestData.userLat = userLocation.lat;
+        requestData.userLng = userLocation.lng;
+        requestData.prioritizeNearby = true;
+      }
+
+      const { data, error } = await api.ximi.getRecommendations(requestData);
       
       if (error) {
         console.log('[Ximi Client] No recommendations available for XimiDock:', {
@@ -110,6 +159,7 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
           timestamp: new Date().toISOString(),
           count: data.recommendations.length,
           topRecommendation: data.recommendations[0]?.title,
+          prioritizedByLocation: prioritizeNearby && !!userLocation,
         });
       }
     } catch (error) {
@@ -438,23 +488,71 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-borderMutedLight">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-cosmic-gradient rounded-full flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-deepSage" />
+              <div className="border-b border-borderMutedLight">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-cosmic-gradient rounded-full flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-deepSage" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-deepSage">Ximi</h3>
+                      <p className="text-xs text-textSecondaryLight">AI Companion</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-deepSage">Ximi</h3>
-                    <p className="text-xs text-textSecondaryLight">AI Companion</p>
-                  </div>
+                  
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 rounded-lg hover:bg-sage/10 transition-colors"
+                  >
+                    <X className="w-5 h-5 text-textSecondaryLight" />
+                  </button>
                 </div>
-                
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 rounded-lg hover:bg-sage/10 transition-colors"
-                >
-                  <X className="w-5 h-5 text-textSecondaryLight" />
-                </button>
+
+                {/* Location Toggle */}
+                {locationPermission === 'granted' && userLocation && (
+                  <div className="px-4 pb-3">
+                    <label className="flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-teal" />
+                        <span className="text-sm text-deepSage font-medium">Prioritize nearby programs</span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={prioritizeNearby}
+                          onChange={(e) => setPrioritizeNearby(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-sage/20 rounded-full peer peer-checked:bg-teal transition-colors"></div>
+                        <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+                      </div>
+                    </label>
+                    {prioritizeNearby && (
+                      <motion.p 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="text-xs text-textSecondaryLight mt-2 flex items-start gap-1"
+                      >
+                        <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0 text-teal" />
+                        <span>Helps show nearby programs. Location never stored.</span>
+                      </motion.p>
+                    )}
+                  </div>
+                )}
+
+                {/* Location Permission Denied */}
+                {locationPermission === 'denied' && (
+                  <div className="px-4 pb-3">
+                    <button
+                      onClick={requestUserLocation}
+                      className="text-xs text-teal hover:underline flex items-center gap-1"
+                    >
+                      <MapPin className="w-3 h-3" />
+                      Enable location for nearby programs
+                    </button>
+                  </div>
+                )}
               </div>
               
               {/* Messages */}

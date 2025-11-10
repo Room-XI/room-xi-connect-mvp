@@ -85,7 +85,7 @@ export default function TodayList() {
     try {
       const lat = userLocation?.lat;
       const lng = userLocation?.lng;
-      const response = await api.events.happeningNow(lat, lng);
+      const response = await api.events.today(lat, lng);
 
       if (response.error) {
         setError(response.error);
@@ -177,16 +177,16 @@ export default function TodayList() {
             <Clock className="w-8 h-8 text-teal" />
           </div>
           <h3 className="text-lg font-semibold text-deepSage mb-2">
-            No programs happening right now
+            No programs scheduled today
           </h3>
           <p className="text-sm text-textSecondaryLight">
-            Check back during program hours (weekdays 8am-8pm, weekends vary) or explore upcoming programs.
+            Check the Programs tab to browse all upcoming events, or try again tomorrow.
           </p>
         </motion.div>
       ) : (
         <div className="space-y-4">
           <div className="text-sm font-medium text-deepSage">
-            {events.length} {events.length === 1 ? 'program' : 'programs'} happening now
+            {events.length} {events.length === 1 ? 'event' : 'events'} today
           </div>
           {events.map((event) => (
             <EventCard key={event.eventId} event={event} />

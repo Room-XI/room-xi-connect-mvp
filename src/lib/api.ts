@@ -351,7 +351,14 @@ export const api = {
       }),
     getTrends: (windowType: 'week' | 'month' | 'quarter' = 'week') =>
       fetchApi<MoodTrendData>(`/ximi/trends?windowType=${windowType}`),
-    getRecommendations: (data?: { currentMood?: string; wellnessDimensions?: string[]; includeTrends?: boolean }) =>
+    getRecommendations: (data?: { 
+      currentMood?: string; 
+      wellnessDimensions?: string[]; 
+      includeTrends?: boolean;
+      userLat?: number;
+      userLng?: number;
+      prioritizeNearby?: boolean;
+    }) =>
       fetchApi<{ recommendations: ProgramRecommendation[]; trendContext: MoodTrendData | null; count: number }>('/ximi/recommendations', {
         method: 'POST',
         body: JSON.stringify(data || {}),
