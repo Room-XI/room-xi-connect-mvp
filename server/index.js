@@ -80,6 +80,7 @@ async function createServer() {
   const { default: skipTokenRoutes } = await import('./routes/skip-token.js');
   const { default: moodDropRoutes } = await import('./routes/mood-drop.js');
   const { default: geoRoutes } = await import('./routes/geo.js');
+  const { default: outcomesRoutes } = await import('./routes/outcomes.ts');
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   app.use('/api/auth', authLimiter, authRoutes);
@@ -107,6 +108,7 @@ async function createServer() {
   app.use('/api/skip-token', validateCsrfToken, writeLimiter, skipTokenRoutes);
   app.use('/api/mood-drop', validateCsrfToken, writeLimiter, moodDropRoutes);
   app.use('/api/geo', validateCsrfToken, writeLimiter, geoRoutes);
+  app.use('/api/outcomes', validateCsrfToken, requireGuardianVerification, writeLimiter, outcomesRoutes);
 
   // Production or development mode
   if (process.env.NODE_ENV === 'production') {

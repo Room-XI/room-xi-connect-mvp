@@ -3,6 +3,7 @@ import { captureAllWeeklySnapshots } from '../routes/orbSnapshots.js';
 import { checkMorningNudges } from '../routes/notifications.js';
 import { sendCheckinReminder, pushEnabled } from './pushNotification.ts';
 import { computeTrendsForAllUsers } from './moodTrends.ts';
+import { computePeerInsightsForAllPrograms } from './peerInsights.ts';
 import { db } from '../db.js';
 import { privacyConsents, checkins, profiles } from '../schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -83,6 +84,18 @@ function shouldRunTrendComputation() {
   
   // Run at 09:00-09:05 on Mondays (weekday 1 in Luxon)
   return now.weekday === 1 && hour === 9 && minute >= 0 && minute < 5;
+}
+
+/**
+ * Check if current time matches Monday 09:30 AM America/Edmonton for peer insights computation
+ */
+function shouldRunPeerInsights() {
+  const now = DateTime.now().setZone('America/Edmonton');
+  const hour = now.hour;
+  const minute = now.minute;
+  
+  // Run at 09:30-09:35 on Mondays (weekday 1 in Luxon)
+  return now.weekday === 1 && hour === 9 && minute >= 30 && minute < 35;
 }
 
 /**
@@ -198,6 +211,18 @@ async function runScheduledTasks() {
         console.log('[Scheduler] Trend computation completed');
       } catch (error) {
         console.error('[Scheduler] Failed to compute trends:', error);
+      }
+    }
+    
+    // Check if we should run peer insights computation at 9:30 AM on Mondays
+    if (shouldRunPeerInsights()) {
+      console.log('[Scheduler] Running peer insights computation for all programs...');
+      
+      try {
+        await computePeerInsightsForAllPrograms();
+        console.log('[Scheduler] Peer insights computation completed');
+      } catch (error) {
+        console.error('[Scheduler] Failed to compute peer insights:', error);
       }
     }
   } catch (error) {

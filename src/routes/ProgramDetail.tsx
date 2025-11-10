@@ -14,7 +14,11 @@ import {
   ExternalLink,
   Accessibility,
   Home,
-  TreePine
+  TreePine,
+  Star,
+  ThumbsUp,
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -45,6 +49,17 @@ interface Program {
   created_at: string;
 }
 
+interface PeerInsights {
+  totalResponses: number;
+  averageRating: number | null;
+  recommendationRate: number | null;
+  moodImprovementRate: number | null;
+  commonBarriers: Array<{ barrier: string; frequency: number }>;
+  commonBenefits: Array<{ benefit: string; count: number }>;
+  suppressed: boolean;
+  suppressionReason: string | null;
+}
+
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -53,10 +68,13 @@ export default function ProgramDetail() {
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [peerInsights, setPeerInsights] = useState<PeerInsights | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadProgram();
+      loadPeerInsights();
     }
   }, [id]);
 
@@ -82,6 +100,19 @@ export default function ProgramDetail() {
       console.error('Unexpected error loading program:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPeerInsights = async () => {
+    try {
+      setLoadingInsights(true);
+      const { data } = await api.get(`/api/outcomes/program/${id}`);
+      setPeerInsights(data);
+    } catch (error) {
+      console.error('Error loading peer insights:', error);
+      setPeerInsights(null);
+    } finally {
+      setLoadingInsights(false);
     }
   };
 
@@ -464,6 +495,130 @@ export default function ProgramDetail() {
           </div>
         )}
       </motion.div>
+
+      {/* Peer Insights */}
+      {peerInsights && !peerInsights.suppressed && peerInsights.totalResponses > 0 && (
+        <motion.div
+          className="cosmic-card p-6 space-y-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.6 }}
+        >
+          <div className="space-y-2">
+            <h3 className="font-semibold text-deepSage">What youth are saying</h3>
+            <p className="text-xs text-textSecondaryLight">
+              Based on {peerInsights.totalResponses} anonymous review{peerInsights.totalResponses !== 1 ? 's' : ''}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Average Rating */}
+            {peerInsights.averageRating !== null && (
+              <div className="p-4 bg-gold/5 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Star className="w-5 h-5 text-gold fill-gold" />
+                  <span className="text-2xl font-bold text-deepSage">
+                    {peerInsights.averageRating.toFixed(1)}
+                  </span>
+                  <span className="text-sm text-textSecondaryLight">/5</span>
+                </div>
+                <p className="text-xs text-textSecondaryLight">Helpfulness</p>
+              </div>
+            )}
+
+            {/* Recommendation Rate */}
+            {peerInsights.recommendationRate !== null && (
+              <div className="p-4 bg-teal/5 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <ThumbsUp className="w-5 h-5 text-teal" />
+                  <span className="text-2xl font-bold text-deepSage">
+                    {peerInsights.recommendationRate}%
+                  </span>
+                </div>
+                <p className="text-xs text-textSecondaryLight">Would recommend</p>
+              </div>
+            )}
+
+            {/* Mood Improvement Rate */}
+            {peerInsights.moodImprovementRate !== null && (
+              <div className="p-4 bg-sage/5 rounded-lg col-span-2">
+                <div className="flex items-center space-x-2 mb-2">
+                  <TrendingUp className="w-5 h-5 text-sage" />
+                  <span className="text-2xl font-bold text-deepSage">
+                    {peerInsights.moodImprovementRate}%
+                  </span>
+                </div>
+                <p className="text-xs text-textSecondaryLight">
+                  Reported improved mood after attending
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Common Barriers */}
+          {peerInsights.commonBarriers.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-deepSage flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-gold" />
+                <span>Things to know</span>
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {peerInsights.commonBarriers.map((barrier, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-gold/10 text-gold text-xs rounded-full"
+                  >
+                    {barrier.barrier.replace('_', ' ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Common Benefits */}
+          {peerInsights.commonBenefits.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-deepSage">Common benefits</h4>
+              <div className="flex flex-wrap gap-2">
+                {peerInsights.commonBenefits.map((benefit, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-teal/10 text-teal text-xs rounded-full"
+                  >
+                    {benefit.benefit}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="pt-4 border-t border-sage/10">
+            <p className="text-xs text-textSecondaryLight italic">
+              Your feedback helps other youth make informed decisions (completely anonymous)
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* No Insights Yet */}
+      {peerInsights && (peerInsights.suppressed || peerInsights.totalResponses === 0) && (
+        <motion.div
+          className="cosmic-card p-6 text-center space-y-3"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.6 }}
+        >
+          <div className="w-12 h-12 bg-sage/10 rounded-full flex items-center justify-center mx-auto">
+            <Users className="w-6 h-6 text-sage" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-semibold text-deepSage">Not enough feedback yet</h4>
+            <p className="text-sm text-textSecondaryLight">
+              Be one of the first to try this program and share your experience!
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Contact Information */}
       {(program.contact_email || program.contact_phone || program.website_url) && (

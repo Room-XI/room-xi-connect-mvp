@@ -206,6 +206,45 @@ export function getMoodResponse(
     "I'm here if you want to talk more.";
 }
 
+export function generateOutcomeReflectionPrompt(
+  programTitle: string,
+  mode: XimiMode = 'sibling'
+): string {
+  const prompts = {
+    sibling: [
+      `How was ${programTitle}? Was it helpful?`,
+      `So, you went to ${programTitle}. How'd it go?`,
+      `What did you think of ${programTitle}?`,
+      `${programTitle} — was it worth the time?`,
+    ],
+    peer: [
+      `How did ${programTitle} work out for you?`,
+      `What was your experience with ${programTitle}?`,
+      `Did ${programTitle} meet your expectations?`,
+      `Would you recommend ${programTitle} to others?`,
+    ],
+  };
+
+  const options = prompts[mode];
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+export function detectProgramAttendanceMention(message: string): boolean {
+  const attendanceKeywords = [
+    'went to',
+    'attended',
+    'just came from',
+    'finished',
+    'tried',
+    'checked out',
+    'participated in',
+    'joined',
+  ];
+
+  const lowerMessage = message.toLowerCase();
+  return attendanceKeywords.some((keyword) => lowerMessage.includes(keyword));
+}
+
 export async function generateXimiResponse(
   userMessage: string,
   context: XimiContext
