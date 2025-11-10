@@ -38,6 +38,8 @@ async function fetchApi<T = any>(
   endpoint: string,
   options?: RequestInit
 ): Promise<ApiResponse<T>> {
+  const requestStart = Date.now();
+  
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -58,6 +60,7 @@ async function fetchApi<T = any>(
       ...options,
     });
 
+    const requestDuration = Date.now() - requestStart;
     const data = await response.json();
 
     if (!response.ok) {
@@ -66,11 +69,36 @@ async function fetchApi<T = any>(
         csrfToken = null;
         // Could retry here, but for now just return the error
       }
+      
+      console.error('[Ximi Client] API request failed:', {
+        timestamp: new Date().toISOString(),
+        endpoint,
+        method: options?.method || 'GET',
+        status: response.status,
+        statusText: response.statusText,
+        duration: requestDuration,
+        error: data.error || data.message || 'An error occurred',
+      });
+      
       return { error: data.error || data.message || 'An error occurred' };
     }
 
     return { data };
   } catch (error) {
+    const requestDuration = Date.now() - requestStart;
+    
+    console.error('[Ximi Client] API request exception:', {
+      timestamp: new Date().toISOString(),
+      endpoint,
+      method: options?.method || 'GET',
+      duration: requestDuration,
+      error: error instanceof Error ? {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      } : error,
+    });
+    
     return { error: error instanceof Error ? error.message : 'Network error' };
   }
 }
@@ -232,11 +260,37 @@ export const api = {
   // Ximi AI
   ximi: {
     getConversations: () => fetchApi('/ximi/conversations'),
-    chat: (data: { message: string; checkinId?: string; moodType?: string; wellnessDimensions?: string[] }) =>
-      fetchApi('/ximi/chat', {
+    chat: async (data: { message: string; checkinId?: string; moodType?: string; wellnessDimensions?: string[] }) => {
+      console.log('[Ximi Client] Sending chat request:', {
+        timestamp: new Date().toISOString(),
+        messageLength: data.message.length,
+        hasCheckinId: !!data.checkinId,
+        hasMoodType: !!data.moodType,
+        hasWellnessDimensions: !!data.wellnessDimensions,
+      });
+      
+      const result = await fetchApi('/ximi/chat', {
         method: 'POST',
         body: JSON.stringify(data),
-      }),
+      });
+      
+      if (result.error) {
+        console.error('[Ximi Client] Chat API error:', {
+          timestamp: new Date().toISOString(),
+          messageLength: data.message.length,
+          error: result.error,
+        });
+      } else {
+        console.log('[Ximi Client] Chat request successful:', {
+          timestamp: new Date().toISOString(),
+          messageLength: data.message.length,
+          responseId: result.data?.id,
+          crisisDetected: result.data?.crisisDetected || false,
+        });
+      }
+      
+      return result;
+    },
     getFollowUp: (checkinId: string) =>
       fetchApi('/ximi/follow-up', {
         method: 'POST',

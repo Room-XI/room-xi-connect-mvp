@@ -38,7 +38,11 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         const { data, error } = await api.ximi.getConversations();
         
         if (error) {
-          console.error('Failed to load conversation history:', error);
+          console.error('[Ximi Client] Failed to load conversation history:', {
+            timestamp: new Date().toISOString(),
+            error: typeof error === 'string' ? error : error,
+            userAuthenticated: true,
+          });
           return;
         }
 
@@ -68,7 +72,14 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
           setMessages(prev => [prev[0], ...historyMessages]);
         }
       } catch (error) {
-        console.error('Error loading conversation history:', error);
+        console.error('[Ximi Client] Exception while loading conversation history:', {
+          timestamp: new Date().toISOString(),
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+          } : error,
+          userAuthenticated: true,
+        });
       }
     };
 
@@ -101,6 +112,11 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
       if (error) {
         // Handle consent required error
         if (error === 'Ximi consent required') {
+          console.log('[Ximi Client] Consent required, showing consent modal:', {
+            timestamp: new Date().toISOString(),
+            messageLength: messageText.length,
+            hasPendingMessage: !!pendingMessage,
+          });
           setPendingMessage(messageText);
           setShowConsentModal(true);
           setIsTyping(false);
@@ -108,6 +124,13 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         }
         
         // Handle other API errors
+        console.error('[Ximi Client] Chat request failed in XimiDock:', {
+          timestamp: new Date().toISOString(),
+          messageLength: messageText.length,
+          error: typeof error === 'string' ? error : error,
+          userAuthenticated: true,
+        });
+        
         const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
           text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
@@ -125,6 +148,12 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
 
       // Check if crisis was detected
       if (data.crisisDetected) {
+        console.warn('[Ximi Client] Crisis detected in XimiDock, triggering crisis sheet:', {
+          timestamp: new Date().toISOString(),
+          messageLength: messageText.length,
+          responseId: data.id,
+        });
+        
         const crisisResponse: Message = {
           id: data.id.toString(),
           text: data.ximiResponse,
@@ -154,7 +183,15 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
       setIsTyping(false);
 
     } catch (error) {
-      console.error('Error processing message:', error);
+      console.error('[Ximi Client] Exception during chat request in XimiDock:', {
+        timestamp: new Date().toISOString(),
+        messageLength: messageText.length,
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+        } : error,
+        userAuthenticated: true,
+      });
       
       const errorResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -180,6 +217,11 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
     
     // Retry sending the pending message if there was one
     if (pendingMessage) {
+      console.log('[Ximi Client] Consent granted, retrying pending message:', {
+        timestamp: new Date().toISOString(),
+        messageLength: pendingMessage.length,
+      });
+      
       setIsTyping(true);
       
       try {
@@ -188,6 +230,13 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         
         if (error) {
           // Handle API errors
+          console.error('[Ximi Client] Chat request failed after consent grant:', {
+            timestamp: new Date().toISOString(),
+            messageLength: pendingMessage.length,
+            error: typeof error === 'string' ? error : error,
+            userAuthenticated: true,
+          });
+          
           const errorResponse: Message = {
             id: (Date.now() + 1).toString(),
             text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
@@ -203,6 +252,12 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
 
         // Check if crisis was detected
         if (data.crisisDetected) {
+          console.warn('[Ximi Client] Crisis detected after consent grant:', {
+            timestamp: new Date().toISOString(),
+            messageLength: pendingMessage.length,
+            responseId: data.id,
+          });
+          
           const crisisResponse: Message = {
             id: data.id.toString(),
             text: data.ximiResponse,
@@ -234,7 +289,15 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         setPendingMessage(null);
 
       } catch (error) {
-        console.error('Error processing message:', error);
+        console.error('[Ximi Client] Exception during retry after consent grant:', {
+          timestamp: new Date().toISOString(),
+          messageLength: pendingMessage.length,
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+          } : error,
+          userAuthenticated: true,
+        });
         
         const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
