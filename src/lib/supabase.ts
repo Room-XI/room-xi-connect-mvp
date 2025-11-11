@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
+// NOTE: This file is intentionally maintained as legacy code for backward compatibility
+// with Signup.tsx and SafetyProfile.tsx during the Express session migration.
+// Migration plan: Once all auth flows are tested with Express sessions, these components
+// can be updated to use /api/auth endpoints and this file can be removed.
 console.warn('⚠️ supabase.ts is DEPRECATED but temporarily maintained for Signup/SafetyProfile.');
-console.warn('📋 TODO: Migrate Signup.tsx and SafetyProfile.tsx to Express API endpoints.');
+console.warn('📋 Migration Plan: Update Signup.tsx and SafetyProfile.tsx to use Express API endpoints.');
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -14,7 +18,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export async function isUserAdmin(userId: string): Promise<boolean> {
+export async function isUserAdmin(_userId: string): Promise<boolean> {
   console.warn('isUserAdmin from supabase.ts is deprecated. Migrate to use the new API.');
   return false;
 }

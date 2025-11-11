@@ -10,7 +10,6 @@ import {
   LogOut,
   ChevronRight,
   Moon,
-  Sun,
   Smartphone,
   Sparkles
 } from 'lucide-react';
@@ -23,9 +22,7 @@ import NotificationSettings from '@/components/NotificationSettings';
 export default function Settings() {
   const navigate = useNavigate();
   const { user, signOut } = useSession();
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [ximiConsent, setXimiConsent] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -41,7 +38,6 @@ export default function Settings() {
       setLoading(true);
       
       const { data } = await api.profile.get();
-      setProfile(data);
       setXimiConsent(data?.ximiConsent || false);
     } catch (error) {
       console.error('Unexpected error loading profile:', error);
@@ -94,8 +90,7 @@ export default function Settings() {
       // @ts-ignore
       window.deferredPrompt.prompt();
       // @ts-ignore
-      const { outcome } = await window.deferredPrompt.userChoice;
-      console.log(`User response to the install prompt: ${outcome}`);
+      await window.deferredPrompt.userChoice;
       // @ts-ignore
       window.deferredPrompt = null;
     }
@@ -264,11 +259,7 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-navy/10 rounded-lg flex items-center justify-center">
-                  {darkMode ? (
-                    <Moon className="w-5 h-5 text-navy" />
-                  ) : (
-                    <Sun className="w-5 h-5 text-navy" />
-                  )}
+                  <Moon className="w-5 h-5 text-navy" />
                 </div>
                 <div>
                   <p className="font-medium text-deepSage">Dark Mode</p>

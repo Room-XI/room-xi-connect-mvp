@@ -12,11 +12,11 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // TODO: Remove unsafe-inline/eval and use nonces
-    "style-src 'self' 'unsafe-inline'", // TODO: Remove unsafe-inline and use nonces
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https:",
-    "font-src 'self' data:",
-    "connect-src 'self' ws: wss:", // WebSocket for HMR in dev
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' ws: wss:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

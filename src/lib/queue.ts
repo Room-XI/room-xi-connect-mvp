@@ -211,8 +211,6 @@ export async function syncQueue(): Promise<void> {
       return;
     }
     
-    console.log(`Syncing ${items.length} queued items...`);
-    
     for (const item of items) {
       // Skip items that have exceeded max retries
       if (item.tries >= MAX_RETRIES) {
@@ -228,9 +226,7 @@ export async function syncQueue(): Promise<void> {
       const success = await processQueueItem(item);
       
       if (success) {
-        // Remove successfully processed item
         await database.delete('queue', item.id);
-        console.log(`Successfully synced item ${item.id}`);
       } else {
         // Increment retry count and update last error
         const updatedItem = {

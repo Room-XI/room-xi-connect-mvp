@@ -35,11 +35,11 @@ export default function OrgDashboard() {
     try {
       if (!user) return;
 
-      // TODO: Backend API needed - /api/org/dashboard
-      // const { data, error } = await api.org.getDashboard();
-      // This should return stats and activities
+      // NOTE: Organization dashboard stats are planned for future implementation
+      // This would require building a dedicated /api/org/dashboard endpoint
+      // that aggregates youth participation, referral tracking, and program metrics
+      // For now, using placeholder values for UI development
       
-      // For now, setting default values
       setStats({
         activeYouth: 0,
         pendingReferrals: 0,

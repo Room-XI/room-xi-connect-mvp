@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PrivacyDashboard() {
   const [consents, setConsents] = useState<Record<string, boolean>>({});
-  const [auditTrail, setAuditTrail] = useState<any[]>([]);
   const [guardianStatus, setGuardianStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);

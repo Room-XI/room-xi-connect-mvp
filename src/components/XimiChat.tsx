@@ -58,40 +58,13 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
 
       if (trendsResult.data) {
         setMoodTrend(trendsResult.data);
-        console.log('[Ximi Client] Mood trends loaded:', {
-          timestamp: new Date().toISOString(),
-          windowType: trendsResult.data.windowType,
-          dominantMood: trendsResult.data.dominantMood,
-          trendDirection: trendsResult.data.trendDirection,
-        });
-      } else if (trendsResult.error) {
-        console.log('[Ximi Client] No mood trends available:', {
-          timestamp: new Date().toISOString(),
-          error: trendsResult.error,
-        });
       }
 
       if (recsResult.data?.recommendations) {
         setRecommendations(recsResult.data.recommendations);
-        console.log('[Ximi Client] Recommendations loaded:', {
-          timestamp: new Date().toISOString(),
-          count: recsResult.data.recommendations.length,
-          topRecommendation: recsResult.data.recommendations[0]?.title,
-        });
-      } else if (recsResult.error) {
-        console.log('[Ximi Client] No recommendations available:', {
-          timestamp: new Date().toISOString(),
-          error: recsResult.error,
-        });
       }
     } catch (error) {
-      console.error('[Ximi Client] Exception while loading recommendations:', {
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack,
-        } : error,
-      });
+      console.error('[Ximi] Exception while loading recommendations:', error);
     } finally {
       setLoadingRecommendations(false);
     }
@@ -101,23 +74,12 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
     try {
       const { data, error } = await api.ximi.getConversations();
       if (error) {
-        console.error('[Ximi Client] Failed to load conversations:', {
-          timestamp: new Date().toISOString(),
-          error: typeof error === 'string' ? error : error,
-          userAuthenticated: true,
-        });
+        console.error('[Ximi] Failed to load conversations:', error);
         return;
       }
       setMessages(data || []);
     } catch (error) {
-      console.error('[Ximi Client] Exception while loading conversations:', {
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack,
-        } : error,
-        userAuthenticated: true,
-      });
+      console.error('[Ximi] Exception while loading conversations:', error);
     }
   };
 
@@ -140,47 +102,21 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
 
       if (error) {
         if (error === 'Ximi consent required') {
-          console.log('[Ximi Client] Consent required, triggering consent flow:', {
-            timestamp: new Date().toISOString(),
-            messageLength: userMsg.length,
-            needsGuardianVerification,
-          });
           onConsentRequired?.();
           return;
         }
-        console.error('[Ximi Client] Chat request failed:', {
-          timestamp: new Date().toISOString(),
-          messageLength: userMsg.length,
-          mode,
-          needsGuardianVerification,
-          error: typeof error === 'string' ? error : error,
-          userAuthenticated: true,
-        });
+        console.error('[Ximi] Chat request failed:', error);
         return;
       }
 
       if (data.crisisDetected) {
-        console.warn('[Ximi Client] Crisis detected in response:', {
-          timestamp: new Date().toISOString(),
-          messageLength: userMsg.length,
-          responseId: data.id,
-        });
+        console.warn('[Ximi] Crisis detected in response');
         setShowCrisisWarning(true);
       }
 
       setMessages(prev => [...prev, data]);
     } catch (error) {
-      console.error('[Ximi Client] Exception during chat request:', {
-        timestamp: new Date().toISOString(),
-        messageLength: userMsg.length,
-        mode,
-        needsGuardianVerification,
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack,
-        } : error,
-        userAuthenticated: true,
-      });
+      console.error('[Ximi] Exception during chat request:', error);
     } finally {
       setIsSending(false);
     }
@@ -193,25 +129,12 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
       const { error } = await api.ximi.toggleMode(newMode);
 
       if (error) {
-        console.error('[Ximi Client] Failed to toggle mode:', {
-          timestamp: new Date().toISOString(),
-          currentMode: mode,
-          requestedMode: newMode,
-          error: typeof error === 'string' ? error : error,
-        });
+        console.error('[Ximi] Failed to toggle mode:', error);
       } else {
         setMode(newMode);
       }
     } catch (error) {
-      console.error('[Ximi Client] Exception during mode toggle:', {
-        timestamp: new Date().toISOString(),
-        currentMode: mode,
-        requestedMode: newMode,
-        error: error instanceof Error ? {
-          message: error.message,
-          stack: error.stack,
-        } : error,
-      });
+      console.error('[Ximi] Exception during mode toggle:', error);
     }
   };
 
