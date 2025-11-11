@@ -465,6 +465,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       }),
+    logout: () =>
+      fetchApi('/admin/logout', {
+        method: 'POST',
+      }),
     getStats: () => fetchApi('/admin/stats'),
     getAuditLogs: (params?: { 
       page?: number; 

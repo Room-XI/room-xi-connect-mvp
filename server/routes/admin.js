@@ -70,6 +70,27 @@ router.post('/login', authLimiter, async (req, res) => {
   }
 });
 
+router.post('/logout', async (req, res) => {
+  try {
+    if (!req.session.isAdminSession) {
+      return res.status(401).json({ error: 'Not logged in as admin' });
+    }
+
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destruction error:', err);
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+
+      res.clearCookie('connect.sid');
+      res.json({ success: true });
+    });
+  } catch (error) {
+    console.error('Admin logout error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/audit-logs', async (req, res) => {
   try {
     if (req.session.isAdminSession) {
