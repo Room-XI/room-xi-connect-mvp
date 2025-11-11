@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink, UserCog, X } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function Login() {
@@ -11,6 +11,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +49,39 @@ export default function Login() {
       console.error('Login error:', error);
       setError('An unexpected error occurred. Please try again.');
       setLoading(false);
+    }
+  };
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!adminUsername || !adminPassword) {
+      setAdminError('Please fill in all fields');
+      return;
+    }
+
+    setAdminLoading(true);
+    setAdminError(null);
+
+    try {
+      const { data, error } = await api.admin.login(adminUsername, adminPassword);
+
+      if (error) {
+        setAdminError(error);
+        setAdminLoading(false);
+        return;
+      }
+
+      if (data?.success) {
+        window.location.href = '/admin';
+      } else {
+        setAdminError('Admin login failed. Please try again.');
+        setAdminLoading(false);
+      }
+    } catch (error) {
+      console.error('Admin login error:', error);
+      setAdminError('An unexpected error occurred. Please try again.');
+      setAdminLoading(false);
     }
   };
 
@@ -340,9 +379,140 @@ export default function Login() {
               <span>Learn more about Room 11</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
+            
+            {/* Admin Login Button */}
+            <div className="pt-4">
+              <button
+                onClick={() => setShowAdminModal(true)}
+                className="text-xs text-textSecondaryLight hover:text-deepSage transition-colors inline-flex items-center gap-1"
+              >
+                <UserCog className="w-3 h-3" />
+                <span>Admin Login</span>
+              </button>
+            </div>
           </div>
         </motion.div>
       </div>
+
+      {/* Admin Login Modal */}
+      <AnimatePresence>
+        {showAdminModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAdminModal(false)}
+              className="absolute inset-0 bg-deepSage/50 backdrop-blur-sm"
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative cosmic-card p-6 w-full max-w-md space-y-6"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-cosmic/10 rounded-full flex items-center justify-center">
+                    <UserCog className="w-5 h-5 text-cosmic" />
+                  </div>
+                  <h2 className="text-xl font-display font-bold text-deepSage">Admin Login</h2>
+                </div>
+                <button
+                  onClick={() => setShowAdminModal(false)}
+                  className="text-textSecondaryLight hover:text-deepSage transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Error Message */}
+              {adminError && (
+                <motion.div
+                  className="cosmic-card p-4 bg-coral/10 border-coral/20 flex items-center space-x-3"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                >
+                  <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" />
+                  <p className="text-sm text-coral">{adminError}</p>
+                </motion.div>
+              )}
+
+              {/* Admin Login Form */}
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                {/* Username Field */}
+                <div className="space-y-2">
+                  <label htmlFor="admin-username" className="block text-sm font-medium text-deepSage">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <UserCog className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+                    <input
+                      id="admin-username"
+                      type="text"
+                      value={adminUsername}
+                      onChange={(e) => setAdminUsername(e.target.value)}
+                      placeholder="Enter admin username"
+                      className="cosmic-input pl-10"
+                      disabled={adminLoading}
+                      autoComplete="username"
+                    />
+                  </div>
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-2">
+                  <label htmlFor="admin-password" className="block text-sm font-medium text-deepSage">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+                    <input
+                      id="admin-password"
+                      type="password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="Enter admin password"
+                      className="cosmic-input pl-10"
+                      disabled={adminLoading}
+                      autoComplete="current-password"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <motion.button
+                  type="submit"
+                  disabled={adminLoading || !adminUsername || !adminPassword}
+                  className={`w-full cosmic-button ${
+                    adminLoading || !adminUsername || !adminPassword ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  whileHover={!adminLoading && adminUsername && adminPassword ? { scale: 1.02 } : {}}
+                  whileTap={!adminLoading && adminUsername && adminPassword ? { scale: 0.98 } : {}}
+                >
+                  {adminLoading ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-deepSage border-t-transparent rounded-full animate-spin" />
+                      <span>Signing in...</span>
+                    </div>
+                  ) : (
+                    'Sign In as Admin'
+                  )}
+                </motion.button>
+              </form>
+
+              {/* Warning */}
+              <p className="text-xs text-textSecondaryLight text-center">
+                Admin access is restricted to authorized personnel only
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

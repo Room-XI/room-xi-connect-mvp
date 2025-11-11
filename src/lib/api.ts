@@ -460,6 +460,11 @@ export const api = {
 
   // Admin Dashboard
   admin: {
+    login: (username: string, password: string) =>
+      fetchApi('/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      }),
     getStats: () => fetchApi('/admin/stats'),
     getAuditLogs: (params?: { 
       page?: number; 

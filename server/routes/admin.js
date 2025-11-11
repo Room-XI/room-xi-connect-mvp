@@ -10,23 +10,82 @@ import {
   users 
 } from '../schema.js';
 import { eq, sql, desc, and, gte, lte } from 'drizzle-orm';
+import { authLimiter } from '../middleware/rateLimit.js';
 
 const router = express.Router();
 
-router.get('/audit-logs', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, req.session.userId))
-      .limit(1);
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminPasswordHash = process.env.ADMIN_PASSWORD;
 
-    if (!profile || !profile.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
+    if (!adminUsername || !adminPasswordHash) {
+      console.error('Admin credentials not configured in environment variables');
+      return res.status(500).json({ error: 'Admin login not configured' });
+    }
+
+    if (username !== adminUsername) {
+      return res.status(401).json({ error: 'Invalid admin credentials' });
+    }
+
+    const bcrypt = await import('bcrypt');
+    const validPassword = await bcrypt.compare(password, adminPasswordHash);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid admin credentials' });
+    }
+
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error('Session regeneration error:', err);
+        return res.status(500).json({ error: 'Session error' });
+      }
+
+      req.session.isAdminSession = true;
+      req.session.adminUsername = username;
+
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error('Session save error:', saveErr);
+          return res.status(500).json({ error: 'Session error' });
+        }
+
+        res.json({
+          success: true,
+          admin: {
+            username: username,
+          }
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/audit-logs', async (req, res) => {
+  try {
+    if (req.session.isAdminSession) {
+      // Admin session - skip user checks
+    } else if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    } else {
+      const [profile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.userId, req.session.userId))
+        .limit(1);
+
+      if (!profile || !profile.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
     }
 
     const page = parseInt(req.query.page) || 1;
@@ -91,18 +150,20 @@ router.get('/audit-logs', async (req, res) => {
 
 router.get('/stats', async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (req.session.isAdminSession) {
+      // Admin session - skip user checks
+    } else if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
-    }
+    } else {
+      const [profile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.userId, req.session.userId))
+        .limit(1);
 
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, req.session.userId))
-      .limit(1);
-
-    if (!profile || !profile.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
+      if (!profile || !profile.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
     }
 
     const [totalUsers] = await db
