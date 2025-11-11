@@ -85,16 +85,6 @@ export default function Login() {
     }
   };
 
-  const partners = [
-    'Jumpstart Canada',
-    'The Can Man Dan Foundation',
-    'D.S. MacKenzie School',
-    'Allendale School',
-    'OTB Academy',
-    'Caribbean Optimist Club of Edmonton',
-    'YMCA of Northern Alberta'
-  ];
-
   return (
     <div className="min-h-dvh bg-cream">
       {/* Donate Button - Fixed Position */}
