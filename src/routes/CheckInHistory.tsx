@@ -19,9 +19,11 @@ export default function CheckInHistory() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | '7days' | '30days'>('30days');
+  const [currentStreak, setCurrentStreak] = useState(0);
 
   useEffect(() => {
     loadCheckIns();
+    loadStreak();
   }, []);
 
   const loadCheckIns = async () => {
@@ -41,6 +43,23 @@ export default function CheckInHistory() {
       console.error('Unexpected error loading check-ins:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStreak = async () => {
+    try {
+      const { data, error } = await api.checkins.getSummary(7);
+      
+      if (error) {
+        console.error('Error loading streak:', error);
+        return;
+      }
+      
+      if (data && typeof data.streak7 === 'number') {
+        setCurrentStreak(data.streak7);
+      }
+    } catch (err) {
+      console.error('Unexpected error loading streak:', err);
     }
   };
 
@@ -120,8 +139,7 @@ export default function CheckInHistory() {
               <TrendingUp className="w-5 h-5 text-orange-600" />
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              {/* TODO: Calculate actual streak */}
-              🔥 0 days
+              🔥 {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
             </p>
           </div>
         </div>
