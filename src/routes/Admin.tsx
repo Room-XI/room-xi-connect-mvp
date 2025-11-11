@@ -9,7 +9,8 @@ import {
   Download,
   BarChart,
   MessageSquare,
-  TrendingUp
+  TrendingUp,
+  LogOut
 } from 'lucide-react';
 import { useSession } from '@/lib/session';
 import { Link } from 'react-router-dom';
@@ -50,6 +51,7 @@ export default function Admin() {
   const [selectedAction, setSelectedAction] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -154,6 +156,26 @@ export default function Admin() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+      const { error } = await api.admin.logout();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        alert('Failed to logout. Please try again.');
+        setLoggingOut(false);
+        return;
+      }
+
+      window.location.href = '/auth/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Failed to logout. Please try again.');
+      setLoggingOut(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-6 space-y-6">
@@ -202,11 +224,29 @@ export default function Admin() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="flex items-center space-x-2">
-          <Shield className="w-6 h-6 text-coral" />
-          <h1 className="text-2xl font-display font-bold text-deepSage">
-            Admin Panel
-          </h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Shield className="w-6 h-6 text-coral" />
+            <h1 className="text-2xl font-display font-bold text-deepSage">
+              Admin Panel
+            </h1>
+          </div>
+          <motion.button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-colors ${
+              loggingOut 
+                ? 'bg-sage/20 text-sage cursor-not-allowed' 
+                : 'bg-coral/10 text-coral hover:bg-coral/20'
+            }`}
+            whileHover={!loggingOut ? { scale: 1.05 } : {}}
+            whileTap={!loggingOut ? { scale: 0.95 } : {}}
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {loggingOut ? 'Logging out...' : 'Logout'}
+            </span>
+          </motion.button>
         </div>
         <p className="text-textSecondaryLight">
           System overview and audit logs
