@@ -1,14 +1,40 @@
 # Room XI Connect - Complete Build Documentation
 
-**Version:** 1.2.0  
+**Version:** 1.3.0  
 **Last Updated:** November 22, 2025  
-**Architecture:** Express.js + React + Drizzle ORM + PostgreSQL (Neon)
+**Architecture:** Express.js + React + Drizzle ORM + PostgreSQL (Replit/Neon)
 
 This document contains **everything** about Room XI Connect: database schemas, wireframes, source code, API documentation, and implementation details.
 
 ---
 
 ## Changelog
+
+### Version 1.3.0 (November 22, 2025)
+
+**Major Migration: Supabase to Replit PostgreSQL**
+
+**Database Migration:**
+- Fully migrated from Supabase to Replit's built-in PostgreSQL (Neon) database
+- All authentication now handled by Express sessions stored in PostgreSQL
+- Removed all Supabase dependencies from the codebase
+- Session data stored in `session` table using `connect-pg-simple` adapter
+- User authentication handled via Express middleware with bcrypt password hashing
+- Guardian verification system integrated with Express sessions
+
+**Migration Components:**
+- **Frontend:** Updated `Signup.tsx`, `SafetyProfile.tsx` to use Express API endpoints
+- **Backend:** All authentication now uses `/api/auth/*` endpoints
+- **Sessions:** Express sessions with PostgreSQL persistence replacing Supabase Auth
+- **Removed:** `src/lib/supabase.ts` file and all `@supabase` dependencies
+- **Security:** Maintained CSRF protection, session regeneration, and rate limiting
+
+**Benefits of Migration:**
+- Single database architecture (no external dependencies)
+- Better integration with Replit platform features
+- Simplified deployment and rollback capabilities
+- Direct control over session management and security
+- Reduced external service dependencies
 
 ### Version 1.2.0 (November 22, 2025)
 
