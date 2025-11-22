@@ -113,18 +113,9 @@ export default function Signup() {
 
       // Record basic consent
       try {
-        await api.consent.record({
-          consentType: 'terms_of_use',
-          value: true,
-        });
-        await api.consent.record({
-          consentType: 'privacy_notice',
-          value: true,
-        });
-        await api.consent.record({
-          consentType: 'data_collection',
-          value: true,
-        });
+        await api.consent.update('terms_of_use', true, 'self');
+        await api.consent.update('privacy_notice', true, 'self');
+        await api.consent.update('data_collection', true, 'self');
       } catch (consentError) {
         console.error('Consent recording error:', consentError);
         // Don't fail signup if consent recording fails
