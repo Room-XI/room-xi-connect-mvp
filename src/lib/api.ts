@@ -88,7 +88,8 @@ async function getCsrfToken(): Promise<string> {
 
 async function fetchApi<T = any>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  isRetry: boolean = false
 ): Promise<ApiResponse<T>> {
   try {
     const headers: Record<string, string> = {
@@ -113,8 +114,12 @@ async function fetchApi<T = any>(
     const data = await response.json();
 
     if (!response.ok) {
-      if (response.status === 403 && data.error === 'Invalid CSRF token') {
+      // Handle invalid CSRF token with retry
+      if (response.status === 403 && data.error === 'Invalid CSRF token' && !isRetry) {
+        console.log('CSRF token invalid, fetching fresh token and retrying...');
         csrfToken = null;
+        // Retry once with fresh token
+        return fetchApi<T>(endpoint, options, true);
       }
       
       console.error(`API ${options?.method || 'GET'} ${endpoint} failed:`, response.status, data.error || data.message);
