@@ -1,7 +1,7 @@
 # Room XI Connect - Developer Handoff
 
-**Version:** 1.1  
-**Last Updated:** October 30, 2025  
+**Version:** 1.2  
+**Last Updated:** November 22, 2025  
 **Maintainer:** Room XI Development Team
 
 ---
@@ -28,7 +28,8 @@
 
 Room XI Connect is a youth mental health and wellness application designed for ages 13-25. It helps young people:
 - Track their daily mood and wellness
-- Discover local programs and community resources
+- Discover local programs and community resources (98 real Edmonton programs)
+- Access real-time event discovery ("Happening Now" finder)
 - Access an AI companion (Ximi) for support
 - Build healthy check-in habits through streaks
 - Access crisis support when needed
@@ -37,11 +38,13 @@ Room XI Connect is a youth mental health and wellness application designed for a
 
 - **6-Level Mood System**: Weather-metaphor mood tracking (Cold ❄️ → Aurora 🌌)
 - **Daily Check-Ins**: Multi-step mood tracking with SAMHSA wellness dimensions
-- **Program Discovery**: Browse 500+ local programs with map view
+- **Real-Time Event Discovery**: 98 Edmonton programs with "Happening Now" filtering
+- **Program Discovery**: Browse local programs with map view and geolocation
 - **Ximi AI Companion**: Dual personality AI (Little Sibling + Peer Guide)
 - **QR Attendance**: Quick check-in at programs via QR codes
 - **Living Journal**: Private writing + AI-assisted reflection
 - **Crisis Detection**: Real-time keyword scanning with safety resources
+- **Admin Dashboard**: Analytics, monitoring, and audit logs (admin-only)
 - **Offline Support**: IndexedDB queue for offline check-ins
 
 ### Tech Stack
@@ -129,6 +132,10 @@ DATABASE_URL=postgresql://user:password@host/database
 
 # Session Secret (change in production!)
 SESSION_SECRET=your-secret-key-change-in-production
+
+# Admin Credentials (use Replit Secrets in production)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=$2b$10$sBta0wY/vBuS3KfbIOia7e4z8RpNJ3JS6Elj1ifnFk2C7kSPcg7aO  # bcrypt hash for 'admin123'
 
 # AI Integration (OpenAI-compatible API - Replit AI)
 AI_INTEGRATIONS_OPENAI_API_KEY=your-api-key

@@ -1,7 +1,7 @@
 # Room XI Connect - Complete Build Documentation
 
-**Version:** 1.1.0  
-**Last Updated:** October 30, 2025  
+**Version:** 1.2.0  
+**Last Updated:** November 22, 2025  
 **Architecture:** Express.js + React + Drizzle ORM + PostgreSQL (Neon)
 
 This document contains **everything** about Room XI Connect: database schemas, wireframes, source code, API documentation, and implementation details.
@@ -9,6 +9,83 @@ This document contains **everything** about Room XI Connect: database schemas, w
 ---
 
 ## Changelog
+
+### Version 1.2.0 (November 22, 2025)
+
+**Major Features:**
+
+1. **Admin Dashboard & Analytics** - Comprehensive admin portal with real-time monitoring:
+   - Separate admin authentication system with bcrypt password hashing
+   - Session-based admin login with credentials stored in environment variables (ADMIN_USERNAME, ADMIN_PASSWORD)
+   - Real-time statistics widgets showing active users, programs, check-ins, and attendance
+   - Recharts visualizations for mood trends and program engagement
+   - Audit log viewer with pagination and filtering
+   - Admin logout functionality with session cleanup
+   - Rate limiting on admin login (50 attempts per 15 minutes)
+   - CSRF protection on all admin endpoints
+   - Admin sessions tracked separately from user sessions via `isAdminSession` flag
+
+2. **CSRF Token Auto-Retry Mechanism** - Resilient authentication system:
+   - Automatic retry logic for stale CSRF tokens
+   - When a request fails with invalid CSRF token, system clears cached token and retries once
+   - Prevents login failures due to expired sessions
+   - Transparent to users - happens automatically in background
+   - Implemented in frontend API client (`src/lib/api.ts`)
+
+3. **Real-Time Event Discovery** - "Happening Now" program finder:
+   - 98 real Edmonton youth program events across 14 locations
+   - Time-based filtering: "Happening Now", "Today", "This Weekend", "Later"
+   - Luxon timezone handling for Edmonton (America/Edmonton)
+   - Haversine distance calculation for nearest location sorting
+   - Browser Geolocation API integration with permission handling
+   - EventCard component showing start/end times, location, accessibility
+   - Integrated into Explore page as first tab (`/explore/happening-now`)
+   - Preserves default Programs tab at `/explore` for backward compatibility
+   - Loading states and error handling for geolocation failures
+
+4. **Edmonton Programs Database** - Real youth programs:
+   - Populated with actual Edmonton organizations (Youth Empowerment and Support Services, Wood's Homes, iHuman, etc.)
+   - Comprehensive program tagging (Mental Health, Arts & Music, Sports & Recreation, Job Skills, etc.)
+   - Accessibility details (wheelchair accessible, ASL available, sensory-friendly)
+   - Contact information (emails, phone numbers, organizers)
+   - GPS coordinates for all 14 locations across Edmonton
+   - Drop-in vs registration-required flags
+   - Cost information (free vs paid programs)
+
+**Database Changes:**
+- No new tables in this version
+- Populated `program_events` table with 98 real events
+- Added comprehensive metadata to existing `programs` records
+
+**API Changes:**
+- New endpoint: `/api/admin/login` - Admin authentication
+- New endpoint: `/api/admin/logout` - Admin session cleanup
+- New endpoint: `/api/admin/stats` - Real-time dashboard statistics
+- New endpoint: `/api/admin/logs` - Paginated audit log access
+- Enhanced `/api/events/happening-now` with geolocation support
+- CSRF token endpoint now supports automatic retry on 403 errors
+
+**Security Enhancements:**
+- Admin credentials now stored in Replit Secrets (ADMIN_USERNAME, ADMIN_PASSWORD)
+- Admin password must be bcrypt-hashed before storage
+- Session regeneration on admin login for security
+- CSRF token retry prevents authentication lockouts
+- Rate limiting on admin endpoints
+
+**UI/UX Improvements:**
+- Admin login modal accessible from main login page
+- "Happening Now" tab prioritized in Explore navigation
+- Real-time event countdown timers
+- Distance indicators on event cards
+- "Use My Location" button for proximity sorting
+- Loading skeletons during data fetch
+
+**Migration Notes:**
+- Admin credentials must be set via Replit Secrets before admin access works
+- Existing program data remains compatible
+- New event discovery features work for both authenticated and guest users
+
+---
 
 ### Version 1.1.0 (October 30, 2025)
 
