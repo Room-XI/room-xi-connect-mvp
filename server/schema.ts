@@ -179,6 +179,8 @@ export const guardianVerifications = pgTable("guardian_verifications", {
   guardianContactType: text("guardian_contact_type").notNull(),
   guardianContactValue: text("guardian_contact_value").notNull(),
   guardianContactHash: text("guardian_contact_hash").notNull(),
+  guardianPhoneNumber: text("guardian_phone_number"),
+  guardianPhoneHash: text("guardian_phone_hash"),
   verificationToken: text("verification_token").notNull(),
   verificationMethod: text("verification_method"),
   pinHash: text("pin_hash"),
