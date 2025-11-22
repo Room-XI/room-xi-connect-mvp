@@ -16,14 +16,25 @@ export default function Signup() {
     lastName: '',
     preferredName: '',
     age: null as number | null,
+    dateOfBirth: '',
     city: '',
     postalCode: '',
     email: '',
     password: '',
     guardianEmail: '',
     guardianPhone: '',
+    guardianName: '',
     guardianContactType: 'email' as 'email' | 'phone',
   });
+
+  // Convert age to date of birth (approximate)
+  const calculateDateOfBirth = (age: number) => {
+    const today = new Date();
+    const birthYear = today.getFullYear() - age;
+    const birthMonth = today.getMonth();
+    const birthDay = today.getDate();
+    return new Date(birthYear, birthMonth, birthDay).toISOString().split('T')[0];
+  };
 
   const handleSignup = async () => {
     if (!formData.email || !formData.password) {
@@ -45,118 +56,81 @@ export default function Signup() {
     setError('');
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Convert age to date of birth for API
+      const dateOfBirth = calculateDateOfBirth(formData.age);
+      
+      // Prepare registration data
+      const registrationData: any = {
         email: formData.email,
         password: formData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/login`,
-        },
-      });
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dateOfBirth,
+      };
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Signup failed');
-
-      const ipAddress = await fetch('https://api.ipify.org?format=json')
-        .then((res) => res.json())
-        .then((data) => data.ip)
-        .catch(() => 'unknown');
-
-      const userAgent = navigator.userAgent;
-
-      await supabase.from('profiles').upsert({
-        user_id: authData.user.id,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        preferred_name: formData.preferredName || formData.firstName,
-        age: formData.age,
-        city: formData.city,
-        postal_code: formData.postalCode,
-        account_complete: true,
-        is_admin: false,
-        weights: null,
-        scores: null,
-        last_checkin_date: null,
-      });
-
-      const consentInserts = [
-        {
-          user_id: authData.user.id,
-          consent_type: 'terms_of_use' as const,
-          value: true,
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          granted_by: 'self' as const,
-          text_version: '1.0',
-        },
-        {
-          user_id: authData.user.id,
-          consent_type: 'privacy_notice' as const,
-          value: true,
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          granted_by: 'self' as const,
-          text_version: '1.0',
-        },
-        {
-          user_id: authData.user.id,
-          consent_type: 'data_collection' as const,
-          value: true,
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          granted_by: 'self' as const,
-          text_version: '1.0',
-        },
-      ];
-
-      await supabase.from('consents').upsert(consentInserts);
-
-      await supabase.from('consent_events').insert({
-        user_id: authData.user.id,
-        actor: 'youth',
-        event_type: 'granted',
-        consent_key: 'account_creation',
-        new_value: true,
-        ip_address: ipAddress,
-        user_agent: userAgent,
-        notes: `Account created with age ${formData.age}`,
-      });
-
-      if (formData.age < 18 && (formData.guardianEmail || formData.guardianPhone)) {
-        const contactValue =
-          formData.guardianContactType === 'email' ? formData.guardianEmail : formData.guardianPhone;
-
-        const contactHash = await crypto.subtle
-          .digest('SHA-256', new TextEncoder().encode(contactValue + authData.user.id))
-          .then((buf) =>
-            Array.from(new Uint8Array(buf))
-              .map((b) => b.toString(16).padStart(2, '0'))
-              .join('')
-          );
-
-        const verificationToken = crypto.randomUUID();
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-        await supabase.from('guardian_verifications').insert({
-          user_id: authData.user.id,
-          guardian_contact_type: formData.guardianContactType,
-          guardian_contact_value: contactValue,
-          guardian_contact_hash: contactHash,
-          verification_token: verificationToken,
-          verification_method: 'email_link',
-          expires_at: expiresAt,
-        });
-
-        await supabase.from('consent_events').insert({
-          user_id: authData.user.id,
-          actor: 'youth',
-          event_type: 'requested',
-          consent_key: 'guardian_verification',
-          ip_address: ipAddress,
-          user_agent: userAgent,
-          notes: `Guardian verification requested via ${formData.guardianContactType}`,
-        });
+      // Add guardian info if under 16
+      if (formData.age < 16) {
+        const guardianContact = formData.guardianContactType === 'email' 
+          ? formData.guardianEmail 
+          : formData.guardianPhone;
+        
+        registrationData.guardianEmail = guardianContact;
+        registrationData.guardianName = formData.guardianName || 'Guardian';
       }
 
+      // Call the Express API register endpoint
+      const { data: authData, error: authError } = await api.auth.register(
+        registrationData.email,
+        registrationData.password,
+        {
+          firstName: registrationData.firstName,
+          lastName: registrationData.lastName,
+          dateOfBirth: registrationData.dateOfBirth,
+          guardianEmail: registrationData.guardianEmail,
+          guardianName: registrationData.guardianName,
+        }
+      );
+
+      if (authError) {
+        throw new Error(authError);
+      }
+
+      if (!authData?.user) {
+        throw new Error('Registration failed');
+      }
+
+      // Save profile data (city, postal code, preferred name)
+      try {
+        await api.profile.update({
+          city: formData.city,
+          postalCode: formData.postalCode,
+          preferredName: formData.preferredName || formData.firstName,
+        });
+      } catch (profileError) {
+        console.error('Profile update error:', profileError);
+        // Don't fail the signup if profile update fails
+      }
+
+      // Record basic consent
+      try {
+        await api.consent.record({
+          consentType: 'terms_of_use',
+          value: true,
+        });
+        await api.consent.record({
+          consentType: 'privacy_notice',
+          value: true,
+        });
+        await api.consent.record({
+          consentType: 'data_collection',
+          value: true,
+        });
+      } catch (consentError) {
+        console.error('Consent recording error:', consentError);
+        // Don't fail signup if consent recording fails
+      }
+
+      // Navigate to home page
       navigate('/home');
     } catch (err: any) {
       setError(err.message || 'An error occurred during signup');
@@ -316,7 +290,7 @@ export default function Signup() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
               <h3 className="font-semibold text-blue-900 mb-2">By continuing, you agree to:</h3>
               <ul className="space-y-1 text-blue-800">
-                <li>• Room 11's Terms of Use</li>
+                <li>• Room XI's Terms of Use</li>
                 <li>• Privacy Notice and data collection practices</li>
                 <li>• Non-identifying XID system for attendance</li>
               </ul>
@@ -331,7 +305,7 @@ export default function Signup() {
               </button>
               <button
                 onClick={() => {
-                  if (formData.age && formData.age < 18) {
+                  if (formData.age && formData.age < 16) {
                     setStep('guardian');
                   } else {
                     handleSignup();
@@ -340,7 +314,7 @@ export default function Signup() {
                 disabled={!formData.email || !formData.password || formData.password.length < 8}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {formData.age && formData.age < 18 ? 'Continue' : 'Create Account'}
+                {formData.age && formData.age < 16 ? 'Continue' : 'Create Account'}
               </button>
             </div>
           </div>
@@ -349,20 +323,28 @@ export default function Signup() {
       case 'guardian':
         return (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-gray-900">Guardian verification</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Guardian verification required</h2>
             <p className="text-gray-600">
-              For users under 18, we recommend guardian approval for added trust and safety
+              Users under 16 require guardian verification for added trust and safety
             </p>
 
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900">
-              <p className="font-medium mb-1">Optional but recommended</p>
+              <p className="font-medium mb-1">Required for users under 16</p>
               <p>
-                Alberta law allows those 13+ to provide meaningful consent. Guardian verification adds an extra
-                layer of trust and credibility to your account.
+                Alberta law requires guardian consent for users under 16. Your guardian will receive an email
+                to verify your account.
               </p>
             </div>
 
             <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Guardian's name"
+                value={formData.guardianName}
+                onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              
               <label className="block">
                 <span className="text-sm font-medium text-gray-700">Contact type</span>
                 <div className="flex gap-3 mt-2">
@@ -417,19 +399,13 @@ export default function Signup() {
               </button>
               <button
                 onClick={handleSignup}
-                disabled={loading}
+                disabled={loading || !formData.guardianName || 
+                  (formData.guardianContactType === 'email' ? !formData.guardianEmail : !formData.guardianPhone)}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {loading ? 'Creating account...' : 'Create Account'}
               </button>
             </div>
-
-            <button
-              onClick={handleSignup}
-              className="w-full text-sm text-gray-600 hover:text-gray-800 underline"
-            >
-              Skip guardian verification (not recommended)
-            </button>
           </div>
         );
     }
@@ -440,7 +416,7 @@ export default function Signup() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl font-bold text-gray-900">Join Room 11</h1>
+            <h1 className="text-xl font-bold text-gray-900">Join Room XI</h1>
             <div className="text-sm text-gray-500">
               Step {step === 'name' ? 1 : step === 'age' ? 2 : step === 'location' ? 3 : step === 'contact' ? 4 : 5}{' '}
               of 5
