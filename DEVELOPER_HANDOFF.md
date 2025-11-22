@@ -2025,6 +2025,6 @@ run = ["npm", "run", "start"]
 
 ---
 
-**Last Updated:** October 30, 2025  
-**Version:** 1.1  
+**Last Updated:** November 22, 2025  
+**Version:** 1.2  
 **Maintainer:** Room XI Development Team
