@@ -103,8 +103,7 @@ room-xi-connect/
 │   └── lib/                    # Utilities & helpers
 │       ├── api.ts             # API client
 │       ├── session.tsx        # Session provider
-│       ├── queue.ts           # Offline sync queue
-│       └── supabase.ts        # (Deprecated)
+│       └── queue.ts           # Offline sync queue
 │
 └── public/                      # Static assets
     ├── manifest.json           # PWA manifest
