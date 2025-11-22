@@ -43,6 +43,7 @@ const LivingJournal = lazy(() => import('./components/LivingJournal').then(m => 
 const Achievements = lazy(() => import('./components/Achievements').then(m => ({ default: m.Achievements })));
 const KPIDashboard = lazy(() => import('./components/KPIDashboard').then(m => ({ default: m.KPIDashboard })));
 const OrbTimelapse = lazy(() => import('./components/OrbTimelapse'));
+const ParentPortal = lazy(() => import('./routes/ParentPortal'));
 
 // Wrapper to add Suspense to lazy-loaded components
 const withSuspense = (Component: React.LazyExoticComponent<any>) => {
@@ -80,6 +81,8 @@ export const router = createBrowserRouter([
       { path: 'living-journal', element: withSuspense(LivingJournal) },
       { path: 'verify-consent/:token', element: withSuspense(VerifyConsent) },
       { path: 'guardian/verify/:token', element: withSuspense(GuardianVerify) },
+      { path: 'parent', element: withSuspense(ParentPortal) },
+      { path: 'parent/accept/:token', element: withSuspense(ParentPortal) },
       { path: 'org/dashboard', element: withSuspense(OrgDashboard) },
       { path: 'org/programs', element: withSuspense(ProgramManagement) },
       { path: 'kpi-dashboard', element: withSuspense(KPIDashboard) },

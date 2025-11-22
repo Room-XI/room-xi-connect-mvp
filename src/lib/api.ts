@@ -525,6 +525,85 @@ export const api = {
       return fetchApi(`/events/later${query ? `?${query}` : ''}`);
     },
   },
+
+  // Parent Auth
+  parentAuth: {
+    sendInvite: (email: string) =>
+      fetchApi('/parent-auth/invite', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    getPendingInvites: () => fetchApi('/parent-auth/invites/pending'),
+    getStatus: () => fetchApi('/parent-auth/status'),
+    logout: () =>
+      fetchApi('/parent-auth/logout', {
+        method: 'POST',
+      }),
+  },
+
+  // Consent Auto
+  consentAuto: {
+    bootstrapPlatform: () =>
+      fetchApi('/consent-auto/platform-bootstrap', {
+        method: 'POST',
+      }),
+    requestProgramConsent: (programId: string) =>
+      fetchApi('/consent-auto/program-request', {
+        method: 'POST',
+        body: JSON.stringify({ programId }),
+      }),
+    getPending: (userId: string) => fetchApi(`/consent-auto/pending/${userId}`),
+    approve: (userId: string, consentType: string, value: boolean) =>
+      fetchApi('/consent-auto/approve', {
+        method: 'POST',
+        body: JSON.stringify({ userId, consentType, value }),
+      }),
+  },
+
+  // Demographics
+  demographics: {
+    saveYouth: (answers: Record<string, any>) =>
+      fetchApi('/demographics/youth', {
+        method: 'POST',
+        body: JSON.stringify(answers),
+      }),
+    getYouth: () => fetchApi('/demographics/youth'),
+    saveParent: (userId: string, answers: Record<string, any>) =>
+      fetchApi('/demographics/parent', {
+        method: 'POST',
+        body: JSON.stringify({ userId, answers }),
+      }),
+    getParent: (userId: string) => fetchApi(`/demographics/parent/${userId}`),
+  },
+
+  // Mood Tasks
+  moodTasks: {
+    getAll: () => fetchApi('/mood-tasks/'),
+    getDue: () => fetchApi('/mood-tasks/due'),
+    complete: (taskId: string) =>
+      fetchApi(`/mood-tasks/${taskId}/complete`, {
+        method: 'POST',
+      }),
+    create: (userId: string, programEventId: string, type: 'pre' | 'post', dueAt: string) =>
+      fetchApi('/mood-tasks/create', {
+        method: 'POST',
+        body: JSON.stringify({ userId, programEventId, type, dueAt }),
+      }),
+  },
+
+  // QR Badge
+  qr: {
+    rotateToken: () =>
+      fetchApi('/qr/badge/rotate', {
+        method: 'POST',
+      }),
+    scan: (token: string, programEventId: string, eventEndIso?: string) =>
+      fetchApi('/qr/scan', {
+        method: 'POST',
+        body: JSON.stringify({ token, programEventId, eventEndIso }),
+      }),
+    validate: (token: string) => fetchApi(`/qr/validate/${token}`),
+  },
 };
 
 export { fetchApi };

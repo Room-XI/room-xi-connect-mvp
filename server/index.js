@@ -82,6 +82,11 @@ async function createServer() {
   const { default: moodDropRoutes } = await import('./routes/mood-drop.js');
   const { default: geoRoutes } = await import('./routes/geo.js');
   const { default: outcomesRoutes } = await import('./routes/outcomes.ts');
+  const { default: parentAuthRoutes } = await import('./routes/parent-auth.js');
+  const { default: consentAutoRoutes } = await import('./routes/consent-auto.js');
+  const { default: demographicsRoutes } = await import('./routes/demographics.js');
+  const { default: moodTasksRoutes } = await import('./routes/mood-tasks.js');
+  const { default: qrRoutes } = await import('./routes/qr.js');
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   app.use('/api/auth', authLimiter, authRoutes);
@@ -111,6 +116,11 @@ async function createServer() {
   app.use('/api/mood-drop', validateCsrfToken, writeLimiter, moodDropRoutes);
   app.use('/api/geo', validateCsrfToken, writeLimiter, geoRoutes);
   app.use('/api/outcomes', validateCsrfToken, requireGuardianVerification, writeLimiter, outcomesRoutes);
+  app.use('/api/parent-auth', parentAuthRoutes);
+  app.use('/api/consent-auto', validateCsrfToken, writeLimiter, consentAutoRoutes);
+  app.use('/api/demographics', validateCsrfToken, writeLimiter, demographicsRoutes);
+  app.use('/api/mood-tasks', validateCsrfToken, writeLimiter, moodTasksRoutes);
+  app.use('/api/qr', validateCsrfToken, writeLimiter, qrRoutes);
 
   // Production or development mode
   if (process.env.NODE_ENV === 'production') {
