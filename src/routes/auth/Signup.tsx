@@ -138,7 +138,18 @@ export default function Signup() {
     try {
       // Save demographics if provided
       if (Object.keys(demographicsData).length > 0) {
-        await api.post('/demographics', demographicsData);
+        const response = await fetch('/api/demographics/youth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(demographicsData),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to save demographics');
+        }
       }
 
       // Navigate to home page

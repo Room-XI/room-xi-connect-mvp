@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Shield, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 import { api } from '../lib/api';
+import { GuardianPerceptionForm } from '../ui/demographics/GuardianPerceptionForm';
 
 export default function GuardianVerify() {
   const { token } = useParams();
@@ -10,6 +11,8 @@ export default function GuardianVerify() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [step, setStep] = useState<'verify' | 'demographics' | 'complete'>('verify');
+  const [verificationId, setVerificationId] = useState<string | null>(null);
   
   const [guardianName, setGuardianName] = useState('');
   const [pin, setPin] = useState('');
@@ -35,9 +38,18 @@ export default function GuardianVerify() {
     setError('');
     
     try {
-      await api.consent.verifyGuardian(token!, pin, guardianName);
+      const response = await api.consent.verifyGuardian(token!, pin, guardianName);
       
-      setSuccess(true);
+      // Get the verification ID from response if available
+      if (response?.data?.verificationId) {
+        setVerificationId(response.data.verificationId);
+      } else {
+        // Try to extract from token (usually the verification ID)
+        setVerificationId(token || null);
+      }
+      
+      // Move to demographics step
+      setStep('demographics');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Verification failed. Please check the link and try again.');
     } finally {
@@ -45,7 +57,59 @@ export default function GuardianVerify() {
     }
   };
   
-  if (success) {
+  const handleDemographicsSubmit = async (demographicsData: any) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Save guardian perceptions if verification ID is available
+      if (verificationId || token) {
+        const verifyId = verificationId || token;
+        const response = await fetch(`/api/demographics/guardian-perception/${verifyId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(demographicsData),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to save demographics');
+        }
+      }
+      
+      setStep('complete');
+      setSuccess(true);
+    } catch (err: any) {
+      console.error('Demographics save error:', err);
+      // Don't fail - demographics are optional, move to completion
+      setStep('complete');
+      setSuccess(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  if (step === 'demographics') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-xl p-8 max-w-2xl w-full">
+          <div className="mb-6 text-center">
+            <Shield className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Almost Done!</h1>
+            <p className="text-gray-600">Help us understand your family better</p>
+          </div>
+          
+          <GuardianPerceptionForm 
+            youthName="your youth"
+            onSubmit={handleDemographicsSubmit}
+          />
+        </div>
+      </div>
+    );
+  }
+  
+  if (step === 'complete' || success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
         <motion.div
