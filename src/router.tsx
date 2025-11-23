@@ -45,6 +45,7 @@ const KPIDashboard = lazy(() => import('./components/KPIDashboard').then(m => ({
 const OrbTimelapse = lazy(() => import('./components/OrbTimelapse'));
 const ParentPortal = lazy(() => import('./routes/ParentPortal'));
 const TestParentConsent = lazy(() => import('./components/TestParentConsent').then(m => ({ default: m.TestParentConsent })));
+const AdminPortal = lazy(() => import('./routes/AdminPortal'));
 
 // Wrapper to add Suspense to lazy-loaded components
 const withSuspense = (Component: React.LazyExoticComponent<any>) => {
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
       { path: 'safety-resources', element: withSuspense(SafetyResources) },
       { path: 'settings', element: withSuspense(Settings) },
       { path: 'admin', element: withSuspense(Admin) },
+      { path: 'control/entrance', element: withSuspense(AdminPortal) },
       { path: 'about', element: withSuspense(About) },
       { path: 'terms-of-service', element: withSuspense(TermsOfService) },
       { path: 'privacy-policy', element: withSuspense(PrivacyPolicy) },

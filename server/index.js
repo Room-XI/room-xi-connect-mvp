@@ -87,6 +87,10 @@ async function createServer() {
   const { default: demographicsRoutes } = await import('./routes/demographics.js');
   const { default: moodTasksRoutes } = await import('./routes/mood-tasks.js');
   const { default: qrRoutes } = await import('./routes/qr.js');
+  const { default: adminPortalRoutes } = await import('./routes/adminPortal.js');
+
+  // Admin Portal routes (separate CSRF handling)
+  app.use('/api/admin-portal', authLimiter, adminPortalRoutes);
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   app.use('/api/auth', authLimiter, authRoutes);
