@@ -347,6 +347,66 @@ export const journalEntries = pgTable("journal_entries", {
   moodIdx: index("idx_journal_mood").on(table.mood, table.createdAt.desc()),
 }));
 
+// Youth self-reported demographics
+export const youthDemographics = pgTable("youth_demographics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Sexual orientation/identity
+  sexualOrientation: text("sexual_orientation"),
+  sexualOrientationOther: text("sexual_orientation_other"),
+  
+  // Gender identity
+  genderIdentity: text("gender_identity"),
+  genderIdentityOther: text("gender_identity_other"),
+  pronouns: text("pronouns"),
+  pronounsOther: text("pronouns_other"),
+  
+  // Racial/ethnic identity (can select multiple)
+  racialIdentity: text("racial_identity").array().default(sql`'{}'`),
+  racialIdentityOther: text("racial_identity_other"),
+  
+  // Additional demographics
+  nationality: text("nationality"),
+  languagesSpoken: text("languages_spoken").array().default(sql`'{}'`),
+  disability: text("disability"),
+  disabilityDetails: text("disability_details"),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: uniqueIndex("youth_demographics_user_idx").on(table.userId),
+}));
+
+// Guardian's perception of youth demographics
+export const guardianPerceptions = pgTable("guardian_perceptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  guardianVerificationId: uuid("guardian_verification_id").notNull().references(() => guardianVerifications.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Guardian's own demographics
+  guardianRelationship: text("guardian_relationship"),
+  guardianAge: text("guardian_age"),
+  guardianGender: text("guardian_gender"),
+  guardianRace: text("guardian_race").array().default(sql`'{}'`),
+  
+  // Guardian's perception of youth
+  perceivedSexualOrientation: text("perceived_sexual_orientation"),
+  perceivedGenderIdentity: text("perceived_gender_identity"),
+  perceivedRacialIdentity: text("perceived_racial_identity").array().default(sql`'{}'`),
+  
+  // Awareness and comfort levels
+  awarenessLevel: text("awareness_level"), // How well they think they know their youth
+  comfortWithIdentity: text("comfort_with_identity"), // Comfort level with youth's identity
+  supportProvided: text("support_provided").array().default(sql`'{}'`),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  verificationIdx: uniqueIndex("guardian_perceptions_verification_idx").on(table.guardianVerificationId),
+  userIdx: index("guardian_perceptions_user_idx").on(table.userId),
+}));
+
 export const copingSkills = pgTable("coping_skills", {
   id: uuid("id").primaryKey().defaultRandom(),
   category: text("category").notNull(),
