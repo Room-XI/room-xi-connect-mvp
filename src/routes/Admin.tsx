@@ -16,6 +16,7 @@ import { useSession } from '@/lib/session';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '@/lib/api';
+import { DemographicsComparison } from '@/ui/admin/DemographicsComparison';
 
 interface AuditLog {
   id: string;
@@ -419,6 +420,15 @@ export default function Admin() {
                 <Bar dataKey="count" fill="#D9A962" radius={[4, 4, 0, 0]} />
               </RechartsBarChart>
             </ResponsiveContainer>
+          </motion.div>
+
+          {/* Demographics Comparison */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+          >
+            <DemographicsComparison />
           </motion.div>
         </>
       )}
