@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../lib/api';
 import { AlertCircle } from 'lucide-react';
+import { DemographicsForm } from '../../ui/demographics/DemographicsForm';
 
-type SignupStep = 'name' | 'age' | 'location' | 'contact' | 'guardian';
+type SignupStep = 'name' | 'age' | 'location' | 'contact' | 'guardian' | 'demographics';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -121,10 +122,31 @@ export default function Signup() {
         // Don't fail signup if consent recording fails
       }
 
+      // After successful account creation, show demographics step
+      setStep('demographics');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during signup');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemographicsSubmit = async (demographicsData: any) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      // Save demographics if provided
+      if (Object.keys(demographicsData).length > 0) {
+        await api.post('/demographics', demographicsData);
+      }
+
       // Navigate to home page
       navigate('/home');
     } catch (err: any) {
-      setError(err.message || 'An error occurred during signup');
+      console.error('Demographics save error:', err);
+      // Don't fail - demographics are optional
+      navigate('/home');
     } finally {
       setLoading(false);
     }
@@ -399,6 +421,19 @@ export default function Signup() {
             </div>
           </div>
         );
+      
+      case 'demographics':
+        return (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-900">Help us understand you better</h2>
+            <p className="text-gray-600">This helps us create a more inclusive community</p>
+            
+            <DemographicsForm 
+              onSubmit={handleDemographicsSubmit}
+              isOptional={true}
+            />
+          </div>
+        );
     }
   };
 
@@ -409,8 +444,8 @@ export default function Signup() {
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-xl font-bold text-gray-900">Join Room XI</h1>
             <div className="text-sm text-gray-500">
-              Step {step === 'name' ? 1 : step === 'age' ? 2 : step === 'location' ? 3 : step === 'contact' ? 4 : 5}{' '}
-              of 5
+              Step {step === 'name' ? 1 : step === 'age' ? 2 : step === 'location' ? 3 : step === 'contact' ? 4 : step === 'guardian' ? 5 : 6}{' '}
+              of {formData.age && formData.age < 16 ? 6 : 5}
             </div>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -418,7 +453,12 @@ export default function Signup() {
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{
                 width: `${
-                  step === 'name' ? 20 : step === 'age' ? 40 : step === 'location' ? 60 : step === 'contact' ? 80 : 100
+                  step === 'name' ? 17 : 
+                  step === 'age' ? 34 : 
+                  step === 'location' ? 51 : 
+                  step === 'contact' ? 68 : 
+                  step === 'guardian' ? 85 : 
+                  100
                 }%`,
               }}
             />
