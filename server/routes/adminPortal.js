@@ -99,17 +99,7 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
     // Validate credentials
-    if (username !== ADMIN_USERNAME) {
-      return res.status(401).json({ 
-        message: 'Invalid credentials' 
-      });
-    }
-
-    // Verify password
-    const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-    const isValid = await bcrypt.compare(password, passwordHash);
-
-    if (!isValid && password !== ADMIN_PASSWORD) {
+    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
       return res.status(401).json({ 
         message: 'Invalid credentials' 
       });
