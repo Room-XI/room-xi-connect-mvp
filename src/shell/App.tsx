@@ -23,7 +23,7 @@ export default function App() {
   }
 
   // Define public routes that don't require authentication
-  const publicRoutes = ['/auth', '/explore', '/events', '/program', '/transparency'];
+  const publicRoutes = ['/auth', '/explore', '/events', '/program', '/transparency', '/control/entrance'];
   const currentPath = window.location.pathname;
   const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
 
@@ -33,8 +33,8 @@ export default function App() {
     return null;
   }
 
-  // Don't show navigation for auth routes
-  const isAuthRoute = currentPath.startsWith('/auth');
+  // Don't show navigation for auth routes or admin portal
+  const isAuthRoute = currentPath.startsWith('/auth') || currentPath.startsWith('/control/entrance');
 
   return (
     <div className="min-h-dvh flex flex-col bg-cream text-textPrimaryLight">
