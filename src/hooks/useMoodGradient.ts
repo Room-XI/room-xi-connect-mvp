@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { generateMoodBlend, type MoodBlend } from '@/lib/moodGradient';
+import { logger } from '@/lib/logger';
 
 export interface MoodSummary {
   ratios: {
@@ -20,12 +22,19 @@ export interface MoodSummary {
 }
 
 export function useMoodGradient(window: number = 7) {
+  const { user, loading: sessionLoading } = useSession();
   const [moodBlend, setMoodBlend] = useState<MoodBlend | null>(null);
   const [summary, setSummary] = useState<MoodSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchMoodData = async () => {
+    // Don't fetch if user is not authenticated
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -44,7 +53,7 @@ export function useMoodGradient(window: number = 7) {
         setMoodBlend(blend);
       }
     } catch (err) {
-      console.error('Error fetching mood gradient data:', err);
+      logger.debug('Mood gradient fetch skipped or failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to load mood data');
     } finally {
       setLoading(false);
@@ -52,13 +61,20 @@ export function useMoodGradient(window: number = 7) {
   };
 
   useEffect(() => {
-    fetchMoodData();
-  }, [window]);
+    // Only fetch when session loading is complete and user is authenticated
+    if (!sessionLoading) {
+      if (user) {
+        fetchMoodData();
+      } else {
+        setLoading(false);
+      }
+    }
+  }, [window, user, sessionLoading]);
 
   return {
     moodBlend,
     summary,
-    loading,
+    loading: loading || sessionLoading,
     error,
     refetch: fetchMoodData,
   };

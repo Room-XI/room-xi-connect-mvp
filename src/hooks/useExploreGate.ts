@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { useEffect, useState } from 'react';
 import api from '../lib/api';
+import { useSession } from '../lib/session';
 
 const GATE_SKIP_TOKEN_KEY = 'explore_gate_skip_token';
 const GATE_SKIP_DURATION_HOURS = 24;
@@ -15,6 +16,7 @@ interface ExploreGateState {
 }
 
 export function useExploreGate() {
+  const { user, loading: sessionLoading } = useSession();
   const [state, setState] = useState<ExploreGateState>({
     isGateOpen: false,
     needsCheckIn: false,
@@ -25,8 +27,11 @@ export function useExploreGate() {
   });
 
   useEffect(() => {
-    checkGateStatus();
-  }, []);
+    // Wait for session to load, then check gate status
+    if (!sessionLoading) {
+      checkGateStatus();
+    }
+  }, [sessionLoading, user]);
 
   async function checkGateStatus() {
     const zone = 'America/Edmonton';
@@ -78,6 +83,20 @@ export function useExploreGate() {
     }
 
     // After 8am, check if user has done today's check-in
+    // Only check if user is authenticated
+    if (!user) {
+      // For unauthenticated users, gate is always open (they'll need to log in for check-in features)
+      setState({
+        isGateOpen: true,
+        needsCheckIn: false,
+        isLoading: false,
+        currentTime: now,
+        gateTime: gate,
+        hasSkipToken: false
+      });
+      return;
+    }
+    
     try {
       const response = await api.checkins.getLast7Days();
       const todayDate = now.toISODate();

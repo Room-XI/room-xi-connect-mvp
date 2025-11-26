@@ -574,6 +574,31 @@ export const api = {
         body: JSON.stringify({ userId, answers }),
       }),
     getParent: (userId: string) => fetchApi(`/demographics/parent/${userId}`),
+    getProgress: () => fetchApi<{
+      percent: number;
+      completed: number;
+      total: number;
+      requiredFields: string[];
+      completedFields: string[];
+      missingFields: string[];
+    }>('/demographics/progress'),
+  },
+
+  // Disclosure requests (parent access to youth demographics)
+  disclosure: {
+    request: (youthId: string, reason?: string) =>
+      fetchApi('/disclosure/request', {
+        method: 'POST',
+        body: JSON.stringify({ youthId, reason }),
+      }),
+    getPending: () => fetchApi('/disclosure/pending'),
+    respond: (requestId: string, decision: 'approved' | 'denied') =>
+      fetchApi('/disclosure/respond', {
+        method: 'POST',
+        body: JSON.stringify({ requestId, decision }),
+      }),
+    checkAccess: (youthId: string) => fetchApi(`/disclosure/access/${youthId}`),
+    getHistory: () => fetchApi('/disclosure/history'),
   },
 
   // Mood Tasks

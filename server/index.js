@@ -88,6 +88,7 @@ async function createServer() {
   const { default: moodTasksRoutes } = await import('./routes/mood-tasks.js');
   const { default: qrRoutes } = await import('./routes/qr.js');
   const { default: adminPortalRoutes } = await import('./routes/adminPortal.js');
+  const { default: disclosureRoutes } = await import('./routes/disclosure.js');
 
   // Admin Portal routes (separate CSRF handling)
   app.use('/api/admin-portal', authLimiter, adminPortalRoutes);
@@ -125,6 +126,7 @@ async function createServer() {
   app.use('/api/demographics', validateCsrfToken, writeLimiter, demographicsRoutes);
   app.use('/api/mood-tasks', validateCsrfToken, writeLimiter, moodTasksRoutes);
   app.use('/api/qr', validateCsrfToken, writeLimiter, qrRoutes);
+  app.use('/api/disclosure', validateCsrfToken, writeLimiter, disclosureRoutes);
 
   // Production or development mode
   if (process.env.NODE_ENV === 'production') {

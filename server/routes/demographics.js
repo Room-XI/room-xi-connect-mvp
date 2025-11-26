@@ -209,6 +209,49 @@ router.post("/guardian-perception/:verificationId", async (req, res) => {
   }
 });
 
+// Get youth demographics progress for profile completion meter
+router.get("/progress", requireYouth, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    
+    // Define required fields for complete profile (per product spec: 4 mandatory fields)
+    const requiredFields = [
+      'age',
+      'genderIdentity',
+      'racialIdentity',
+      'postalCode'
+    ];
+    
+    const [demo] = await db
+      .select()
+      .from(youthDemographics)
+      .where(eq(youthDemographics.userId, userId));
+    
+    const answers = demo?.answers || {};
+    
+    // Count completed fields
+    const completedFields = requiredFields.filter(field => {
+      const value = answers[field];
+      if (Array.isArray(value)) return value.length > 0;
+      return value !== null && value !== undefined && value !== '';
+    });
+    
+    const percent = Math.round((completedFields.length / requiredFields.length) * 100);
+    
+    res.json({
+      percent,
+      completed: completedFields.length,
+      total: requiredFields.length,
+      requiredFields,
+      completedFields,
+      missingFields: requiredFields.filter(f => !completedFields.includes(f))
+    });
+  } catch (error) {
+    console.error("Error getting demographics progress:", error);
+    res.status(500).json({ error: "Failed to get progress" });
+  }
+});
+
 // Admin: Get perception vs reality comparison
 router.get("/comparison", async (req, res) => {
   try {

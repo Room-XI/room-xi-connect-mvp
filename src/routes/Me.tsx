@@ -5,6 +5,7 @@ import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink, Shield
 import { useTranslation } from 'react-i18next';
 import Sparkline from '@/ui/me/Sparkline';
 import PrivacyDashboard from '@/ui/me/PrivacyDashboard';
+import ProfileProgress from '@/components/ProfileProgress';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useQueue } from '@/lib/queue';
@@ -168,6 +169,9 @@ export default function Me() {
           </Link>
         </div>
       </motion.div>
+
+      {/* Profile Progress Meter */}
+      <ProfileProgress />
 
       {/* Quick Stats */}
       <motion.div
