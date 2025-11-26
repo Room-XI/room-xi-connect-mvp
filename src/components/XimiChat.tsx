@@ -212,6 +212,13 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
               </button>
             </div>
 
+            {/* Persistent Disclaimer Banner */}
+            <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/50">
+              <p className="text-xs text-amber-800 text-center">
+                <span className="font-medium">Reminder:</span> Ximi is an AI companion, not a licensed clinician. For professional mental health support, please contact a counselor or crisis line.
+              </p>
+            </div>
+
             {/* Guardian Verification Warning */}
             {needsGuardianVerification && (
               <motion.div

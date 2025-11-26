@@ -115,7 +115,23 @@ export default function TermsOfService() {
               data under Alberta law, and we respect that.
             </p>
 
-            <h2>9. Data Retention and Deletion</h2>
+            <h2>9. Mandatory Reporting</h2>
+            <p>
+              Room XI Connect staff and volunteers are committed to youth safety. Under Alberta law, we are required 
+              to report certain situations to appropriate authorities:
+            </p>
+            <ul>
+              <li><strong>Child protection:</strong> If we have reasonable grounds to believe a child is being abused or neglected, we must report to Children's Services</li>
+              <li><strong>Imminent harm:</strong> If there is an imminent risk of serious harm to yourself or others, we may need to involve emergency services</li>
+              <li><strong>Court orders:</strong> We may be required to disclose information in response to valid legal processes</li>
+            </ul>
+            <p>
+              We take these obligations seriously while respecting your privacy. If a report is made, we will inform you 
+              whenever legally permitted. This policy aligns with the <em>Child, Youth and Family Enhancement Act</em> (Alberta) 
+              and relevant professional codes of ethics.
+            </p>
+
+            <h2>10. Data Retention and Deletion</h2>
             <ul>
               <li><strong>Active accounts:</strong> Your data is retained as long as your account is active</li>
               <li><strong>Inactive accounts:</strong> If you don't log in for 2 years, we'll send a reminder before archiving your account</li>
@@ -123,7 +139,7 @@ export default function TermsOfService() {
               <li><strong>Legal holds:</strong> In rare cases (legal investigations, child safety concerns), we may retain data longer</li>
             </ul>
 
-            <h2>10. Limitations of Liability</h2>
+            <h2>11. Limitations of Liability</h2>
             <p>
               Room XI Connect is provided "as is" without warranties. We do our best to keep the service available and secure, but:
             </p>
@@ -134,7 +150,7 @@ export default function TermsOfService() {
               <li>In an emergency, always call 911 or go to your nearest emergency room</li>
             </ul>
 
-            <h2>11. Changes to These Terms</h2>
+            <h2>12. Changes to These Terms</h2>
             <p>
               We may update these Terms of Service. When we do:
             </p>
@@ -144,7 +160,7 @@ export default function TermsOfService() {
               <li>You can review the full history in our transparency dashboard</li>
             </ul>
 
-            <h2>12. Termination</h2>
+            <h2>13. Termination</h2>
             <p>
               You can stop using Room XI Connect anytime. We may suspend or terminate your account if:
             </p>
@@ -157,13 +173,13 @@ export default function TermsOfService() {
               We'll notify you before termination unless it's for urgent safety or legal reasons.
             </p>
 
-            <h2>13. Governing Law</h2>
+            <h2>14. Governing Law</h2>
             <p>
               These Terms are governed by the laws of Alberta, Canada. Any disputes will be resolved in Alberta courts, 
               or through alternative dispute resolution if both parties agree.
             </p>
 
-            <h2>14. Contact Us</h2>
+            <h2>15. Contact Us</h2>
             <p>
               If you have questions about these Terms:
             </p>

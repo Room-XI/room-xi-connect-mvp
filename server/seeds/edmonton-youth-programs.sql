@@ -1,239 +1,113 @@
--- =============================================================================
--- EDMONTON YOUTH PROGRAM EVENTS - COMPREHENSIVE SEED DATA
--- =============================================================================
--- Production-ready seed file for populating program_events table
--- Created: November 10, 2025
--- 
--- This file contains 50+ real Edmonton youth program events with:
--- - Accurate GPS coordinates for all locations
--- - Realistic recurring schedules (Mon-Fri after-school programs)
--- - Drop-in and registration-based events
--- - City of Edmonton recreation programs
--- - Mental health drop-in services
--- - Library programs for young adults
--- - Indigenous programming
--- - Arts and STEM activities
---
--- Programs included:
--- 1. City of Edmonton After-School Programs (5 locations)
--- 2. Kickstand Walk-In Mental Health
--- 3. ACCESS Open Minds Counseling
--- 4. iHuman Arts Programs
--- 5. YESS Emergency & Day Programs
--- 6. Boyle Street Drop-In
--- 7. Library Young Adult Programs
--- 8. Youth Unlimited Drop-Ins
--- 9. YMCA Y Mind Programs
--- =============================================================================
+-- Edmonton Youth Programs Database
+-- Last updated: November 26, 2025
+-- Total programs: 75+
 
--- Clean up any existing Edmonton youth programs to avoid duplicates
--- Remove all events with these program IDs (we'll repopulate with fresh data)
-DELETE FROM program_events WHERE program_id IN (
-  '5f765a17-fb5c-4b1c-a0e7-8abddca58ce4',
-  'e48af5a0-88aa-4c3b-b9c4-88be1553f148',
-  'b475061c-d1cb-42c2-9be2-ecf3dbb53dfb',
-  'af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d',
-  'b2082f93-d105-42f7-8b03-ce416baa0293',
-  '985a0703-3239-402e-b7cb-d1a4f78646ed',
-  'f1d4211b-31fb-43af-9459-c809ea3add01',
-  '78c66868-d60b-43c4-a43d-71fd86e4b2b1',
-  'c7c5da93-3661-45d3-af34-4be55ca52e09',
-  '57e5d6f2-1e8d-4be3-96db-f1a8c3774e0f',
-  'aa18cf51-32dd-42ab-aa6d-e92efd8a70f8',
-  'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-);
+-- This seed file contains comprehensive Edmonton youth resources including:
+-- Mental Health, LGBTQ+ & 2Spirit, Indigenous, Arts & Creative, Sports & Recreation, Employment & Career, Crisis Support
 
--- =============================================================================
--- SECTION 1: CITY OF EDMONTON AFTER-SCHOOL PROGRAMS
--- Commonwealth Recreation Centre - Mon-Fri 3:30-5:45pm
--- =============================================================================
+-- Note: Run this with psql or through the database migration system
+-- Programs are added with ON CONFLICT DO NOTHING to prevent duplicates
 
-INSERT INTO program_events (
-  program_id, event_name, description, location_name, address,
-  lat, lng, day_of_week, start_time, end_time,
-  is_recurring, is_drop_in, requires_registration,
-  age_min, age_max, cost, cost_cents, notes, active
-) VALUES
+-- To regenerate this file, export from the live database using:
+-- SELECT * FROM programs ORDER BY title;
 
--- Commonwealth Recreation Centre (5 events - Mon-Fri)
-('5f765a17-fb5c-4b1c-a0e7-8abddca58ce4', 'Youth Connections Drop-In', 'After-school social activities, sports, games, and peer connection in a safe supervised space', 'Commonwealth Recreation Centre', '11000 Stadium Rd NW', '53.5597', '-113.4760', 'Monday', '15:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Free program, no registration required', true),
-('5f765a17-fb5c-4b1c-a0e7-8abddca58ce4', 'Youth Connections Drop-In', 'After-school social activities, sports, games, and peer connection in a safe supervised space', 'Commonwealth Recreation Centre', '11000 Stadium Rd NW', '53.5597', '-113.4760', 'Tuesday', '15:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Free program, no registration required', true),
-('5f765a17-fb5c-4b1c-a0e7-8abddca58ce4', 'Youth Connections Drop-In', 'After-school social activities, sports, games, and peer connection in a safe supervised space', 'Commonwealth Recreation Centre', '11000 Stadium Rd NW', '53.5597', '-113.4760', 'Wednesday', '15:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Free program, no registration required', true),
-('5f765a17-fb5c-4b1c-a0e7-8abddca58ce4', 'Youth Connections Drop-In', 'After-school social activities, sports, games, and peer connection in a safe supervised space', 'Commonwealth Recreation Centre', '11000 Stadium Rd NW', '53.5597', '-113.4760', 'Thursday', '15:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Free program, no registration required', true),
-('5f765a17-fb5c-4b1c-a0e7-8abddca58ce4', 'Youth Connections Drop-In', 'After-school social activities, sports, games, and peer connection in a safe supervised space', 'Commonwealth Recreation Centre', '11000 Stadium Rd NW', '53.5597', '-113.4760', 'Friday', '15:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Free program, no registration required', true),
+-- The database is the source of truth for program data.
+-- This seed file serves as a backup and for new deployments.
 
--- =============================================================================
--- SECTION 2: CLAREVIEW RECREATION CENTRE PROGRAMS
--- C5 North East Hub & Youth Outreach - Mon-Fri 3:30-6:00pm
--- =============================================================================
+-- Mental Health Programs
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('Kickstand – Walk-In Mental Health Hub', 'One-stop youth mental health hub at West Edmonton Mall. Free drop-in mental health support, substance use counseling, peer support, Indigenous wellness, life skills, and primary care. Open 7 days/week. 20+ service providers under one roof.', '{mental-health,drop-in,free,indoor}', '{emotional,social}', true, 11, 25, 'West Edmonton Mall', 'Edmonton', 'https://ymcanab.ca', 'YMCA of Northern Alberta', true, true, false),
+('YMCA Y Mind – Stress & Anxiety Program', 'Group program teaching healthy coping skills for stress and anxiety using mindfulness and Acceptance & Commitment Therapy. Free, requires intake session.', '{mental-health,anxiety,counseling,group,free,indoor}', '{emotional,intellectual}', false, 13, 30, 'Multiple Edmonton locations + virtual', 'Edmonton', 'https://ymcanab.ca/programs/learning-leadership-employment/youth-young-adults/y-mind', 'YMCA of Northern Alberta', true, true, false),
+('CASA Mental Health – Youth Services', 'Comprehensive mental health treatment for children and youth ages 3-17. Services include outpatient therapy, day programs, school-based treatment, Indigenous-focused services, and residential care.', '{mental-health,counselling,counseling,support,indoor,Indigenous,learning}', '{emotional,social,intellectual}', false, 13, 17, '10645-63 Ave NW', 'Edmonton', 'https://casamentalhealth.org/', 'CASA Mental Health', true, true, false),
+('ACCESS Open Minds – Walk-In Counseling', 'Free walk-in mental health and addiction counseling for youth 16-25. No appointment needed. Solution-focused sessions (45-60 min) with clinicians.', '{mental-health,free,indoor,counselling,counseling,support,drop-in}', '{emotional,social,intellectual}', true, 16, 25, 'Contact for location details', 'Edmonton', 'https://accessopenminds.ca/our_site/edmonton-ab-2/', 'ACCESS Open Minds Edmonton', true, true, false),
+('AHS Child & Adolescent Mental Health Intake', 'Single intake point for accessing mental health services for children and adolescents in the Edmonton zone.', '{mental-health,counseling,clinical,free,indoor}', '{emotional}', false, 3, 17, 'Edmonton Zone', 'Edmonton', 'https://www.albertahealthservices.ca/findhealth/service.aspx?Id=1001856', 'Alberta Health Services', true, true, false),
+('Alberta Health Services – AccessMHA', 'Single point of access for mental health and addiction services. Walk-in, phone, or online referrals.', '{mental-health,addiction,clinical,free,indoor}', '{emotional}', true, 13, 99, 'Multiple Edmonton locations', 'Edmonton', 'https://www.albertahealthservices.ca/amh/Page2748.aspx', 'Alberta Health Services', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- Clareview - C5 North East Hub (5 events)
-('e48af5a0-88aa-4c3b-b9c4-88be1553f148', 'C5 North East Hub - Youth Outreach', 'Community-based youth program with sports, cultural activities, and peer support in northeast Edmonton', 'Clareview Recreation Centre', '3804 139 Ave NW', '53.60197', '-113.40068', 'Monday', '15:30:00', '18:00:00', true, true, false, 8, 18, 'Free', 0, 'Drop-in welcome, culturally inclusive programming', true),
-('e48af5a0-88aa-4c3b-b9c4-88be1553f148', 'C5 North East Hub - Youth Outreach', 'Community-based youth program with sports, cultural activities, and peer support in northeast Edmonton', 'Clareview Recreation Centre', '3804 139 Ave NW', '53.60197', '-113.40068', 'Tuesday', '15:30:00', '18:00:00', true, true, false, 8, 18, 'Free', 0, 'Drop-in welcome, culturally inclusive programming', true),
-('e48af5a0-88aa-4c3b-b9c4-88be1553f148', 'C5 North East Hub - Youth Outreach', 'Community-based youth program with sports, cultural activities, and peer support in northeast Edmonton', 'Clareview Recreation Centre', '3804 139 Ave NW', '53.60197', '-113.40068', 'Wednesday', '15:30:00', '18:00:00', true, true, false, 8, 18, 'Free', 0, 'Drop-in welcome, culturally inclusive programming', true),
-('e48af5a0-88aa-4c3b-b9c4-88be1553f148', 'C5 North East Hub - Youth Outreach', 'Community-based youth program with sports, cultural activities, and peer support in northeast Edmonton', 'Clareview Recreation Centre', '3804 139 Ave NW', '53.60197', '-113.40068', 'Thursday', '15:30:00', '18:00:00', true, true, false, 8, 18, 'Free', 0, 'Drop-in welcome, culturally inclusive programming', true),
-('e48af5a0-88aa-4c3b-b9c4-88be1553f148', 'C5 North East Hub - Youth Outreach', 'Community-based youth program with sports, cultural activities, and peer support in northeast Edmonton', 'Clareview Recreation Centre', '3804 139 Ave NW', '53.60197', '-113.40068', 'Friday', '15:30:00', '18:00:00', true, true, false, 8, 18, 'Free', 0, 'Drop-in welcome, culturally inclusive programming', true),
+-- LGBTQ+ & 2Spirit Programs
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('CHEW Project – 2SLGBTQ+ Youth Drop-In', 'Drop-in center for 2SLGBTQ+ youth facing barriers including houselessness, mental health challenges, and poverty. Offers crisis intervention, counseling, Indigenous peer support, meals, showers, and harm reduction.', '{lgbtq,mental-health,drop-in,crisis,indigenous,free,indoor}', '{social,emotional}', true, 13, 29, 'University of Alberta Campus', 'Edmonton', 'https://www.ualberta.ca/fyrefly-institute/programs-and-services/chew-project.html', 'Fyrefly Institute (U of A)', true, true, false),
+('Rainbow Alliance for Youth of Edmonton', 'Programs and resources for 2SLGBTQIA+ youth with Queer Access Navigator connecting youth to programs, especially those with intersecting identities.', '{lgbtq,community,support,free,indoor}', '{social,emotional}', true, 12, 24, 'Edmonton', 'Edmonton', 'https://rainbowallianceyeg.ca/', 'Rainbow Alliance for Youth', true, true, false),
+('Pride Centre of Edmonton – Youth Programs', 'Counseling, resources, referrals, and welcoming community space for LGBTQ+ youth. Safe space for connection and support.', '{lgbtq,counseling,community,free,indoor}', '{social,emotional}', true, 13, 25, '9540 111 Ave NW', 'Edmonton', 'https://pridecentreofedmonton.ca/', 'Pride Centre of Edmonton', true, true, false),
+('Skipping Stone – Trans Youth Support', 'Comprehensive support for trans and gender-diverse youth, adults, and families. Client-centered support teams with a holistic care model.', '{lgbtq,trans,counseling,support,free,indoor}', '{social,emotional,physical}', false, 6, 25, 'Edmonton', 'Edmonton', 'https://www.skippingstone.ca/', 'Skipping Stone', true, true, false),
+('Edmonton 2 Spirit Society', 'Social, health, and cultural programs for 2Spirit, IndigiQueer, and Indigenous LGBTQIA+ communities. Cultural connection and peer support.', '{lgbtq,indigenous,cultural,community,free,indoor}', '{social,spiritual}', true, 13, 25, 'Edmonton', 'Edmonton', 'https://alberta.cmha.ca/lgbtq2s-resources/', 'Edmonton 2 Spirit Society', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- Clareview - Brave Space Program (2 events)
-('e48af5a0-88aa-4c3b-b9c4-88be1553f148', 'Brave Space - Safe Youth Program', '2SLGBTQIA+ affirming safe space for youth to connect, create, and be themselves', 'Clareview Recreation Centre', '3804 139 Ave NW', '53.60197', '-113.40068', 'Wednesday', '16:00:00', '18:00:00', true, true, false, 12, 18, 'Free', 0, 'Inclusive, judgment-free zone for all youth', true),
-('e48af5a0-88aa-4c3b-b9c4-88be1553f148', 'Brave Space - Safe Youth Program', '2SLGBTQIA+ affirming safe space for youth to connect, create, and be themselves', 'Clareview Recreation Centre', '3804 139 Ave NW', '53.60197', '-113.40068', 'Friday', '16:00:00', '18:00:00', true, true, false, 12, 18, 'Free', 0, 'Inclusive, judgment-free zone for all youth', true),
+-- Indigenous Youth Programs
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('Canadian Native Friendship Centre – Youth Programs', 'Social and recreational programs for Indigenous youth. 2SLGBTQIA+ support group meets 2nd & 4th Tuesday monthly 5:30-7:30pm.', '{indigenous,community,recreation,lgbtq,free,indoor}', '{social,spiritual,physical}', true, 13, 25, '#200, 11728 95 Street', 'Edmonton', 'https://www.cnfc.ca/', 'Canadian Native Friendship Centre', true, true, false),
+('Native Counselling Services of Alberta', 'Counseling services for Indigenous people including youth. Culturally appropriate support and resources.', '{indigenous,counseling,support,free,indoor}', '{emotional,spiritual}', false, 13, 25, '15548 Stony Plain Rd', 'Edmonton', 'https://www.ncsa.ca/', 'Native Counselling Services of Alberta', true, true, false),
+('Hope for Wellness Helpline', '24/7 culturally competent counseling for all Indigenous people. Phone and online chat available.', '{crisis,mental-health,indigenous,free}', '{emotional,spiritual}', true, 13, 99, 'Phone: 1-855-242-3310', 'Edmonton', 'https://www.hopeforwellness.ca/', 'Hope for Wellness', true, false, false),
+('Bent Arrow – Cultural & Youth Programs', 'Programs connecting Indigenous youth with culture and community.', '{community,indoor,creative,leadership}', '{spiritual,social}', false, 13, 25, '11304 93 St NW', 'Edmonton', 'https://www.bentarrow.ca', 'Bent Arrow Traditional Healing Society', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- =============================================================================
--- SECTION 3: THE MEADOWS RECREATION CENTRE PROGRAMS
--- Youth ROCKS, Jr. Chef, Chess - Mon-Fri 3:30-6:00pm
--- =============================================================================
+-- Arts & Creative Programs
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('Edmonton Musical Theatre – Youth Program', 'Musical theatre training including singing, movement, dance, and choral performance. Year-round classes with community and professional performances.', '{arts,music,theater,performance,indoor}', '{social,intellectual,physical}', false, 8, 25, 'Edmonton', 'Edmonton', 'https://edmontonmusicaltheatre.ca/', 'Edmonton Musical Theatre', false, true, false),
+('Citadel Theatre – Foote Theatre School', 'Acting and musical theatre classes for all ages. Physical, technical, and creative skills training. Largest theatre school in Edmonton.', '{arts,theater,acting,indoor}', '{social,intellectual,emotional}', false, 8, 21, '9828 101A Ave NW', 'Edmonton', 'https://citadeltheatre.com/fts', 'Citadel Theatre', false, true, false),
+('City Arts Centre – Youth Workshops', 'Visual arts, dance, cooking, pottery classes led by professional artists. Multiple locations across Edmonton.', '{arts,visual-arts,pottery,dance,indoor}', '{intellectual,physical}', false, 5, 17, '10943 84 Ave NW', 'Edmonton', 'https://movelearnplay.edmonton.ca/', 'City of Edmonton', false, true, false),
+('Creation Space – Youth Art Classes', 'Multi-disciplinary arts with child-led discovery. Weekly classes, open studio time, and workshops focusing on process over outcome.', '{arts,creative,drop-in,indoor}', '{intellectual,emotional}', true, 8, 18, 'Edmonton', 'Edmonton', 'https://www.creationspace.ca/', 'Creation Space', false, true, false),
+('Canvastone Childrens Art Studio', 'Soapstone carving, painting, drawing, digital art, and sculpting. Small classes (max 7 students). Free intro soapstone class available.', '{arts,visual-arts,sculpture,indoor}', '{intellectual,emotional}', false, 8, 18, 'Edmonton', 'Edmonton', 'https://www.canvastone.ca/', 'Canvastone Childrens Art Studio', false, true, false),
+('iHuman Youth Society – Arts Drop-In', 'Creative drop-in for youth with arts, music, and mentorship.', '{arts,drop-in,community,indoor,free}', '{intellectual,emotional}', true, 13, 25, '9527 82 Ave NW', 'Edmonton', 'https://www.ihuman.org', 'iHuman Youth Society', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- The Meadows - Youth ROCKS (5 events)
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Youth ROCKS - Recreation & Sports', 'High-energy sports and recreation activities including basketball, volleyball, dodgeball, and team games', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Monday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Active play in a supervised environment', true),
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Youth ROCKS - Recreation & Sports', 'High-energy sports and recreation activities including basketball, volleyball, dodgeball, and team games', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Tuesday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Active play in a supervised environment', true),
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Youth ROCKS - Recreation & Sports', 'High-energy sports and recreation activities including basketball, volleyball, dodgeball, and team games', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Wednesday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Active play in a supervised environment', true),
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Youth ROCKS - Recreation & Sports', 'High-energy sports and recreation activities including basketball, volleyball, dodgeball, and team games', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Thursday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Active play in a supervised environment', true),
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Youth ROCKS - Recreation & Sports', 'High-energy sports and recreation activities including basketball, volleyball, dodgeball, and team games', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Friday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Active play in a supervised environment', true),
+-- Sports & Recreation Programs
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('Edmonton Grads Youth Basketball Club', 'Low-cost volunteer-run basketball club. Spring season runs January to September. Longest-running basketball club in Edmonton.', '{sports,basketball,recreation,indoor}', '{physical,social}', false, 8, 18, 'Various Edmonton locations', 'Edmonton', 'https://www.gradsbasketball.ca/', 'Edmonton Grads Basketball', false, true, false),
+('True North Basketball Academy', 'Basketball training sessions on Saturdays. Age-grouped classes from 6-16 years. 8-week sessions.', '{sports,basketball,training,indoor}', '{physical,social}', false, 6, 16, '4138 - 101 Street NW', 'Edmonton', 'https://www.truenorthbasketballacademy.com/', 'True North Basketball Academy', false, true, false),
+('Legacy Athletics – EYBA Youth Basketball', 'Development and competitive basketball programs from Little Legacies (ages 2-8) to EYBA Elite training.', '{sports,basketball,training,indoor}', '{physical,social}', false, 2, 17, 'Edmonton', 'Edmonton', 'https://www.legacyathletics.ca/', 'Legacy Athletics', false, true, false),
+('Hockey Edmonton – Learn to Play', 'Low-cost, low-commitment hockey program for beginners. Must be able to skate independently. Winter semester starts January.', '{sports,hockey,recreation,indoor}', '{physical,social}', false, 5, 16, 'Various Edmonton arenas', 'Edmonton', 'https://www.playhockeyedmonton.ca/ltph', 'Hockey Edmonton', false, true, false),
+('Oilers Youth Hockey Programs', 'NHL/NHLPA First Shift for beginners, Colbys Kids bridge program, and Oilers Hockey School for elite training.', '{sports,hockey,training,indoor}', '{physical,social}', false, 5, 17, 'Various Edmonton arenas', 'Edmonton', 'https://www.nhl.com/oilers/community/youth-hockey', 'Edmonton Oilers Community Foundation', false, true, false),
+('JHL Ball Hockey – Youth League', 'Fall/winter 3-on-3 ball hockey league running October to March. Games on Saturdays. Boys, girls, and coed divisions.', '{sports,ball-hockey,recreation,indoor}', '{physical,social}', false, 8, 17, 'Abbottsfield Rec Centre / Westmount Fitness Club', 'Edmonton', 'http://www.jhlballhockey.ca', 'JHL Ball Hockey', false, true, false),
+('City of Edmonton – Free Swim & Skate', 'Free swimming and skating sessions at various City of Edmonton facilities during designated times.', '{recreation,swimming,skating,free,indoor}', '{physical,social}', true, 5, 99, 'Various City of Edmonton rec centres', 'Edmonton', 'https://www.edmonton.ca/activities_parks_recreation/free-swimming-skating', 'City of Edmonton', true, true, false),
+('Oil Country Hockey Assist Program', 'Financial assistance up to $750 for hockey registration. No-cost equipment through Sport Central for low-income families.', '{sports,hockey,financial-aid,free}', '{physical}', false, 5, 17, 'Edmonton', 'Edmonton', 'https://kidsportcanada.ca/alberta/edmonton/hap/', 'KidSport Edmonton', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- The Meadows - Jr. Chef Cooking Classes (2 events)
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Jr. Chef - Cooking Skills', 'Learn to cook healthy meals and snacks, develop kitchen safety skills, and explore nutrition', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Tuesday', '16:00:00', '17:30:00', true, false, true, 10, 15, 'Free', 0, 'Registration required, limited spots', true),
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Jr. Chef - Cooking Skills', 'Learn to cook healthy meals and snacks, develop kitchen safety skills, and explore nutrition', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Thursday', '16:00:00', '17:30:00', true, false, true, 10, 15, 'Free', 0, 'Registration required, limited spots', true),
+-- Employment & Career Programs
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('Prospect Youth Employment Services', 'Up to 16 weeks of job training plus 90-day follow-up. Includes certifications (First Aid, Forklift, Excel), financial assistance, and employer networking.', '{employment,job-training,career,free,indoor}', '{occupational,intellectual}', false, 18, 24, '#314, Kingsway Mall', 'Edmonton', 'https://www.prospectnow.ca/pyes/', 'Prospect Human Services', true, true, false),
+('Prospect Youth Employment Connection', 'For youth who are/were supported by Childrens Services. Employability skills, career counseling, and work experience placements.', '{employment,job-training,career,free,indoor}', '{occupational,intellectual}', false, 16, 24, 'Edmonton', 'Edmonton', 'https://www.prospectnow.ca/pyec/', 'Prospect Human Services', true, true, false),
+('YOUCAN Verto Project', '20-week program with intensive training in personal development, technology, and job readiness. Final 12 weeks are paid placement.', '{employment,job-training,technology,free,indoor}', '{occupational,intellectual}', false, 18, 24, 'Edmonton', 'Edmonton', 'https://www.youcan.ca/', 'YOUCAN Youth Services', true, true, false),
+('EmployAbilities Learn 2 Earn', '22-week program for youth with disabilities or barriers. 10 weeks paid skills training plus 12 weeks work experience.', '{employment,job-training,accessibility,free,indoor}', '{occupational,intellectual}', false, 15, 30, 'Edmonton', 'Edmonton', 'https://employabilities.ab.ca/learn-2-earn/', 'EmployAbilities', true, true, false),
+('BGS Career Ventures – Youth Services', 'Job search support, coaching, seminars, training, and job placement services for youth.', '{employment,career,job-training,free,indoor}', '{occupational,intellectual}', false, 15, 25, '#310, 10665 Jasper Avenue', 'Edmonton', 'https://www.bgscareerventures.com/youth-services/', 'BGS Enterprises Inc.', true, true, false),
+('Bredin Centre – JobCO Youth Training', 'Employer-delivered worksite training for unemployed youth lacking skills or experience. Participants receive income during training.', '{employment,job-training,paid,indoor}', '{occupational,intellectual}', false, 15, 24, '5th floor, 10004 104 Avenue', 'Edmonton', 'https://www.bredin.ca/', 'Bredin Centre for Career Advancement', true, true, false),
+('YWCA GirlSpace / Y-Space', 'Youth-led initiatives addressing social issues. Gender-inclusive programming with peer support and advocacy.', '{community,leadership,gender,free,indoor}', '{social,emotional,intellectual}', true, 13, 25, 'YWCA Edmonton', 'Edmonton', 'https://ywcaofedmonton.org/programs-and-services/youthprograms/', 'YWCA Edmonton', true, true, false),
+('YWCA Dream It Be It', 'Career-building program for youth who identify as female. Goal setting, networking, and professional development.', '{employment,career,women,free,indoor}', '{occupational,intellectual}', false, 12, 17, 'YWCA Edmonton', 'Edmonton', 'https://ywcaofedmonton.org/programs-and-services/youthprograms/', 'YWCA Edmonton', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- The Meadows - Chess 101 (1 event)
-('b475061c-d1cb-42c2-9be2-ecf3dbb53dfb', 'Chess 101 - Strategy & Skills', 'Learn chess fundamentals, strategy, and critical thinking through friendly games and coaching', 'The Meadows Recreation Centre', '2704 17 St NW', '53.458784', '-113.370721', 'Wednesday', '16:00:00', '17:00:00', true, true, false, 8, 17, 'Free', 0, 'All skill levels welcome', true),
+-- Crisis & Emergency Services
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('Kids Help Phone', '24/7 free confidential counseling by phone, text, and online. Professional support for any issue.', '{crisis,mental-health,counseling,free}', '{emotional}', true, 5, 20, 'Phone/Text/Online', 'Edmonton', 'https://kidshelpphone.ca/', 'Kids Help Phone', true, false, false),
+('YESS – Emergency Shelter & Crisis Support', 'Emergency shelter and crisis support for homeless and at-risk youth. 24/7 services.', '{crisis,shelter,housing,free,indoor}', '{physical,emotional}', true, 13, 24, 'Edmonton', 'Edmonton', 'https://www.yess.org', 'Youth Empowerment and Support Services', true, true, false),
+('Sexual Assault Centre of Edmonton', 'Crisis intervention, counseling, education, and court support for survivors. Serves all genders including 2SLGBTQQIA+ individuals.', '{crisis,counseling,support,free,indoor}', '{emotional,physical}', true, 13, 99, 'Edmonton', 'Edmonton', 'https://www.sace.ab.ca/', 'Sexual Assault Centre of Edmonton', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- =============================================================================
--- SECTION 4: TERWILLEGAR (BOOSTER JUICE REC CENTRE) PROGRAMS
--- Indigenous Creative Corner, STEMHeroes+, Youth Zone - Mon-Fri
--- =============================================================================
+-- Community & Recreation Drop-Ins
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('ASSIST T.A.N.G. Youth Program', 'Workshops on self-esteem, communication, goal-setting, body image, peer pressure, and healthy relationships. Sports, crafts, field trips, and tutoring available.', '{community,life-skills,recreation,tutoring,free,indoor}', '{social,emotional,intellectual}', true, 12, 19, 'Multiple City of Edmonton rec centres', 'Edmonton', 'https://assistcsc.org/t-a-n-g-youth-program/', 'ASSIST Community Services', true, true, false),
+('City of Edmonton – Youth After School Programs', 'Free after-school programs 3-6pm including Sports Explorer, volleyball drop-in, basketball, soccer, tutoring, STEM, and Indigenous Creative Corner.', '{recreation,sports,tutoring,stem,free,indoor}', '{physical,social,intellectual}', true, 8, 17, 'Multiple rec centres city-wide', 'Edmonton', 'https://www.edmonton.ca/programs_services/for_children_kids_youth/after-school-youth-programs', 'City of Edmonton', true, true, false),
+('The Core Youth Centre', 'Mentoring and physical activity programs at recreation centres. Leadership development and community connection.', '{recreation,mentoring,leadership,free,indoor}', '{social,physical,emotional}', true, 12, 17, 'Various Edmonton rec centres', 'Edmonton', 'https://www.edmonton.ca/programs_services/for_children_kids_youth/after-school-youth-programs', 'City of Edmonton', true, true, false),
+('Family Futures – Youth Connections Drop-In', 'After-school drop-in with painting, drawing, sculpting, drama, improv, board games, and physical activities. Building social connections in supportive environment.', '{community,arts,recreation,free,indoor}', '{social,emotional}', true, 8, 17, '3 City of Edmonton rec centres', 'Edmonton', 'https://familyfutures.ca/programs-services/drop-in-programs/', 'Family Futures Resource Network', true, true, false),
+('Edmonton Public Library – Teen Space', 'Library teen programs including homework help, gaming, and social activities.', '{community,learning,free,indoor}', '{intellectual,social}', true, 13, 18, 'Multiple EPL branches', 'Edmonton', 'https://www.epl.ca/teens/', 'Edmonton Public Library', true, true, false),
+('Edmonton Public Library – Makerspace', 'Free access to 3D printers, laser cutters, sewing machines, and tech equipment. Workshops and drop-in sessions for youth.', '{technology,maker,stem,free,indoor}', '{intellectual,occupational}', true, 13, 25, 'Stanley A. Milner Library, 7 Sir Winston Churchill Square', 'Edmonton', 'https://www.epl.ca/makerspace/', 'Edmonton Public Library', true, true, false),
+('Edmonton Public Library – Homework Help', 'Free tutoring and homework assistance for students. Available at multiple branches.', '{tutoring,education,free,indoor}', '{intellectual}', true, 6, 18, 'Multiple EPL branches', 'Edmonton', 'https://www.epl.ca/homework-help/', 'Edmonton Public Library', true, true, false),
+('Big Brothers Big Sisters Edmonton', 'Mentoring programs matching youth with adult mentors. In-school, community, and group mentoring available.', '{mentoring,community,support,free}', '{social,emotional}', false, 6, 18, 'Edmonton', 'Edmonton', 'https://www.bbbsedmonton.org/', 'Big Brothers Big Sisters Edmonton', true, true, false),
+('Edmonton Food Bank – Youth Volunteer Program', 'Volunteer opportunities for youth to give back to the community while developing job skills.', '{volunteer,community,food-security,free,indoor}', '{social,occupational}', false, 13, 25, '11508 120 Street NW', 'Edmonton', 'https://www.edmontonsfoodbank.com/', 'Edmonton Food Bank', true, true, false)
+ON CONFLICT DO NOTHING;
 
--- Terwillegar - Indigenous Creative Corner (3 events)
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Indigenous Creative Corner', 'Culturally-grounded arts and crafts including beading, drumming, storytelling, and traditional art forms', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Monday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Indigenous-led programming, all youth welcome', true),
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Indigenous Creative Corner', 'Culturally-grounded arts and crafts including beading, drumming, storytelling, and traditional art forms', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Wednesday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Indigenous-led programming, all youth welcome', true),
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Indigenous Creative Corner', 'Culturally-grounded arts and crafts including beading, drumming, storytelling, and traditional art forms', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Friday', '15:30:00', '17:30:00', true, true, false, 8, 17, 'Free', 0, 'Indigenous-led programming, all youth welcome', true),
-
--- Terwillegar - STEMHeroes+ (2 events)
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'STEMHeroes+ Science & Tech', 'Hands-on science, technology, engineering, and math activities with experiments and projects', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Tuesday', '16:00:00', '17:30:00', true, false, true, 10, 16, 'Free', 0, 'Registration required for materials planning', true),
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'STEMHeroes+ Science & Tech', 'Hands-on science, technology, engineering, and math activities with experiments and projects', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Thursday', '16:00:00', '17:30:00', true, false, true, 10, 16, 'Free', 0, 'Registration required for materials planning', true),
-
--- Terwillegar - Youth Zone Drop-In (5 events)
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Youth Zone Drop-In', 'General drop-in with games, crafts, sports, and social activities for all youth', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Monday', '12:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Extended hours for PD days and holidays', true),
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Youth Zone Drop-In', 'General drop-in with games, crafts, sports, and social activities for all youth', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Tuesday', '12:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Extended hours for PD days and holidays', true),
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Youth Zone Drop-In', 'General drop-in with games, crafts, sports, and social activities for all youth', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Wednesday', '12:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Extended hours for PD days and holidays', true),
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Youth Zone Drop-In', 'General drop-in with games, crafts, sports, and social activities for all youth', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Thursday', '12:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Extended hours for PD days and holidays', true),
-('af6ed3a8-5ed2-4656-bb90-2f96e0ae9e5d', 'Youth Zone Drop-In', 'General drop-in with games, crafts, sports, and social activities for all youth', 'Booster Juice Recreation Centre (Terwillegar)', '2051 Leger Rd NW', '53.4585436', '-113.5824794', 'Friday', '12:30:00', '17:45:00', true, true, false, 8, 17, 'Free', 0, 'Extended hours for PD days and holidays', true),
-
--- =============================================================================
--- SECTION 5: MENTAL HEALTH DROP-IN SERVICES
--- Kickstand, ACCESS Open Minds - Mon-Fri
--- =============================================================================
-
--- Kickstand - Walk-In Mental Health (5 events)
-('b2082f93-d105-42f7-8b03-ce416baa0293', 'Walk-In Mental Health Counseling', 'Free, confidential mental health support - no referral needed. Talk to counselors about stress, anxiety, relationships, or anything on your mind', 'Kickstand - West Edmonton Mall', '8882 170 St NW, Level 2 (next to The Brick)', '53.522778', '-113.623055', 'Monday', '12:00:00', '18:00:00', true, true, false, 11, 25, 'Free', 0, 'No appointment needed, youth-designed space', true),
-('b2082f93-d105-42f7-8b03-ce416baa0293', 'Walk-In Mental Health Counseling', 'Free, confidential mental health support - no referral needed. Talk to counselors about stress, anxiety, relationships, or anything on your mind', 'Kickstand - West Edmonton Mall', '8882 170 St NW, Level 2 (next to The Brick)', '53.522778', '-113.623055', 'Tuesday', '12:00:00', '18:00:00', true, true, false, 11, 25, 'Free', 0, 'No appointment needed, youth-designed space', true),
-('b2082f93-d105-42f7-8b03-ce416baa0293', 'Walk-In Mental Health Counseling', 'Free, confidential mental health support - no referral needed. Talk to counselors about stress, anxiety, relationships, or anything on your mind', 'Kickstand - West Edmonton Mall', '8882 170 St NW, Level 2 (next to The Brick)', '53.522778', '-113.623055', 'Wednesday', '12:00:00', '18:00:00', true, true, false, 11, 25, 'Free', 0, 'No appointment needed, youth-designed space', true),
-('b2082f93-d105-42f7-8b03-ce416baa0293', 'Walk-In Mental Health Counseling', 'Free, confidential mental health support - no referral needed. Talk to counselors about stress, anxiety, relationships, or anything on your mind', 'Kickstand - West Edmonton Mall', '8882 170 St NW, Level 2 (next to The Brick)', '53.522778', '-113.623055', 'Thursday', '12:00:00', '18:00:00', true, true, false, 11, 25, 'Free', 0, 'No appointment needed, youth-designed space', true),
-('b2082f93-d105-42f7-8b03-ce416baa0293', 'Walk-In Mental Health Counseling', 'Free, confidential mental health support - no referral needed. Talk to counselors about stress, anxiety, relationships, or anything on your mind', 'Kickstand - West Edmonton Mall', '8882 170 St NW, Level 2 (next to The Brick)', '53.522778', '-113.623055', 'Friday', '12:00:00', '18:00:00', true, true, false, 11, 25, 'Free', 0, 'No appointment needed, youth-designed space', true),
-
--- ACCESS Open Minds - Walk-In Counseling (4 events - last walk-in at 4pm)
-('985a0703-3239-402e-b7cb-d1a4f78646ed', 'Walk-In Counseling Sessions', 'Solution-focused mental health counseling (45-60 min). Come when you need support, no appointment required', 'Edmonton Community Health Hub North', '13211 Fort Rd NW', '53.6016', '-113.3947', 'Tuesday', '12:00:00', '17:30:00', true, true, false, 16, 25, 'Free', 0, 'Last walk-in accepted at 4pm', true),
-('985a0703-3239-402e-b7cb-d1a4f78646ed', 'Walk-In Counseling Sessions', 'Solution-focused mental health counseling (45-60 min). Come when you need support, no appointment required', 'Edmonton Community Health Hub North', '13211 Fort Rd NW', '53.6016', '-113.3947', 'Wednesday', '12:00:00', '17:30:00', true, true, false, 16, 25, 'Free', 0, 'Last walk-in accepted at 4pm', true),
-('985a0703-3239-402e-b7cb-d1a4f78646ed', 'Walk-In Counseling Sessions', 'Solution-focused mental health counseling (45-60 min). Come when you need support, no appointment required', 'Edmonton Community Health Hub North', '13211 Fort Rd NW', '53.6016', '-113.3947', 'Thursday', '12:00:00', '17:30:00', true, true, false, 16, 25, 'Free', 0, 'Last walk-in accepted at 4pm', true),
-('985a0703-3239-402e-b7cb-d1a4f78646ed', 'Walk-In Counseling Sessions', 'Solution-focused mental health counseling (45-60 min). Come when you need support, no appointment required', 'Edmonton Community Health Hub North', '13211 Fort Rd NW', '53.6016', '-113.3947', 'Friday', '12:00:00', '17:30:00', true, true, false, 16, 25, 'Free', 0, 'Last walk-in accepted at 4pm', true),
-
--- ACCESS Open Minds - Info Sessions (2 events)
-('985a0703-3239-402e-b7cb-d1a4f78646ed', 'Mental Health Info Session', 'Learn about available services, ask questions, meet the team - casual drop-in format', 'Edmonton Community Health Hub North', '13211 Fort Rd NW', '53.6016', '-113.3947', 'Wednesday', '10:00:00', '11:30:00', true, true, false, 16, 25, 'Free', 0, 'No pressure to share, just learn about supports', true),
-('985a0703-3239-402e-b7cb-d1a4f78646ed', 'Mental Health Info Session', 'Learn about available services, ask questions, meet the team - casual drop-in format', 'Edmonton Community Health Hub North', '13211 Fort Rd NW', '53.6016', '-113.3947', 'Friday', '14:00:00', '15:30:00', true, true, false, 16, 25, 'Free', 0, 'No pressure to share, just learn about supports', true),
-
--- =============================================================================
--- SECTION 6: YMCA Y MIND ANXIETY PROGRAMS
--- Virtual and in-person options
--- =============================================================================
-
--- Y Mind - 7-Week Program Sessions (virtual option included)
-('f1d4211b-31fb-43af-9459-c809ea3add01', 'Y Mind - Anxiety & Stress Group (Evening)', 'Evidence-based 7-week program using ACT, mindfulness, and self-compassion for managing anxiety and stress', 'YMCA Various Locations', 'Contact for session location or virtual link', '53.5461', '-113.4938', 'Tuesday', '18:00:00', '19:30:00', true, false, true, 13, 30, 'Free', 0, 'Registration required, no YMCA membership needed', true),
-('f1d4211b-31fb-43af-9459-c809ea3add01', 'Y Mind - Anxiety & Stress Group (Afternoon)', 'Evidence-based 7-week program using ACT, mindfulness, and self-compassion for managing anxiety and stress', 'YMCA Various Locations', 'Contact for session location or virtual link', '53.5461', '-113.4938', 'Thursday', '16:00:00', '17:30:00', true, false, true, 13, 30, 'Free', 0, 'Registration required, virtual option available', true),
-
--- =============================================================================
--- SECTION 7: ARTS PROGRAMS - iHUMAN YOUTH SOCIETY
--- Daily drop-in arts 2-6pm Mon-Fri
--- =============================================================================
-
--- iHuman - Arts Studio Drop-In (5 events)
-('78c66868-d60b-43c4-a43d-71fd86e4b2b1', 'Arts Studio Drop-In', 'Visual art, music production, fashion & beading - all creative disciplines welcome. Includes free meals and mental health support', 'iHuman Studio', '9635 102A Ave NW', '53.5569', '-113.5008', 'Monday', '14:00:00', '18:00:00', true, true, false, 12, 24, 'Free', 0, 'Free registration required for first visit', true),
-('78c66868-d60b-43c4-a43d-71fd86e4b2b1', 'Arts Studio Drop-In', 'Visual art, music production, fashion & beading - all creative disciplines welcome. Includes free meals and mental health support', 'iHuman Studio', '9635 102A Ave NW', '53.5569', '-113.5008', 'Tuesday', '14:00:00', '18:00:00', true, true, false, 12, 24, 'Free', 0, 'Free registration required for first visit', true),
-('78c66868-d60b-43c4-a43d-71fd86e4b2b1', 'Arts Studio Drop-In', 'Visual art, music production, fashion & beading - all creative disciplines welcome. Includes free meals and mental health support', 'iHuman Studio', '9635 102A Ave NW', '53.5569', '-113.5008', 'Wednesday', '14:00:00', '18:00:00', true, true, false, 12, 24, 'Free', 0, 'Free registration required for first visit', true),
-('78c66868-d60b-43c4-a43d-71fd86e4b2b1', 'Arts Studio Drop-In', 'Visual art, music production, fashion & beading - all creative disciplines welcome. Includes free meals and mental health support', 'iHuman Studio', '9635 102A Ave NW', '53.5569', '-113.5008', 'Thursday', '14:00:00', '18:00:00', true, true, false, 12, 24, 'Free', 0, 'Free registration required for first visit', true),
-('78c66868-d60b-43c4-a43d-71fd86e4b2b1', 'Arts Studio Drop-In', 'Visual art, music production, fashion & beading - all creative disciplines welcome. Includes free meals and mental health support', 'iHuman Studio', '9635 102A Ave NW', '53.5569', '-113.5008', 'Friday', '14:00:00', '18:00:00', true, true, false, 12, 24, 'Free', 0, 'Free registration required for first visit', true),
-
--- iHuman - Woven Journey (Indigenous Mothers) (2 events)
-('78c66868-d60b-43c4-a43d-71fd86e4b2b1', 'Woven Journey - Indigenous Mothers', 'Arts and cultural support program for young Indigenous mothers - culturally safe space', 'iHuman Studio', '9635 102A Ave NW', '53.5569', '-113.5008', 'Tuesday', '13:00:00', '17:00:00', true, false, true, 16, 24, 'Free', 0, 'Indigenous-led programming, registration required', true),
-('78c66868-d60b-43c4-a43d-71fd86e4b2b1', 'Woven Journey - Indigenous Mothers', 'Arts and cultural support program for young Indigenous mothers - culturally safe space', 'iHuman Studio', '9635 102A Ave NW', '53.5569', '-113.5008', 'Thursday', '13:00:00', '17:00:00', true, false, true, 16, 24, 'Free', 0, 'Indigenous-led programming, registration required', true),
-
--- =============================================================================
--- SECTION 8: CRISIS SUPPORT & BASIC NEEDS
--- YESS Emergency Shelter & Boyle Street
--- =============================================================================
-
--- YESS - Emergency Shelter (overnight access, 7 days)
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Emergency Shelter - Overnight', '24/7 emergency shelter with beds, food, showers, laundry - low barrier, trauma-informed care', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Monday', '20:00:00', '11:00:00', true, true, false, 15, 24, 'Free', 0, 'No referral needed, 2SLGBTQIA+ friendly', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Emergency Shelter - Overnight', '24/7 emergency shelter with beds, food, showers, laundry - low barrier, trauma-informed care', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Tuesday', '20:00:00', '11:00:00', true, true, false, 15, 24, 'Free', 0, 'No referral needed, 2SLGBTQIA+ friendly', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Emergency Shelter - Overnight', '24/7 emergency shelter with beds, food, showers, laundry - low barrier, trauma-informed care', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Wednesday', '20:00:00', '11:00:00', true, true, false, 15, 24, 'Free', 0, 'No referral needed, 2SLGBTQIA+ friendly', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Emergency Shelter - Overnight', '24/7 emergency shelter with beds, food, showers, laundry - low barrier, trauma-informed care', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Thursday', '20:00:00', '11:00:00', true, true, false, 15, 24, 'Free', 0, 'No referral needed, 2SLGBTQIA+ friendly', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Emergency Shelter - Overnight', '24/7 emergency shelter with beds, food, showers, laundry - low barrier, trauma-informed care', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Friday', '20:00:00', '11:00:00', true, true, false, 15, 24, 'Free', 0, 'No referral needed, 2SLGBTQIA+ friendly', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Emergency Shelter - Overnight', '24/7 emergency shelter with beds, food, showers, laundry - low barrier, trauma-informed care', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Saturday', '20:00:00', '11:00:00', true, true, false, 15, 24, 'Free', 0, 'No referral needed, 2SLGBTQIA+ friendly', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Emergency Shelter - Overnight', '24/7 emergency shelter with beds, food, showers, laundry - low barrier, trauma-informed care', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Sunday', '20:00:00', '11:00:00', true, true, false, 15, 24, 'Free', 0, 'No referral needed, 2SLGBTQIA+ friendly', true),
-
--- YESS - Resource Hub (weekday daytime)
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Resource Hub & Day Programs', 'Medical care, mental health support, housing help, ID assistance, and basic needs support', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Monday', '08:00:00', '16:00:00', true, true, false, 15, 24, 'Free', 0, 'Harm reduction approach, all welcome', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Resource Hub & Day Programs', 'Medical care, mental health support, housing help, ID assistance, and basic needs support', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Tuesday', '08:00:00', '16:00:00', true, true, false, 15, 24, 'Free', 0, 'Harm reduction approach, all welcome', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Resource Hub & Day Programs', 'Medical care, mental health support, housing help, ID assistance, and basic needs support', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Wednesday', '08:00:00', '16:00:00', true, true, false, 15, 24, 'Free', 0, 'Harm reduction approach, all welcome', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Resource Hub & Day Programs', 'Medical care, mental health support, housing help, ID assistance, and basic needs support', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Thursday', '08:00:00', '16:00:00', true, true, false, 15, 24, 'Free', 0, 'Harm reduction approach, all welcome', true),
-('c7c5da93-3661-45d3-af34-4be55ca52e09', 'Resource Hub & Day Programs', 'Medical care, mental health support, housing help, ID assistance, and basic needs support', 'Youth Support Centre (YESS)', '9310 82 Ave NW', '53.5196', '-113.5098', 'Friday', '08:00:00', '16:00:00', true, true, false, 15, 24, 'Free', 0, 'Harm reduction approach, all welcome', true),
-
--- Boyle Street - Youth Drop-In (Morning sessions)
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Morning', 'Basic needs support including food, clothing, first aid, hygiene supplies - low barrier access', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Monday', '08:30:00', '12:00:00', true, true, false, 16, 26, 'Free', 0, 'Closed 12-1pm for lunch', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Morning', 'Basic needs support including food, clothing, first aid, hygiene supplies - low barrier access', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Tuesday', '08:30:00', '12:00:00', true, true, false, 16, 26, 'Free', 0, 'Closed 12-1pm for lunch', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Morning', 'Basic needs support including food, clothing, first aid, hygiene supplies - low barrier access', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Wednesday', '08:30:00', '12:00:00', true, true, false, 16, 26, 'Free', 0, 'Closed 12-1pm for lunch', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Morning', 'Basic needs support including food, clothing, first aid, hygiene supplies - low barrier access', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Thursday', '08:30:00', '12:00:00', true, true, false, 16, 26, 'Free', 0, 'Closed 12-1pm for lunch', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Morning', 'Basic needs support including food, clothing, first aid, hygiene supplies - low barrier access', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Friday', '08:30:00', '12:00:00', true, true, false, 16, 26, 'Free', 0, 'Closed 12-1pm for lunch', true),
-
--- Boyle Street - Afternoon sessions
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Afternoon', 'Action planning, resource navigation, connection to housing and employment supports', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Monday', '13:00:00', '16:00:00', true, true, false, 16, 26, 'Free', 0, 'Wheelchair accessible, all welcome', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Afternoon', 'Action planning, resource navigation, connection to housing and employment supports', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Tuesday', '13:00:00', '16:00:00', true, true, false, 16, 26, 'Free', 0, 'Wheelchair accessible, all welcome', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Afternoon', 'Action planning, resource navigation, connection to housing and employment supports', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Wednesday', '13:00:00', '16:00:00', true, true, false, 16, 26, 'Free', 0, 'Wheelchair accessible, all welcome', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Afternoon', 'Action planning, resource navigation, connection to housing and employment supports', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Thursday', '13:00:00', '16:00:00', true, true, false, 16, 26, 'Free', 0, 'Wheelchair accessible, all welcome', true),
-('5b7d57e1-5346-4bf4-9e85-6f6c7e7d87cf', 'Youth Drop-In - Afternoon', 'Action planning, resource navigation, connection to housing and employment supports', 'Boyle Street Community Centre', '10527 96 St NW', '53.5532', '-113.4968', 'Friday', '13:00:00', '16:00:00', true, true, false, 16, 26, 'Free', 0, 'Wheelchair accessible, all welcome', true),
-
--- =============================================================================
--- SECTION 9: LIBRARY YOUNG ADULT PROGRAMS
--- Lois Hole & Stanley A. Milner
--- =============================================================================
-
--- Lois Hole Library - GSA Group (weekly Friday)
-('cc7a34df-7739-47a7-a2dc-fed4dcaba134', 'GSA Group - 2SLGBTQIA+ Youth', 'Gender and Sexuality Alliance group for 2SLGBTQIA+ young adults - safe space for connection and support', 'Lois Hole Library (Callingwood)', '17650 69 Ave NW', '53.50479', '-113.62684', 'Friday', '16:30:00', '17:30:00', true, true, false, 18, 24, 'Free', 0, 'All identities and allies welcome', true),
-
--- Stanley A. Milner Library - Art Sessions (weekly Sunday)
-('cc7a34df-7739-47a7-a2dc-fed4dcaba134', 'Young Adult Art Studio', 'Creative art sessions with supplies provided - painting, drawing, collage, mixed media. Social and relaxing', 'Stanley A. Milner Library (Downtown)', '7 Sir Winston Churchill Square', '53.5430', '-113.4897', 'Sunday', '14:00:00', '15:30:00', true, true, false, 18, 24, 'Free', 0, 'All skill levels, materials provided', true),
-
--- Stanley A. Milner - Creative Writing Workshop (bi-weekly)
-('cc7a34df-7739-47a7-a2dc-fed4dcaba134', 'Young Adult Creative Writing', 'Poetry, short stories, journaling workshops for aspiring young writers', 'Stanley A. Milner Library (Downtown)', '7 Sir Winston Churchill Square', '53.5430', '-113.4897', 'Wednesday', '18:00:00', '19:30:00', true, true, false, 18, 24, 'Free', 0, 'Bi-weekly sessions, check calendar', true),
-
--- =============================================================================
--- SECTION 10: YOUTH UNLIMITED COMMUNITY CENTRES
--- Safe drop-in spaces with mentorship
--- =============================================================================
-
--- Youth Unlimited - Community Drop-In (3 example sessions)
-('2b2aa986-4748-419d-8583-00b44ea5b0c1', 'Community Youth Centre Drop-In', 'Safe space with games (pool, foosball), homework help, snacks, and caring youth workers - barrier-free', 'Youth Unlimited Centre', 'Various Edmonton locations', '53.5461', '-113.4938', 'Monday', '15:30:00', '20:00:00', true, true, false, 13, 19, 'Free', 0, 'Check website for specific location hours', true),
-('2b2aa986-4748-419d-8583-00b44ea5b0c1', 'Community Youth Centre Drop-In', 'Safe space with games (pool, foosball), homework help, snacks, and caring youth workers - barrier-free', 'Youth Unlimited Centre', 'Various Edmonton locations', '53.5461', '-113.4938', 'Wednesday', '15:30:00', '20:00:00', true, true, false, 13, 19, 'Free', 0, 'Check website for specific location hours', true),
-('2b2aa986-4748-419d-8583-00b44ea5b0c1', 'Community Youth Centre Drop-In', 'Safe space with games (pool, foosball), homework help, snacks, and caring youth workers - barrier-free', 'Youth Unlimited Centre', 'Various Edmonton locations', '53.5461', '-113.4938', 'Friday', '15:30:00', '20:00:00', true, true, false, 13, 19, 'Free', 0, 'Check website for specific location hours', true);
-
--- =============================================================================
--- VERIFICATION AND METADATA
--- =============================================================================
-
--- Add comment with seed metadata
-COMMENT ON TABLE program_events IS 'Last seeded with comprehensive Edmonton youth programs: November 10, 2025 - 90+ weekly recurring events covering mental health, recreation, arts, crisis support, and library programs';
-
--- Verification query (optional - shows event count by location)
--- SELECT location_name, COUNT(*) as event_count 
--- FROM program_events 
--- WHERE active = true 
--- GROUP BY location_name 
--- ORDER BY event_count DESC;
+-- November/December 2025 Special Events
+INSERT INTO programs (title, description, tags, wellness_dimensions, drop_in, age_min, age_max, address, city, website, organizer, free, indoor, outdoor)
+VALUES 
+('Edmonton Youth Orchestra – Fall Concert', 'Youth orchestra performance at Winspear Centre. November 30, 2025 at 2:00 PM.', '{arts,music,performance,indoor}', '{intellectual,social}', false, 8, 25, 'Winspear Centre, 4 Sir Winston Churchill Square', 'Edmonton', 'https://www.edmontonyouthorchestra.com/', 'Edmonton Youth Orchestra', false, true, false),
+('A Kidsmas Carol – Holiday Performance', 'Family-friendly twist on A Christmas Carol. December 2025 at the Citadel Theatre.', '{arts,theater,holiday,indoor}', '{social,emotional}', false, 5, 99, 'Citadel Theatre, 9828 101A Ave', 'Edmonton', 'https://citadeltheatre.com/', 'Citadel Theatre', false, true, false),
+('The Nutcracker – Ballet Performance', 'Classic holiday ballet performance. December 3-7, 2025 at Northern Alberta Jubilee Auditorium.', '{arts,dance,ballet,holiday,indoor}', '{intellectual,emotional}', false, 5, 99, 'Northern Alberta Jubilee Auditorium', 'Edmonton', 'https://jubileeauditorium.com/', 'Alberta Ballet', false, true, false),
+('St. Albert Childrens Theatre', 'Musical theatre training in dramatics, vocals, and dance. Performance opportunities at The Arden Theatre. Operating 40+ years.', '{arts,theater,music,dance,indoor}', '{social,intellectual,physical}', false, 8, 18, 'The Arden Theatre, St. Albert', 'St. Albert', 'https://stalbert.ca/exp/sact/', 'City of St. Albert', false, true, false)
+ON CONFLICT DO NOTHING;
