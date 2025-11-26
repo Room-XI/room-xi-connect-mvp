@@ -6,7 +6,7 @@ import { computeTrendsForAllUsers } from './moodTrends.ts';
 import { computePeerInsightsForAllPrograms } from './peerInsights.ts';
 import { db } from '../db.js';
 import { privacyConsents, checkins, profiles } from '../schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, lt, sql } from 'drizzle-orm';
 
 // Store the interval ID for the scheduler
 let schedulerInterval = null;
@@ -225,8 +225,76 @@ async function runScheduledTasks() {
         console.error('[Scheduler] Failed to compute peer insights:', error);
       }
     }
+    
+    // Data retention cleanup at 3:00 AM daily
+    if (shouldRunDataRetention()) {
+      console.log('[Scheduler] Running data retention cleanup...');
+      
+      try {
+        await runDataRetentionCleanup();
+        console.log('[Scheduler] Data retention cleanup completed');
+      } catch (error) {
+        console.error('[Scheduler] Failed to run data retention cleanup:', error);
+      }
+    }
   } catch (error) {
     console.error('[Scheduler] Error in scheduled tasks:', error);
+  }
+}
+
+/**
+ * Check if current time matches 3:00 AM America/Edmonton for data retention
+ */
+function shouldRunDataRetention() {
+  const now = DateTime.now().setZone('America/Edmonton');
+  const hour = now.hour;
+  const minute = now.minute;
+  
+  // Run at 03:00-03:05 to account for timing variations
+  return hour === 3 && minute >= 0 && minute < 5;
+}
+
+/**
+ * Data retention cleanup job
+ * Cleans up expired data according to privacy policy
+ */
+async function runDataRetentionCleanup() {
+  const results = {
+    expiredDisclosureRequests: 0,
+    expiredGuardianInvites: 0,
+    orphanedSessions: 0
+  };
+  
+  try {
+    // 1. Expire old disclosure requests (30 days)
+    const disclosureResult = await db.execute(sql`
+      UPDATE disclosure_requests 
+      SET status = 'expired', updated_at = NOW()
+      WHERE status = 'pending' 
+        AND expires_at < NOW()
+    `);
+    results.expiredDisclosureRequests = disclosureResult.rowCount || 0;
+    
+    // 2. Clean up unverified guardian invites older than 30 days
+    const guardianResult = await db.execute(sql`
+      DELETE FROM parent_invites 
+      WHERE verified_at IS NULL 
+        AND created_at < NOW() - INTERVAL '30 days'
+    `);
+    results.expiredGuardianInvites = guardianResult.rowCount || 0;
+    
+    // 3. Clean up expired sessions older than 30 days
+    const sessionResult = await db.execute(sql`
+      DELETE FROM session 
+      WHERE expire < NOW() - INTERVAL '7 days'
+    `);
+    results.orphanedSessions = sessionResult.rowCount || 0;
+    
+    console.log('[DataRetention] Cleanup results:', results);
+    return results;
+  } catch (error) {
+    console.error('[DataRetention] Cleanup error:', error);
+    throw error;
   }
 }
 

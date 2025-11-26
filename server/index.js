@@ -89,6 +89,11 @@ async function createServer() {
   const { default: qrRoutes } = await import('./routes/qr.js');
   const { default: adminPortalRoutes } = await import('./routes/adminPortal.js');
   const { default: disclosureRoutes } = await import('./routes/disclosure.js');
+  const { default: healthRoutes } = await import('./routes/health.js');
+
+  // Health check endpoints (no auth required for monitoring)
+  app.use('/health', healthRoutes);
+  app.use('/api/health', healthRoutes);
 
   // Admin Portal routes (separate CSRF handling)
   app.use('/api/admin-portal', authLimiter, adminPortalRoutes);

@@ -48,15 +48,21 @@ Guardian invitation emails now include comprehensive Room XI overview explaining
 - **html2canvas:** DOM-to-image library for mood orb PNG export.
 
 ## Security Notes
-- Session-based authentication with CSRF protection via custom middleware
+- Session-based authentication with custom CSRF middleware (csurf package removed)
+- Hardened Content Security Policy (CSP) - no unsafe-inline/eval in production
 - Admin credentials stored in environment secrets (ADMIN_USERNAME, ADMIN_PASSWORD)
 - Rate limiting on authentication endpoints
-- Remaining known vulnerabilities: csurf package (deprecated, fix requires breaking change), esbuild vulnerability (requires Vite 7.x upgrade)
+- Health check endpoints: /health, /health/live, /health/ready for monitoring
+- Automated data retention scheduler runs daily at 3 AM Edmonton time
+- Remaining known vulnerability: esbuild (requires Vite 7.x upgrade - breaking change)
 - React Router v7_startTransition flag warning is expected - not supported in current react-router-dom version
 
 ## Key Files
 - `server/routes/demographics.js` - Demographics API with progress endpoint
 - `server/routes/disclosure.js` - Disclosure request system endpoints
+- `server/routes/health.js` - Health check endpoints for monitoring
+- `server/services/scheduler.js` - Background scheduler with data retention
+- `server/middleware/security.ts` - Security headers and CSRF protection
 - `src/components/ProfileProgress.tsx` - Visual profile completion meter
 - `src/lib/featureFlags.ts` - Feature flag management
 - `src/lib/logger.ts` - Centralized logging utility

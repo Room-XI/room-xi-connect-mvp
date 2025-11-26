@@ -9,18 +9,35 @@ import { Request, Response, NextFunction } from 'express';
  * Apply security headers to all responses
  */
 export function securityHeaders(req: Request, res: Response, next: NextFunction) {
-  // Content Security Policy
+  // Content Security Policy - Production hardened
+  // Note: Vite bundles all scripts, so we don't need unsafe-inline/eval for scripts
+  // For styles, Tailwind uses build-time CSS so we can be stricter
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: https:",
+    // Scripts: Allow self only in production, add unsafe-eval in dev for HMR
+    isProduction 
+      ? "script-src 'self'" 
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    // Styles: Allow self + Google Fonts, unsafe-inline only in dev for HMR
+    isProduction
+      ? "style-src 'self' https://fonts.googleapis.com"
+      : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: https: blob:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' ws: wss:",
+    // Connect: Allow self + WebSocket for dev, restrict in production
+    isProduction
+      ? "connect-src 'self' https:"
+      : "connect-src 'self' ws: wss: https:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "upgrade-insecure-requests",
+    // Additional security directives
+    "object-src 'none'",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
   ].join('; ');
   
   res.setHeader('Content-Security-Policy', csp);
