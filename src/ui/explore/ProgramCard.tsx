@@ -7,11 +7,44 @@ import {
   Bookmark, 
   BookmarkCheck,
   Calendar,
-  Users
+  Users,
+  Clock
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { addToQueue } from '@/lib/queue';
+
+interface WeeklySchedule {
+  days: string[];
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  isDropIn?: boolean;
+}
+
+interface GroupedProgram {
+  programId: string;
+  programTitle: string;
+  programDescription: string | null;
+  programTags: string[];
+  wellnessDimensions?: string[];
+  organizer: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  website?: string | null;
+  locationName: string | null;
+  address: string | null;
+  lat?: string | null;
+  lng?: string | null;
+  ageMin: number | null;
+  ageMax: number | null;
+  free?: boolean;
+  costCents: number;
+  isDropIn: boolean;
+  distance?: number | null;
+  weeklySchedule: WeeklySchedule[];
+  scheduleSummary: string;
+}
 
 interface ProgramEvent {
   eventId: string;
@@ -48,26 +81,40 @@ interface ProgramEvent {
 }
 
 interface ProgramCardProps {
-  event: ProgramEvent;
+  program?: GroupedProgram;
+  event?: ProgramEvent;
 }
 
-export default function ProgramCard({ event }: ProgramCardProps) {
+export default function ProgramCard({ program, event }: ProgramCardProps) {
   const { user } = useSession();
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
+  const programId = program?.programId || event?.programId || '';
+  const title = program?.programTitle || event?.eventName || '';
+  const description = program?.programDescription || event?.description;
+  const organizer = program?.organizer || event?.organizer;
+  const tags = program?.programTags || event?.programTags || [];
+  const locationName = program?.locationName || event?.locationName;
+  const ageMin = program?.ageMin || event?.ageMin;
+  const ageMax = program?.ageMax || event?.ageMax;
+  const costCents = program?.costCents ?? event?.costCents ?? 0;
+  const isFree = program?.free || costCents === 0 || event?.cost === 'Free';
+  const isDropIn = program?.isDropIn || event?.isDropIn || false;
+  const distance = program?.distance ?? event?.distance;
+
   useEffect(() => {
-    if (user) {
+    if (user && programId) {
       checkIfSaved();
     }
-  }, [user, event.programId]);
+  }, [user, programId]);
 
   const checkIfSaved = async () => {
     try {
       const { data } = await api.programs.saved.list();
       const savedPrograms = data || [];
-      setIsSaved(savedPrograms.some((p: any) => p.id === event.programId));
+      setIsSaved(savedPrograms.some((p: any) => p.id === programId));
     } catch (error) {
       setIsSaved(false);
     }
@@ -89,34 +136,34 @@ export default function ProgramCard({ event }: ProgramCardProps) {
       if (isSaved) {
         if (navigator.onLine) {
           try {
-            await api.programs.saved.remove(event.programId);
+            await api.programs.saved.remove(programId);
           } catch (error) {
             await addToQueue('unsave_program', {
               user_id: user.id,
-              program_id: event.programId,
+              program_id: programId,
             });
           }
         } else {
           await addToQueue('unsave_program', {
             user_id: user.id,
-            program_id: event.programId,
+            program_id: programId,
           });
         }
         setIsSaved(false);
       } else {
         if (navigator.onLine) {
           try {
-            await api.programs.saved.add(event.programId);
+            await api.programs.saved.add(programId);
           } catch (error) {
             await addToQueue('save_program', {
               user_id: user.id,
-              program_id: event.programId,
+              program_id: programId,
             });
           }
         } else {
           await addToQueue('save_program', {
             user_id: user.id,
-            program_id: event.programId,
+            program_id: programId,
           });
         }
         setIsSaved(true);
@@ -135,7 +182,7 @@ export default function ProgramCard({ event }: ProgramCardProps) {
         const hour = parseInt(hours);
         const ampm = hour >= 12 ? 'pm' : 'am';
         const hour12 = hour % 12 || 12;
-        return `${hour12}:${minutes}${ampm}`;
+        return minutes === '00' ? `${hour12}${ampm}` : `${hour12}:${minutes}${ampm}`;
       };
 
       return `${formatTime(startTime)}-${formatTime(endTime)}`;
@@ -144,29 +191,46 @@ export default function ProgramCard({ event }: ProgramCardProps) {
     }
   };
 
-  const formatAgeRange = (min: number | null, max: number | null) => {
+  const formatAgeRange = (min: number | null | undefined, max: number | null | undefined) => {
     if (!min && !max) return null;
     if (min && !max) return `${min}+`;
     if (!min && max) return `Up to ${max}`;
     return `${min}-${max}`;
   };
 
-  const formatCost = (cents: number, costText: string | null) => {
-    if (cents === 0 || costText === 'Free') return 'Free';
-    if (costText) return costText;
+  const formatCost = (cents: number, free?: boolean) => {
+    if (cents === 0 || free) return 'Free';
     return `$${(cents / 100).toFixed(2)}`;
   };
 
-  const ageRange = formatAgeRange(event.ageMin, event.ageMax);
+  const getShortDayName = (day: string) => {
+    const dayMap: Record<string, string> = {
+      'Monday': 'Mon',
+      'Tuesday': 'Tue',
+      'Wednesday': 'Wed',
+      'Thursday': 'Thu',
+      'Friday': 'Fri',
+      'Saturday': 'Sat',
+      'Sunday': 'Sun'
+    };
+    return dayMap[day] || day;
+  };
+
+  const formatScheduleDays = (days: string[]) => {
+    if (days.length === 1) return getShortDayName(days[0]);
+    if (days.length === 2) return `${getShortDayName(days[0])} & ${getShortDayName(days[1])}`;
+    return days.map(getShortDayName).join(', ');
+  };
+
+  const ageRange = formatAgeRange(ageMin, ageMax);
 
   return (
-    <Link to={`/program/${event.programId}`}>
+    <Link to={`/program/${programId}`}>
       <motion.div
         className="cosmic-card p-5 hover:shadow-soft transition-all duration-200 relative"
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
       >
-        {/* Save Button */}
         <motion.button
           onClick={toggleSave}
           disabled={isToggling}
@@ -189,63 +253,73 @@ export default function ProgramCard({ event }: ProgramCardProps) {
         </motion.button>
 
         <div className="space-y-4 pr-12">
-          {/* Header */}
           <div className="space-y-2">
             <h3 className="font-semibold text-deepSage text-lg leading-tight">
-              {event.eventName}
+              {title}
             </h3>
-            {event.organizer && (
+            {organizer && (
               <p className="text-sm text-textSecondaryLight">
-                by {event.organizer}
+                by {organizer}
               </p>
             )}
-            {event.isDropIn && (
+            {isDropIn && (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-teal/10 text-teal">
                 Drop-In
               </span>
             )}
           </div>
 
-          {/* Description */}
-          {event.description && (
+          {description && (
             <p className="text-sm text-textSecondaryLight line-clamp-3">
-              {event.description}
+              {description}
             </p>
           )}
 
-          {/* Schedule Information */}
           <div className="space-y-2">
-            {/* Day and Time */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-textSecondaryLight">
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
-                <span className="font-medium text-deepSage">
-                  {event.dayOfWeek} {formatEventTime(event.startTime, event.endTime)}
-                </span>
+            {program?.weeklySchedule && program.weeklySchedule.length > 0 ? (
+              <div className="space-y-1.5">
+                {program.weeklySchedule.map((schedule, idx) => (
+                  <div key={idx} className="flex items-center space-x-1 text-sm">
+                    <Calendar className="w-4 h-4 text-textSecondaryLight flex-shrink-0" />
+                    <span className="font-medium text-deepSage">
+                      {formatScheduleDays(schedule.days)} {formatEventTime(schedule.startTime, schedule.endTime)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
-
-            {/* Location */}
-            {event.locationName && (
-              <div className="flex items-center space-x-1 text-sm text-textSecondaryLight">
-                <MapPin className="w-4 h-4" />
-                <span>{event.locationName}</span>
+            ) : event ? (
+              <div className="flex flex-wrap items-center gap-4 text-sm text-textSecondaryLight">
+                <div className="flex items-center space-x-1">
+                  <Calendar className="w-4 h-4" />
+                  <span className="font-medium text-deepSage">
+                    {event.dayOfWeek} {formatEventTime(event.startTime, event.endTime)}
+                  </span>
+                </div>
+              </div>
+            ) : program?.scheduleSummary && (
+              <div className="flex items-center space-x-1 text-sm">
+                <Clock className="w-4 h-4 text-textSecondaryLight" />
+                <span className="font-medium text-deepSage">{program.scheduleSummary}</span>
               </div>
             )}
 
-            {/* Cost, Age Range, and Other Info */}
+            {locationName && (
+              <div className="flex items-center space-x-1 text-sm text-textSecondaryLight">
+                <MapPin className="w-4 h-4" />
+                <span>{locationName}</span>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-4 text-sm">
-              {/* Cost */}
               <div className={`flex items-center space-x-1 ${
-                event.costCents === 0 || event.cost === 'Free' ? 'text-teal' : 'text-textSecondaryLight'
+                isFree ? 'text-teal' : 'text-textSecondaryLight'
               }`}>
                 <DollarSign className="w-4 h-4" />
                 <span className="font-medium">
-                  {formatCost(event.costCents, event.cost)}
+                  {formatCost(costCents, isFree)}
                 </span>
               </div>
 
-              {/* Age Range */}
               {ageRange && (
                 <div className="flex items-center space-x-1 text-textSecondaryLight">
                   <Users className="w-4 h-4" />
@@ -253,20 +327,18 @@ export default function ProgramCard({ event }: ProgramCardProps) {
                 </div>
               )}
 
-              {/* Distance */}
-              {event.distance !== undefined && event.distance !== null && (
+              {distance !== undefined && distance !== null && (
                 <div className="flex items-center space-x-1 text-textSecondaryLight">
                   <MapPin className="w-4 h-4" />
-                  <span>{event.distance}km away</span>
+                  <span>{distance}km away</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Tags */}
-          {event.programTags && event.programTags.length > 0 && (
+          {tags && tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {event.programTags.slice(0, 4).map(tag => (
+              {tags.slice(0, 4).map(tag => (
                 <span
                   key={tag}
                   className="cosmic-chip text-xs"
@@ -274,9 +346,9 @@ export default function ProgramCard({ event }: ProgramCardProps) {
                   {tag}
                 </span>
               ))}
-              {event.programTags.length > 4 && (
+              {tags.length > 4 && (
                 <span className="cosmic-chip text-xs">
-                  +{event.programTags.length - 4} more
+                  +{tags.length - 4} more
                 </span>
               )}
             </div>

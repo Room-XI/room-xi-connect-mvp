@@ -4,28 +4,15 @@ import FilterBar, { Filters } from './FilterBar';
 import ProgramCard from './ProgramCard';
 import api from '@/lib/api';
 
-interface ProgramEvent {
-  eventId: string;
-  eventName: string;
-  description: string | null;
-  dayOfWeek: string;
+interface WeeklySchedule {
+  days: string[];
   startTime: string;
   endTime: string;
-  isDropIn: boolean;
-  isRecurring: boolean;
-  locationName: string | null;
-  address: string | null;
-  lat: string | null;
-  lng: string | null;
-  ageMin: number | null;
-  ageMax: number | null;
-  cost: string | null;
-  costCents: number;
-  notes: string | null;
-  facilitator: string | null;
-  requiresRegistration: boolean;
-  registrationUrl: string | null;
-  capacity: number | null;
+  location: string | null;
+  isDropIn?: boolean;
+}
+
+interface GroupedProgram {
   programId: string;
   programTitle: string;
   programDescription: string | null;
@@ -35,7 +22,18 @@ interface ProgramEvent {
   contactEmail: string | null;
   contactPhone: string | null;
   website: string | null;
-  distance?: number | null;
+  locationName: string | null;
+  address: string | null;
+  lat: string | null;
+  lng: string | null;
+  ageMin: number | null;
+  ageMax: number | null;
+  free: boolean;
+  costCents: number;
+  isDropIn: boolean;
+  distance: number | null;
+  weeklySchedule: WeeklySchedule[];
+  scheduleSummary: string;
 }
 
 interface ProgramListProps {
@@ -45,8 +43,8 @@ interface ProgramListProps {
 }
 
 export default function ProgramList({ userLocation, locationPermission, locationEnabled }: ProgramListProps) {
-  const [events, setEvents] = useState<ProgramEvent[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<ProgramEvent[]>([]);
+  const [programs, setPrograms] = useState<GroupedProgram[]>([]);
+  const [filteredPrograms, setFilteredPrograms] = useState<GroupedProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({
     tags: [] as string[],
@@ -59,50 +57,58 @@ export default function ProgramList({ userLocation, locationPermission, location
   });
 
   useEffect(() => {
-    loadEvents();
+    loadPrograms();
   }, [userLocation, locationEnabled]);
 
   useEffect(() => {
     applyFilters();
-  }, [events, filters]);
+  }, [programs, filters]);
 
-  const loadEvents = async () => {
+  const loadPrograms = async () => {
     try {
       setLoading(true);
       
       const lat = locationEnabled && userLocation ? userLocation.lat : undefined;
       const lng = locationEnabled && userLocation ? userLocation.lng : undefined;
-      const { data, error } = await api.programOccurrences.list(lat, lng);
+      const { data, error } = await api.programOccurrences.grouped(lat, lng);
 
       if (error) {
-        console.error('Error loading program events:', error);
+        console.error('Error loading programs:', error);
         return;
       }
 
-      setEvents(data || []);
+      setPrograms(data?.programs || []);
     } catch (error) {
-      console.error('Unexpected error loading program events:', error);
+      console.error('Unexpected error loading programs:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const applyFilters = () => {
-    let filtered = [...events];
+    let filtered = [...programs];
 
-    // Filter by tags
     if (filters.tags.length > 0) {
-      filtered = filtered.filter(event =>
-        filters.tags.some(tag => event.programTags?.includes(tag))
+      filtered = filtered.filter(program =>
+        filters.tags.some(tag => program.programTags?.includes(tag))
       );
     }
 
-    // Filter by free
     if (filters.free) {
-      filtered = filtered.filter(event => event.costCents === 0 || event.cost === 'Free');
+      filtered = filtered.filter(program => program.costCents === 0 || program.free);
     }
 
-    setFilteredEvents(filtered);
+    if (filters.dropIn) {
+      filtered = filtered.filter(program => program.isDropIn);
+    }
+
+    if (filters.maxDistance !== undefined && filters.maxDistance !== null && filters.maxDistance > 0 && locationEnabled && userLocation) {
+      filtered = filtered.filter(program => 
+        program.distance !== null && program.distance <= filters.maxDistance!
+      );
+    }
+
+    setFilteredPrograms(filtered);
   };
 
   const handleFilterChange = (newFilters: Filters) => {
@@ -133,24 +139,27 @@ export default function ProgramList({ userLocation, locationPermission, location
 
   return (
     <div className="space-y-6">
-      {/* Filter Bar */}
       <FilterBar
-        programs={events}
+        programs={programs.map(p => ({
+          programTags: p.programTags,
+          costCents: p.costCents,
+          cost: p.free ? 'Free' : null,
+          isDropIn: p.isDropIn,
+          distance: p.distance
+        }))}
         filters={filters}
         onFilterChange={handleFilterChange}
         hasLocation={locationEnabled && locationPermission === 'granted'}
       />
 
-      {/* Results Count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-textSecondaryLight">
-          {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
+          {filteredPrograms.length} program{filteredPrograms.length !== 1 ? 's' : ''} found
         </p>
       </div>
 
-      {/* Event List */}
       <AnimatePresence>
-        {filteredEvents.length === 0 ? (
+        {filteredPrograms.length === 0 ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0, y: 20 }}
@@ -159,7 +168,7 @@ export default function ProgramList({ userLocation, locationPermission, location
             className="cosmic-card p-8 text-center"
           >
             <p className="text-textSecondaryLight">
-              No events match your current filters.
+              No programs match your current filters.
             </p>
             <button
               onClick={() => setFilters({ 
@@ -184,14 +193,14 @@ export default function ProgramList({ userLocation, locationPermission, location
             exit={{ opacity: 0 }}
             className="space-y-4"
           >
-            {filteredEvents.map((event, index) => (
+            {filteredPrograms.map((program, index) => (
               <motion.div
-                key={event.eventId}
+                key={program.programId}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index * 0.02, 0.3), duration: 0.3 }}
               >
-                <ProgramCard event={event} />
+                <ProgramCard program={program} />
               </motion.div>
             ))}
           </motion.div>

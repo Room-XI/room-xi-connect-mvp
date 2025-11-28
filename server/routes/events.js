@@ -466,6 +466,281 @@ router.get('/later', async (req, res) => {
   }
 });
 
+// Helper: Format time to 12-hour format (e.g., "4pm", "10:30am")
+function formatTimeTo12Hour(timeStr) {
+  if (!timeStr) return '';
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const hour = hours % 12 || 12;
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  return minutes === 0 ? `${hour}${ampm}` : `${hour}:${minutes.toString().padStart(2, '0')}${ampm}`;
+}
+
+// Helper: Get short day name
+function getShortDayName(dayOfWeek) {
+  const dayMap = {
+    'Monday': 'Mon',
+    'Tuesday': 'Tue',
+    'Wednesday': 'Wed',
+    'Thursday': 'Thu',
+    'Friday': 'Fri',
+    'Saturday': 'Sat',
+    'Sunday': 'Sun'
+  };
+  return dayMap[dayOfWeek] || dayOfWeek;
+}
+
+// Helper: Check if event is overnight (between 22:00 and 06:00 or start > end)
+function isOvernightEvent(startTime, endTime) {
+  if (!startTime || !endTime) return false;
+  
+  const [startHour] = startTime.split(':').map(Number);
+  const [endHour] = endTime.split(':').map(Number);
+  
+  // Start time is after end time (crosses midnight)
+  if (startTime > endTime) return true;
+  
+  // Starts between 10pm and 6am
+  if (startHour >= 22 || startHour < 6) return true;
+  
+  return false;
+}
+
+// Helper: Build weekly schedule summary from grouped events
+function buildScheduleSummary(schedules) {
+  if (!schedules || schedules.length === 0) return '';
+  
+  // Group schedules by time slot
+  const timeGroups = {};
+  
+  for (const schedule of schedules) {
+    const timeKey = `${schedule.startTime}-${schedule.endTime}`;
+    if (!timeGroups[timeKey]) {
+      timeGroups[timeKey] = {
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+        days: []
+      };
+    }
+    for (const day of schedule.days) {
+      if (!timeGroups[timeKey].days.includes(day)) {
+        timeGroups[timeKey].days.push(day);
+      }
+    }
+  }
+  
+  // Sort days within each group
+  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  for (const key of Object.keys(timeGroups)) {
+    timeGroups[key].days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+  }
+  
+  // Build summary strings
+  const summaries = [];
+  for (const group of Object.values(timeGroups)) {
+    const timeStr = `${formatTimeTo12Hour(group.startTime)}-${formatTimeTo12Hour(group.endTime)}`;
+    const shortDays = group.days.map(getShortDayName);
+    
+    let dayStr;
+    if (shortDays.length === 1) {
+      dayStr = shortDays[0];
+    } else if (shortDays.length === 2) {
+      dayStr = `${shortDays[0]} & ${shortDays[1]}`;
+    } else {
+      dayStr = shortDays.join(', ');
+    }
+    
+    summaries.push(`${dayStr} ${timeStr}`);
+  }
+  
+  return summaries.join(' • ');
+}
+
+// GET /api/events/programs-grouped
+// Returns programs with their weekly schedules grouped (for Programs tab)
+// Excludes overnight events and shows each program once
+router.get('/programs-grouped', async (req, res) => {
+  try {
+    const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
+    const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
+    const isAuthenticated = !!req.session.userId;
+
+    const now = DateTime.now().setZone('America/Edmonton');
+    const currentDate = now.toFormat('yyyy-MM-dd');
+
+    // Query all active events
+    let query = db
+      .select()
+      .from(programEvents)
+      .innerJoin(programs, eq(programEvents.programId, programs.id))
+      .where(eq(programEvents.active, true));
+
+    if (!isAuthenticated) {
+      // Guest users: Show events for the next 30 days
+      const windowStart = now.startOf('day').toJSDate();
+      const windowEnd = now.plus({ days: 30 }).endOf('day').toJSDate();
+      
+      query = db
+        .select()
+        .from(programEvents)
+        .innerJoin(programs, eq(programEvents.programId, programs.id))
+        .where(
+          and(
+            eq(programEvents.active, true),
+            or(
+              // Recurring events within effective date range
+              and(
+                isNull(programEvents.occursOnDate),
+                or(
+                  isNull(programEvents.effectiveFrom),
+                  lte(programEvents.effectiveFrom, windowEnd)
+                ),
+                or(
+                  isNull(programEvents.effectiveTo),
+                  gte(programEvents.effectiveTo, windowStart)
+                )
+              ),
+              // One-time events within next 30 days
+              and(
+                sql`${programEvents.occursOnDate} IS NOT NULL`,
+                gte(programEvents.occursOnDate, windowStart),
+                lte(programEvents.occursOnDate, windowEnd)
+              )
+            )
+          )
+        );
+    }
+
+    const results = await query;
+
+    // Group events by programId
+    const programMap = new Map();
+
+    for (const { program_events: event, programs: program } of results) {
+      // Skip overnight events
+      if (isOvernightEvent(event.startTime, event.endTime)) {
+        continue;
+      }
+
+      const programId = program.id;
+      
+      if (!programMap.has(programId)) {
+        // Initialize program entry
+        let distance = null;
+        if (userLat !== null && userLng !== null && program.lat && program.lng) {
+          try {
+            const programLat = parseFloat(program.lat);
+            const programLng = parseFloat(program.lng);
+            distance = calculateDistance(userLat, userLng, programLat, programLng);
+          } catch (e) {
+            console.error('Error calculating distance:', e);
+          }
+        }
+
+        programMap.set(programId, {
+          programId: program.id,
+          programTitle: program.title,
+          programDescription: program.description,
+          programTags: program.tags || [],
+          wellnessDimensions: program.wellnessDimensions || [],
+          organizer: program.organizer,
+          contactEmail: program.contactEmail,
+          contactPhone: program.contactPhone,
+          website: program.website,
+          locationName: program.locationName,
+          address: program.address,
+          lat: program.lat,
+          lng: program.lng,
+          ageMin: program.ageMin,
+          ageMax: program.ageMax,
+          free: program.free,
+          costCents: program.costCents || 0,
+          isDropIn: program.dropIn || false,
+          distance: distance,
+          weeklySchedule: [],
+          events: []
+        });
+      }
+
+      const programEntry = programMap.get(programId);
+      
+      // Add event to the program's events list
+      programEntry.events.push({
+        eventId: event.id,
+        dayOfWeek: event.dayOfWeek,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        locationName: event.locationName || program.locationName,
+        isDropIn: event.isDropIn,
+        isRecurring: event.isRecurring,
+        occursOnDate: event.occursOnDate
+      });
+    }
+
+    // Build weekly schedules for each program
+    for (const programEntry of programMap.values()) {
+      // Group events by time slot and location
+      const scheduleMap = new Map();
+      
+      for (const event of programEntry.events) {
+        const key = `${event.startTime}-${event.endTime}-${event.locationName || 'default'}`;
+        
+        if (!scheduleMap.has(key)) {
+          scheduleMap.set(key, {
+            days: [],
+            startTime: event.startTime,
+            endTime: event.endTime,
+            location: event.locationName || programEntry.locationName,
+            isDropIn: event.isDropIn
+          });
+        }
+        
+        const schedule = scheduleMap.get(key);
+        if (event.dayOfWeek && !schedule.days.includes(event.dayOfWeek)) {
+          schedule.days.push(event.dayOfWeek);
+        }
+      }
+      
+      // Sort days in each schedule
+      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      for (const schedule of scheduleMap.values()) {
+        schedule.days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+      }
+      
+      programEntry.weeklySchedule = Array.from(scheduleMap.values());
+      programEntry.scheduleSummary = buildScheduleSummary(programEntry.weeklySchedule);
+      
+      // Set isDropIn based on any event being drop-in
+      programEntry.isDropIn = programEntry.events.some(e => e.isDropIn);
+      
+      // Clean up - remove raw events array from response
+      delete programEntry.events;
+    }
+
+    // Convert to array and sort
+    let programsList = Array.from(programMap.values());
+
+    // Sort by distance if available, otherwise alphabetically
+    if (userLat !== null && userLng !== null) {
+      programsList.sort((a, b) => {
+        if (a.distance === null && b.distance === null) return 0;
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
+    } else {
+      programsList.sort((a, b) => (a.programTitle || '').localeCompare(b.programTitle || ''));
+    }
+
+    res.json({
+      programs: programsList,
+      count: programsList.length
+    });
+  } catch (error) {
+    console.error('[programs-grouped] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // GET /api/events/program-occurrences
 // Returns all active program events for browsing (used in Programs tab)
 router.get('/program-occurrences', async (req, res) => {

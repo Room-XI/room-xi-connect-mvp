@@ -216,6 +216,13 @@ export const api = {
       const queryString = params.toString();
       return fetchApi(`/events/program-occurrences${queryString ? `?${queryString}` : ''}`);
     },
+    grouped: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.append('userLat', userLat.toString());
+      if (userLng !== undefined) params.append('userLng', userLng.toString());
+      const queryString = params.toString();
+      return fetchApi(`/events/programs-grouped${queryString ? `?${queryString}` : ''}`);
+    },
   },
 
   // Check-ins
