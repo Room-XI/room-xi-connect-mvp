@@ -31,6 +31,9 @@ interface GroupedProgram {
   free: boolean;
   costCents: number;
   isDropIn: boolean;
+  indoor: boolean;
+  outdoor: boolean;
+  timesOfDay: string[];
   distance: number | null;
   weeklySchedule: WeeklySchedule[];
   scheduleSummary: string;
@@ -98,6 +101,20 @@ export default function ProgramList({ userLocation, locationPermission, location
       filtered = filtered.filter(program => program.costCents === 0 || program.free);
     }
 
+    if (filters.indoor) {
+      filtered = filtered.filter(program => program.indoor === true);
+    }
+
+    if (filters.outdoor) {
+      filtered = filtered.filter(program => program.outdoor === true);
+    }
+
+    if (filters.timeOfDay && filters.timeOfDay.length > 0) {
+      filtered = filtered.filter(program =>
+        program.timesOfDay?.some(time => filters.timeOfDay?.includes(time))
+      );
+    }
+
     if (filters.dropIn) {
       filtered = filtered.filter(program => program.isDropIn);
     }
@@ -145,10 +162,15 @@ export default function ProgramList({ userLocation, locationPermission, location
           costCents: p.costCents,
           cost: p.free ? 'Free' : null,
           isDropIn: p.isDropIn,
+          indoor: p.indoor,
+          outdoor: p.outdoor,
           distance: p.distance
         }))}
         filters={filters}
         onFilterChange={handleFilterChange}
+        showTimeOfDay={true}
+        showDropIn={true}
+        showDistance={true}
         hasLocation={locationEnabled && locationPermission === 'granted'}
       />
 

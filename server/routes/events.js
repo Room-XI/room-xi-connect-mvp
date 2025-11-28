@@ -505,6 +505,15 @@ function isOvernightEvent(startTime, endTime) {
   return false;
 }
 
+// Helper: Get time-of-day category from start time
+function getTimeOfDay(startTime) {
+  if (!startTime) return null;
+  const [hours] = startTime.split(':').map(Number);
+  if (hours < 12) return 'morning';       // Before 12pm
+  if (hours < 17) return 'afternoon';     // 12pm - 5pm
+  return 'evening';                        // 5pm and after
+}
+
 // Helper: Build weekly schedule summary from grouped events
 function buildScheduleSummary(schedules) {
   if (!schedules || schedules.length === 0) return '';
@@ -655,13 +664,22 @@ router.get('/programs-grouped', async (req, res) => {
           free: program.free,
           costCents: program.costCents || 0,
           isDropIn: program.dropIn || false,
+          indoor: program.indoor || false,
+          outdoor: program.outdoor || false,
           distance: distance,
           weeklySchedule: [],
-          events: []
+          events: [],
+          _timesOfDaySet: new Set()
         });
       }
 
       const programEntry = programMap.get(programId);
+      
+      // Track time-of-day for this event
+      const timeOfDay = getTimeOfDay(event.startTime);
+      if (timeOfDay) {
+        programEntry._timesOfDaySet.add(timeOfDay);
+      }
       
       // Add event to the program's events list
       programEntry.events.push({
@@ -712,8 +730,15 @@ router.get('/programs-grouped', async (req, res) => {
       // Set isDropIn based on any event being drop-in
       programEntry.isDropIn = programEntry.events.some(e => e.isDropIn);
       
-      // Clean up - remove raw events array from response
+      // Convert timesOfDay Set to sorted array
+      programEntry.timesOfDay = Array.from(programEntry._timesOfDaySet).sort((a, b) => {
+        const order = { morning: 1, afternoon: 2, evening: 3 };
+        return order[a] - order[b];
+      });
+      
+      // Clean up - remove raw events array and internal Set from response
       delete programEntry.events;
+      delete programEntry._timesOfDaySet;
     }
 
     // Convert to array and sort

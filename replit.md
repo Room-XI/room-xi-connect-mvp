@@ -30,6 +30,8 @@ A dedicated consent flow for Ximi AI requires explicit user opt-in, displaying c
 
 A Real-Time Event Finder enables discovery of programs currently running in Edmonton with time-based filtering. It uses a `program_events` database table supporting recurring, one-time, seasonal, and overnight events. Backend API endpoints provide "happening now," "today," "this-weekend," and "later" event listings with Luxon timezone handling for Edmonton.
 
+The Programs tab uses a grouped view that combines recurring events into single program entries with weekly schedule summaries (e.g., "Tue, Thu 4-5pm"). This eliminates duplicate listings for programs running on multiple days. The Today tab continues to show individual events scheduled for that specific day. Overnight programs (22:00-06:00) are filtered out of the day programs view.
+
 ### Edmonton Youth Programs Database (November 2025)
 The programs database contains 75+ comprehensive Edmonton youth resources including:
 - **Mental Health**: Kickstand, Y Mind, CASA Mental Health, AHS AccessMHA, ACCESS Open Minds
@@ -71,6 +73,7 @@ Guardian invitation emails now include comprehensive Room XI overview explaining
 - `server/routes/disclosure.js` - Disclosure request system endpoints
 - `server/routes/health.js` - Health check endpoints for monitoring
 - `server/routes/programs.js` - Programs API with search, filtering, and geolocation
+- `server/routes/events.js` - Events API with grouped programs, today, and happening-now endpoints
 - `server/services/scheduler.js` - Background scheduler with data retention
 - `server/middleware/security.ts` - Security headers and CSRF protection
 - `src/components/ProfileProgress.tsx` - Visual profile completion meter
@@ -82,7 +85,14 @@ Guardian invitation emails now include comprehensive Room XI overview explaining
 - `src/hooks/useExploreGate.ts` - Auth-aware explore gate hook
 - `server/services/parentInvite.ts` - Enhanced guardian email service
 
-## Recent Changes (November 26, 2025)
+## Recent Changes (November 28, 2025)
+- Implemented grouped programs view: Programs tab now shows each program once with weekly schedule summary
+- Added `/api/events/programs-grouped` endpoint for program-centric browsing
+- Today tab continues showing individual daily events
+- Filtered overnight programs (22:00-06:00) from day programs view
+- Created reproducible seed file for Edmonton youth programs
+
+## Previous Changes (November 26, 2025)
 - Removed duplicate "Youth Maker & Tech Club" program from database
 - Deleted unused files: OrgDashboard.tsx (341 lines), ui/home/MoodOrb.tsx (135 lines)
 - Removed legacy supabase/ folder (app uses Neon PostgreSQL, not Supabase)
