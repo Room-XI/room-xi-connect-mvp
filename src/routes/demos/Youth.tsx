@@ -179,7 +179,7 @@ export default function YouthDemo() {
             <span>Back to App</span>
           </Link>
           <Link
-            to="/demo/organization"
+            to="/demos/organization"
             className="inline-flex items-center gap-2 text-deepSage hover:text-teal transition-colors text-sm"
           >
             <span>View Organization Demo</span>

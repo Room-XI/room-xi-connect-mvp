@@ -226,7 +226,7 @@ export default function OrganizationDemo() {
             <span>Back to App</span>
           </Link>
           <Link
-            to="/demo/youth"
+            to="/demos/youth"
             className="inline-flex items-center gap-2 text-deepSage hover:text-teal transition-colors text-sm"
           >
             <span>View Youth Demo</span>
@@ -543,7 +543,7 @@ export default function OrganizationDemo() {
               Contact for Partnership
             </a>
             <Link
-              to="/demo/youth"
+              to="/demos/youth"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-teal text-teal hover:bg-teal/5 transition-colors font-medium"
             >
               View Youth Demo
