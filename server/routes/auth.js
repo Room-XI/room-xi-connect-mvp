@@ -6,6 +6,8 @@ import { eq } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { generateCsrfToken } from '../middleware/security.ts';
 import { sendGuardianVerificationEmail } from '../services/email.js';
+import { validateBody } from '../middleware/validate.ts';
+import { registerSchema, loginSchema, deleteAccountSchema } from '../schemas/auth.ts';
 
 const router = express.Router();
 
@@ -33,7 +35,7 @@ function calculateAge(dateOfBirth) {
 }
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', validateBody(registerSchema), async (req, res) => {
   try {
     const { email, password, firstName, lastName, dateOfBirth, guardianEmail, guardianName } = req.body;
 
@@ -164,13 +166,9 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', validateBody(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
 
     // Find user with profile
     const [user] = await db.select({
@@ -301,16 +299,13 @@ router.get('/me', async (req, res) => {
 });
 
 // Delete account
-router.delete('/account', async (req, res) => {
+router.delete('/account', validateBody(deleteAccountSchema), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const { confirm } = req.body;
-    if (confirm !== 'DELETE_MY_ACCOUNT') {
-      return res.status(400).json({ error: 'Confirmation required' });
-    }
 
     // Delete user (cascades to all related tables)
     await db.delete(users).where(eq(users.id, req.session.userId));

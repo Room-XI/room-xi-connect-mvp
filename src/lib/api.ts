@@ -1,5 +1,7 @@
 // API client to replace Supabase client
-const API_BASE = '/api';
+import { API_BASE as configApiBase } from './config';
+
+const API_BASE = configApiBase.endsWith('/api') ? configApiBase : `${configApiBase}/api`;
 
 interface ApiResponse<T = any> {
   data?: T;

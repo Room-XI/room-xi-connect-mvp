@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /terms
+Allow: /privacy-policy
+
+Disallow: /api/
+Disallow: /admin
+Disallow: /parent-portal

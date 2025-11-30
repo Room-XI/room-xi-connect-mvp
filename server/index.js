@@ -8,6 +8,10 @@ import { fileURLToPath } from 'url';
 import { pool } from './db.js';
 import { verifyEmailConfig } from './services/email.provider.js';
 import { initializeScheduler } from './services/scheduler.js';
+import env from './config/env.ts';
+import logger, { httpLogger } from './logger.ts';
+import { corsMiddleware } from './middleware/cors.ts';
+import { errorHandler } from './middleware/errorHandler.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,13 +21,14 @@ const PgStore = pgSession(session);
 async function createServer() {
   const app = express();
   
-  // CRITICAL SECURITY: Enforce SESSION_SECRET in production
-  if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
-    throw new Error('SESSION_SECRET environment variable is required in production. Set a strong random secret.');
-  }
-  
   // Trust proxy - Required for Replit deployment to get real client IPs for rate limiting
   app.set('trust proxy', 1);
+  
+  // HTTP request logging
+  app.use(httpLogger);
+  
+  // CORS for mobile (Capacitor) and web origins
+  app.use(corsMiddleware);
   
   // Verify email configuration on startup
   await verifyEmailConfig();
@@ -32,18 +37,18 @@ async function createServer() {
   const { applySecurity } = await import('./middleware/applySecurity.ts');
   applySecurity(app);
   
-  app.use(express.json());
+  app.use(express.json({ limit: '200kb' }));
   app.use(cookieParser());
   app.use(session({
     store: new PgStore({
       pool,
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || 'room-xi-dev-secret-DEVELOPMENT-ONLY',
+    secret: env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'strict', // CSRF protection
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
@@ -136,7 +141,7 @@ async function createServer() {
   app.use('/api/disclosure', validateCsrfToken, writeLimiter, disclosureRoutes);
 
   // Production or development mode
-  if (process.env.NODE_ENV === 'production') {
+  if (env.NODE_ENV === 'production') {
     // Serve static files from dist directory in production
     const distPath = path.resolve(__dirname, '../dist');
     
@@ -183,13 +188,19 @@ async function createServer() {
     app.use(vite.middlewares);
   }
 
-  const port = process.env.PORT || 5000;
+  // Centralized error handler (must be last middleware)
+  app.use(errorHandler);
+
+  const port = env.PORT;
   app.listen(port, '0.0.0.0', () => {
-    console.log(`🚀 Server running on http://0.0.0.0:${port}`);
+    logger.info({ port, nodeEnv: env.NODE_ENV }, '🚀 Server started');
     
     // Initialize the scheduler for weekly orb snapshots
     initializeScheduler();
   });
 }
 
-createServer().catch(console.error);
+createServer().catch((err) => {
+  logger.fatal({ err }, 'Failed to start server');
+  process.exit(1);
+});

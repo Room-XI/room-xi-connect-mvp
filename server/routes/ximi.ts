@@ -9,6 +9,8 @@ import { getLatestMoodTrend, computeMoodTrends, storeMoodTrends } from '../servi
 import { getRecommendationsWithContext } from '../services/recommendations.ts';
 import { recordAiMetrics } from '../services/aiTransparency.ts';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
+import { validateBody } from '../middleware/validate.ts';
+import { ximiChatSchema, ximiModeSchema, ximiConsentSchema, ximiRecommendationsSchema } from '../schemas/ximi.ts';
 
 const router = express.Router();
 
@@ -34,21 +36,13 @@ router.get('/conversations', async (req, res) => {
 });
 
 // Chat with Ximi
-router.post('/chat', async (req, res) => {
+router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const { message, checkinId, moodType, wellnessDimensions } = req.body;
-
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return res.status(400).json({ error: 'Message is required' });
-    }
-
-    if (message.length > 500) {
-      return res.status(400).json({ error: 'Message too long: maximum 500 characters' });
-    }
 
     // Get user's Ximi preferences from profile
     const [profile] = await db
