@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room XI Connect - Organization Experience</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    :root {
+      --teal: #5FA8A3;
+      --deep-sage: #3D4A3C;
+      --gold: #D9A962;
+      --coral: #E07A5F;
+      --cream: #FFFAF5;
+      --sage: #7D8471;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--cream);
+      color: var(--deep-sage);
+      line-height: 1.6;
+    }
+    
+    .page {
+      max-width: 8.5in;
+      margin: 0 auto;
+      padding: 0.75in;
+      background: white;
+      min-height: 11in;
+      page-break-after: always;
+    }
+    
+    .page:last-child {
+      page-break-after: avoid;
+    }
+    
+    @media print {
+      body {
+        background: white;
+      }
+      .page {
+        margin: 0;
+        padding: 0.5in;
+        box-shadow: none;
+      }
+      .no-print {
+        display: none;
+      }
+    }
+    
+    @media screen {
+      .page {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        margin: 20px auto;
+        border-radius: 8px;
+      }
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--deep-sage);
+    }
+    
+    .logo {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--deep-sage), var(--teal));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 20px;
+    }
+    
+    .header-text h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--deep-sage);
+    }
+    
+    .header-text p {
+      font-size: 14px;
+      color: var(--sage);
+    }
+    
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--deep-sage), var(--sage));
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    
+    h2 {
+      font-size: 20px;
+      color: var(--deep-sage);
+      margin-bottom: 16px;
+    }
+    
+    h3 {
+      font-size: 16px;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+    
+    .intro {
+      font-size: 15px;
+      color: var(--sage);
+      margin-bottom: 24px;
+    }
+    
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .feature-card {
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(61,74,60,0.03), rgba(95,168,163,0.05));
+    }
+    
+    .feature-card.full-width {
+      grid-column: span 2;
+    }
+    
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      font-size: 20px;
+    }
+    
+    .feature-icon.teal { background: rgba(95,168,163,0.15); }
+    .feature-icon.gold { background: rgba(217,169,98,0.15); }
+    .feature-icon.coral { background: rgba(224,122,95,0.15); }
+    .feature-icon.sage { background: rgba(125,132,113,0.15); }
+    
+    .feature-card h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--deep-sage);
+      margin-bottom: 4px;
+    }
+    
+    .feature-card p {
+      font-size: 12px;
+      color: var(--sage);
+    }
+    
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    ul li {
+      font-size: 13px;
+      color: var(--sage);
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+    
+    ul li::before {
+      content: "•";
+      color: var(--teal);
+      position: absolute;
+      left: 0;
+    }
+    
+    .section {
+      margin-bottom: 24px;
+    }
+    
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    
+    .highlight-box {
+      background: linear-gradient(135deg, rgba(61,74,60,0.05), rgba(95,168,163,0.1));
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .highlight-box h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    
+    th {
+      background: var(--deep-sage);
+      color: white;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5e5e5;
+      color: var(--sage);
+    }
+    
+    tr:nth-child(even) {
+      background: rgba(95,168,163,0.05);
+    }
+    
+    .footer {
+      text-align: center;
+      padding-top: 24px;
+      border-top: 1px solid #e5e5e5;
+      margin-top: auto;
+    }
+    
+    .footer p {
+      font-size: 12px;
+      color: var(--sage);
+    }
+    
+    .print-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--deep-sage);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .print-btn:hover {
+      background: #2d3a2c;
+    }
+    
+    .privacy-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(95,168,163,0.1);
+      color: var(--teal);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+
+  <!-- Page 1: Overview -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>Room XI Connect</h1>
+        <p>Organization & City Partner Experience</p>
+      </div>
+    </div>
+    
+    <span class="badge">For Youth-Serving Organizations</span>
+    
+    <p class="intro">
+      Room XI Connect provides privacy-safe analytics, QR attendance tracking, and real-time insights 
+      for youth-serving organizations and city partners. All data is aggregated and anonymized - 
+      you never see individual youth data.
+    </p>
+    
+    <div class="highlight-box">
+      <h4>🔒 Privacy-First Data</h4>
+      <p style="font-size: 13px; color: var(--sage);">
+        All organization-facing data uses <strong>k-anonymity</strong> (minimum 7 users per bucket) 
+        and <strong>differential privacy</strong> (mathematical noise). You get actionable insights 
+        without compromising individual privacy.
+      </p>
+    </div>
+    
+    <h2>What Organizations Get</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon teal">📊</div>
+        <h4>Real-Time Analytics</h4>
+        <p>Live dashboards showing user engagement, check-in trends, and program popularity.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon gold">📱</div>
+        <h4>QR Attendance</h4>
+        <p>Replace paper sign-in sheets with instant QR scanning. Export reports for funders.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon coral">⚠️</div>
+        <h4>Crisis Monitoring</h4>
+        <p>Aggregate crisis pattern data (not individual conversations) for community needs assessment.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon sage">👥</div>
+        <h4>Demographics Insights</h4>
+        <p>Understand who you're serving with aggregated, equity-focused demographic data.</p>
+      </div>
+    </div>
+    
+    <h2>Data Available to Organizations</h2>
+    
+    <table>
+      <tr>
+        <th>Data Type</th>
+        <th>What You See</th>
+        <th>Privacy Protection</th>
+      </tr>
+      <tr>
+        <td>User Engagement</td>
+        <td>MAU, DAU, check-in rates, retention</td>
+        <td>Aggregate counts only</td>
+      </tr>
+      <tr>
+        <td>Mood Trends</td>
+        <td>Average mood levels, seasonal patterns</td>
+        <td>K-anonymity (min 7 users)</td>
+      </tr>
+      <tr>
+        <td>Program Usage</td>
+        <td>Views, saves, attendance by program</td>
+        <td>No individual tracking</td>
+      </tr>
+      <tr>
+        <td>Demographics</td>
+        <td>Age, gender, ethnicity distributions</td>
+        <td>K-anonymity + differential privacy</td>
+      </tr>
+      <tr>
+        <td>Crisis Patterns</td>
+        <td>Flag counts, resolution rates, timing</td>
+        <td>No conversation content</td>
+      </tr>
+    </table>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+
+  <!-- Page 2: Detailed Features -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>Feature Details</h1>
+        <p>Organization Experience</p>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>📊 Analytics Dashboard</h2>
+      <div class="two-col">
+        <div>
+          <h3>Live Metrics</h3>
+          <ul>
+            <li>Total registered users</li>
+            <li>Monthly/Daily active users</li>
+            <li>Check-in completion rates</li>
+            <li>User growth trends (30/90 day)</li>
+            <li>Peak engagement times</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Export Options</h3>
+          <ul>
+            <li>CSV export for spreadsheets</li>
+            <li>JSON for data analysis</li>
+            <li>Date range filtering</li>
+            <li>Funder-ready formatting</li>
+            <li>Scheduled automated reports</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>📱 QR Attendance System</h2>
+      <div class="two-col">
+        <div>
+          <h3>How It Works</h3>
+          <ul>
+            <li>Generate unique QR codes per program</li>
+            <li>Youth scan on arrival</li>
+            <li>Instant attendance capture</li>
+            <li>Works offline (syncs later)</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Reports Generated</h3>
+          <ul>
+            <li>Attendance by date/time</li>
+            <li>Repeat participation rates</li>
+            <li>Program popularity rankings</li>
+            <li>Seasonal trends</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>👥 Demographics & Equity</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Youth self-report their identity privately. You see aggregate distributions to identify 
+        underserved populations and equity gaps.
+      </p>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h4>Self-Reported Data</h4>
+          <ul style="margin-top: 8px;">
+            <li>Age distribution</li>
+            <li>Gender identity</li>
+            <li>Sexual orientation</li>
+            <li>Racial/ethnic identity</li>
+            <li>Indigenous self-identification</li>
+            <li>Disability status</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h4>Equity Analysis</h4>
+          <ul style="margin-top: 8px;">
+            <li>Compare to census demographics</li>
+            <li>Identify underserved groups</li>
+            <li>Track representation over time</li>
+            <li>Guardian perception comparison</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>⚠️ Crisis Monitoring</h2>
+      <div class="highlight-box" style="background: rgba(224,122,95,0.1);">
+        <h4 style="color: var(--coral);">Privacy Note</h4>
+        <p style="font-size: 13px; color: var(--sage);">
+          Organizations never see individual conversations or crisis details. 
+          You only see aggregate patterns (counts, timing, resolution rates) to understand community needs.
+        </p>
+      </div>
+      <ul>
+        <li>Total crisis flags detected (count only)</li>
+        <li>Crisis resolution rate</li>
+        <li>Peak crisis times (for staffing decisions)</li>
+        <li>Trend data (increasing/decreasing)</li>
+      </ul>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+
+  <!-- Page 3: City Value & Compliance -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>Value for Edmonton City Council</h1>
+        <p>Organization Experience</p>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>Strategic Insights for City Planning</h2>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon teal">🏙️</div>
+          <h4>Healthy City Goal</h4>
+          <p>Citywide youth wellness trends support ConnectEdmonton's Healthy City pillar.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon gold">📈</div>
+          <h4>Program Demand Signals</h4>
+          <p>Understand what programs youth want but can't find - guide resource allocation.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon sage">⚖️</div>
+          <h4>Equity Gap Analysis</h4>
+          <p>Identify which populations are underserved by current programming.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon coral">🛡️</div>
+          <h4>CSWB Strategy Alignment</h4>
+          <p>Crisis pattern data supports Community Safety & Well-Being planning.</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>Operational Benefits</h2>
+      
+      <table>
+        <tr>
+          <th>Current Challenge</th>
+          <th>Room XI Solution</th>
+        </tr>
+        <tr>
+          <td>Paper attendance tracking</td>
+          <td>QR code instant check-in</td>
+        </tr>
+        <tr>
+          <td>Redundant intake forms at each program</td>
+          <td>Universal digital intake (once)</td>
+        </tr>
+        <tr>
+          <td>Manual funder reporting</td>
+          <td>Automated CSV/JSON exports</td>
+        </tr>
+        <tr>
+          <td>Privacy compliance concerns</td>
+          <td>Built for Alberta PIPA/HIA</td>
+        </tr>
+        <tr>
+          <td>No citywide youth wellness data</td>
+          <td>Aggregate trends with k-anonymity</td>
+        </tr>
+      </table>
+    </div>
+    
+    <div class="section">
+      <h2>🛡️ Privacy & Compliance</h2>
+      
+      <div class="two-col">
+        <div>
+          <h3>Alberta Law Compliance</h3>
+          <ul>
+            <li><strong>PIPA:</strong> Dual-layer consent, audit trails</li>
+            <li><strong>HIA:</strong> Health data handled carefully</li>
+            <li><strong>Under-16:</strong> Guardian verification system</li>
+            <li><strong>OIPC:</strong> 72-hour breach notification</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Privacy Protections</h3>
+          <ul>
+            <li>K-anonymity (min 7 users per bucket)</li>
+            <li>Differential privacy (Laplace noise)</li>
+            <li>H3 geo-bucketing for location</li>
+            <li>End-to-end encryption</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section" style="text-align: center; padding: 24px; background: linear-gradient(135deg, rgba(61,74,60,0.05), rgba(95,168,163,0.1)); border-radius: 12px;">
+      <h2 style="margin-bottom: 8px;">Partner With Room XI</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Ready to bring privacy-first youth wellness tracking to your organization?
+      </p>
+      <p style="font-size: 14px; color: var(--deep-sage);">
+        <strong>Contact:</strong> hello@room11foundation.org
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+
+  <!-- Page 4: Dashboard Mockups -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>Dashboard Screens</h1>
+        <p>Organization Experience</p>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>Admin Dashboard Views</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Below are the main dashboard components available to organization staff. 
+        All data shown is aggregated and privacy-protected.
+      </p>
+    </div>
+    
+    <div class="feature-grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--teal), var(--sage)); height: 100px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 50px; height: 50px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px;">📊</div>
+        </div>
+        <div style="padding: 16px;">
+          <h4 style="font-size: 14px; margin-bottom: 6px;">KPI Dashboard</h4>
+          <p style="font-size: 12px; color: var(--sage);">Real-time metrics: MAU, DAU, check-in rates, user growth trends, and engagement analytics</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--gold), #f59e0b); height: 100px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 50px; height: 50px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px;">📱</div>
+        </div>
+        <div style="padding: 16px;">
+          <h4 style="font-size: 14px; margin-bottom: 6px;">Attendance Manager</h4>
+          <p style="font-size: 12px; color: var(--sage);">QR code generation, attendance reports, program participation tracking</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #6366f1, var(--teal)); height: 100px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 50px; height: 50px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px;">👥</div>
+        </div>
+        <div style="padding: 16px;">
+          <h4 style="font-size: 14px; margin-bottom: 6px;">Demographics View</h4>
+          <p style="font-size: 12px; color: var(--sage);">Aggregate population data, equity analysis, guardian vs. youth comparison</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--coral), #f43f5e); height: 100px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 50px; height: 50px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px;">⚠️</div>
+        </div>
+        <div style="padding: 16px;">
+          <h4 style="font-size: 14px; margin-bottom: 6px;">Crisis Monitor</h4>
+          <p style="font-size: 12px; color: var(--sage);">Aggregate crisis patterns, resolution rates, timing trends (no individual data)</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section" style="margin-top: 24px;">
+      <h2>Partnership Options for Edmonton</h2>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(95,168,163,0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--teal); font-size: 14px;">A</div>
+            <h4 style="margin: 0; color: var(--deep-sage);">12-Week Pilot Program</h4>
+          </div>
+          <ul>
+            <li>Partner with 2-3 city-affiliated youth programs</li>
+            <li><strong>Zero cost</strong> to the City of Edmonton</li>
+            <li>Target: 200+ youth participants</li>
+            <li>Real-time wellness dashboards for staff</li>
+            <li>Comprehensive final report with recommendations</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(217,169,98,0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--gold); font-size: 14px;">B</div>
+            <h4 style="margin: 0; color: var(--deep-sage);">Directory Integration</h4>
+          </div>
+          <ul>
+            <li>Featured link on edmonton.ca/youth directory</li>
+            <li>"Powered by Room XI" city partnership badge</li>
+            <li>Universal youth intake across all programs</li>
+            <li>Shared analytics dashboard access for city staff</li>
+            <li>Co-branded youth wellness resources</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="highlight-box">
+        <h4>Pilot KPIs</h4>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px;">
+          <div style="text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--teal);">200+</div>
+            <div style="font-size: 11px; color: var(--sage);">Youth Served</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--gold);">60%</div>
+            <div style="font-size: 11px; color: var(--sage);">Weekly Active</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--coral);">3+</div>
+            <div style="font-size: 11px; color: var(--sage);">Programs Covered</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--deep-sage);">$0</div>
+            <div style="font-size: 11px; color: var(--sage);">Cost to City</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+</body>
+</html>

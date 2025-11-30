@@ -44,6 +44,8 @@ const OrbTimelapse = lazy(() => import('./components/OrbTimelapse'));
 const ParentPortal = lazy(() => import('./routes/ParentPortal'));
 const TestParentConsent = lazy(() => import('./components/TestParentConsent').then(m => ({ default: m.TestParentConsent })));
 const AdminPortal = lazy(() => import('./routes/AdminPortal'));
+const DemoYouth = lazy(() => import('./routes/demo/Youth'));
+const DemoOrganization = lazy(() => import('./routes/demo/Organization'));
 
 // Wrapper to add Suspense to lazy-loaded components
 const withSuspense = (Component: React.LazyExoticComponent<any>) => {
@@ -95,6 +97,8 @@ export const router = createBrowserRouter([
       { path: 'auth/signup', element: withSuspense(Signup) },
       { path: 'auth/reset', element: withSuspense(Reset) },
       { path: 'auth/update-password', element: withSuspense(UpdatePassword) },
+      { path: 'demo/youth', element: withSuspense(DemoYouth) },
+      { path: 'demo/organization', element: withSuspense(DemoOrganization) },
       { path: '*', element: withSuspense(NotFound) }
     ]
   }

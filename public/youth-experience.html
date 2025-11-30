@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room XI Connect - Youth Experience</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    :root {
+      --teal: #5FA8A3;
+      --deep-sage: #3D4A3C;
+      --gold: #D9A962;
+      --coral: #E07A5F;
+      --cream: #FFFAF5;
+      --sage: #7D8471;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--cream);
+      color: var(--deep-sage);
+      line-height: 1.6;
+    }
+    
+    .page {
+      max-width: 8.5in;
+      margin: 0 auto;
+      padding: 0.75in;
+      background: white;
+      min-height: 11in;
+      page-break-after: always;
+    }
+    
+    .page:last-child {
+      page-break-after: avoid;
+    }
+    
+    @media print {
+      body {
+        background: white;
+      }
+      .page {
+        margin: 0;
+        padding: 0.5in;
+        box-shadow: none;
+      }
+      .no-print {
+        display: none;
+      }
+    }
+    
+    @media screen {
+      .page {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        margin: 20px auto;
+        border-radius: 8px;
+      }
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--teal);
+    }
+    
+    .logo {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--teal), var(--gold));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 20px;
+    }
+    
+    .header-text h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--deep-sage);
+    }
+    
+    .header-text p {
+      font-size: 14px;
+      color: var(--sage);
+    }
+    
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--teal), var(--gold));
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    
+    h2 {
+      font-size: 20px;
+      color: var(--deep-sage);
+      margin-bottom: 16px;
+    }
+    
+    h3 {
+      font-size: 16px;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+    
+    .intro {
+      font-size: 15px;
+      color: var(--sage);
+      margin-bottom: 24px;
+    }
+    
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .feature-card {
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(95,168,163,0.05), rgba(217,169,98,0.05));
+    }
+    
+    .feature-card.full-width {
+      grid-column: span 2;
+    }
+    
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      font-size: 20px;
+    }
+    
+    .feature-icon.teal { background: rgba(95,168,163,0.15); }
+    .feature-icon.gold { background: rgba(217,169,98,0.15); }
+    .feature-icon.coral { background: rgba(224,122,95,0.15); }
+    .feature-icon.sage { background: rgba(125,132,113,0.15); }
+    
+    .feature-card h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--deep-sage);
+      margin-bottom: 4px;
+    }
+    
+    .feature-card p {
+      font-size: 12px;
+      color: var(--sage);
+    }
+    
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    ul li {
+      font-size: 13px;
+      color: var(--sage);
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+    
+    ul li::before {
+      content: "•";
+      color: var(--teal);
+      position: absolute;
+      left: 0;
+    }
+    
+    .section {
+      margin-bottom: 24px;
+    }
+    
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    
+    .highlight-box {
+      background: linear-gradient(135deg, rgba(95,168,163,0.1), rgba(217,169,98,0.1));
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .highlight-box h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+    
+    .stat-row {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin: 24px 0;
+    }
+    
+    .stat {
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--teal);
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: var(--sage);
+    }
+    
+    .footer {
+      text-align: center;
+      padding-top: 24px;
+      border-top: 1px solid #e5e5e5;
+      margin-top: auto;
+    }
+    
+    .footer p {
+      font-size: 12px;
+      color: var(--sage);
+    }
+    
+    .print-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--teal);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .print-btn:hover {
+      background: #4a9590;
+    }
+  </style>
+</head>
+<body>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+
+  <!-- Page 1: Overview -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>Room XI Connect</h1>
+        <p>Youth Experience Overview</p>
+      </div>
+    </div>
+    
+    <span class="badge">For Youth Ages 13-25</span>
+    
+    <p class="intro">
+      Room XI Connect is your personal wellness companion. Check in daily on how you're feeling, 
+      discover 75+ free youth programs in Edmonton, chat with Ximi (our AI companion), and access 
+      crisis support whenever you need it. Your data is private, and you're in control.
+    </p>
+    
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-number">570+</div>
+        <div class="stat-label">Youth Served</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">75+</div>
+        <div class="stat-label">Edmonton Programs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">24/7</div>
+        <div class="stat-label">Crisis Support</div>
+      </div>
+    </div>
+    
+    <h2>Core Features</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon coral">❤️</div>
+        <h4>Daily Mood Check-ins</h4>
+        <p>30-second wellness tracking with a beautiful 7-day Mood Orb visualization. Build healthy habits with streak tracking.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon teal">📍</div>
+        <h4>Program Discovery</h4>
+        <p>Find mental health, arts, sports, LGBTQ+, Indigenous, and employment programs. Filter by what's happening today.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon gold">💬</div>
+        <h4>Ximi AI Companion</h4>
+        <p>24/7 trauma-informed chat support. Ximi offers coping strategies and connects you to crisis resources when needed.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon sage">🛡️</div>
+        <h4>Privacy Controls</h4>
+        <p>You control your data. Export or delete anytime. Your demographics are never shared with parents.</p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+
+  <!-- Page 2: Feature Details -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>Feature Details</h1>
+        <p>Youth Experience</p>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>🌈 Daily Mood Check-ins</h2>
+      <div class="two-col">
+        <div>
+          <h3>How It Works</h3>
+          <ul>
+            <li>Tap the Mood Orb on your home screen</li>
+            <li>Select how you're feeling (1-6 scale)</li>
+            <li>Choose emotion tags that resonate</li>
+            <li>Add an optional note about your day</li>
+            <li>Watch your Mood Orb evolve over time</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Features</h3>
+          <ul>
+            <li>6-level mood scale (struggling → thriving)</li>
+            <li>Affect tags to describe emotions</li>
+            <li>7-day Mood Orb visualization</li>
+            <li>Streak tracking for habit building</li>
+            <li>Export your Mood Orb as an image</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>📍 Program Discovery</h2>
+      <div class="two-col">
+        <div>
+          <h3>Program Categories</h3>
+          <ul>
+            <li>Mental Health & Counseling</li>
+            <li>LGBTQ+ & 2Spirit Support</li>
+            <li>Indigenous Programs</li>
+            <li>Arts & Creative</li>
+            <li>Sports & Recreation</li>
+            <li>Employment & Career</li>
+            <li>Crisis Support</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Features</h3>
+          <ul>
+            <li>"Today" tab shows current programs</li>
+            <li>Filter by age, cost, drop-in</li>
+            <li>Map view for nearby programs</li>
+            <li>Save programs for later</li>
+            <li>Direct contact info for each</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>💬 Ximi AI Companion</h2>
+      <div class="highlight-box">
+        <h4>Important Note</h4>
+        <p style="font-size: 13px; color: var(--sage);">
+          Ximi is not a therapist or crisis counselor. It's a supportive AI companion that can offer 
+          coping strategies and connect you to real resources. If you're in crisis, Ximi will immediately 
+          connect you to Kids Help Phone and other emergency services.
+        </p>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>Ximi Can Help With</h3>
+          <ul>
+            <li>Talking through tough emotions</li>
+            <li>Suggesting coping strategies</li>
+            <li>Finding local programs</li>
+            <li>Connecting to crisis support</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Safety Features</h3>
+          <ul>
+            <li>Crisis keyword detection</li>
+            <li>Immediate escalation when needed</li>
+            <li>"Not a clinician" disclaimer</li>
+            <li>Available 24/7</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+
+  <!-- Page 3: Privacy & Getting Started -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>Privacy & Getting Started</h1>
+        <p>Youth Experience</p>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>🛡️ Your Privacy, Your Control</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Room XI Connect is built for Alberta privacy law (PIPA). You decide what to share, 
+        and you can change your mind anytime.
+      </p>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h4>Consent Toggles</h4>
+          <p>All sharing is OFF by default. You choose what to enable.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Data Export</h4>
+          <p>Download all your data as JSON anytime.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Account Deletion</h4>
+          <p>Delete your account and all data with one tap.</p>
+        </div>
+        <div class="feature-card">
+          <h4>Youth Autonomy</h4>
+          <p>Your demographics are never shared with parents.</p>
+        </div>
+      </div>
+      
+      <div class="highlight-box">
+        <h4>No Advertisers. No Data Selling. Ever.</h4>
+        <p style="font-size: 13px; color: var(--sage);">
+          We don't sell your data to advertisers or share it with data brokers. 
+          Your information is used only to provide you with support and connect you to programs.
+        </p>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>📱 QR Attendance</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 12px;">
+        Sign up once, attend anywhere. When you visit a program, just scan their QR code - no paper forms needed.
+      </p>
+      <ul>
+        <li>Universal intake: one signup works across all programs</li>
+        <li>Privacy-preserving: uses anonymous ID for attendance</li>
+        <li>No paperwork at each program visit</li>
+      </ul>
+    </div>
+    
+    <div class="section">
+      <h2>🆘 Crisis Support</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 12px;">
+        Available 24/7, even without logging in.
+      </p>
+      
+      <div class="highlight-box" style="background: rgba(224,122,95,0.1);">
+        <h4 style="color: var(--coral);">Emergency Resources</h4>
+        <ul>
+          <li><strong>Kids Help Phone:</strong> 1-800-668-6868</li>
+          <li><strong>CMHA Distress Line:</strong> 780-482-4357</li>
+          <li><strong>211 Alberta:</strong> Dial 211 for service navigation</li>
+          <li><strong>Emergency:</strong> 911</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>🤝 Edmonton Partnership</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Room XI Connect aligns with ConnectEdmonton's <strong>Healthy City</strong> goal and the 
+        Community Safety & Well-Being Strategy.
+      </p>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(95,168,163,0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--teal); font-size: 12px;">A</div>
+            <h4 style="margin: 0;">12-Week Pilot</h4>
+          </div>
+          <ul>
+            <li>2-3 city-affiliated programs</li>
+            <li><strong>Zero cost</strong> to the city</li>
+            <li>200+ youth target</li>
+            <li>Real-time wellness data</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(217,169,98,0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--gold); font-size: 12px;">B</div>
+            <h4 style="margin: 0;">Directory Integration</h4>
+          </div>
+          <ul>
+            <li>Link on edmonton.ca/youth</li>
+            <li>"Powered by Room XI" badge</li>
+            <li>Universal youth intake</li>
+            <li>Shared analytics access</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="text-align: center; padding: 24px; background: linear-gradient(135deg, rgba(95,168,163,0.1), rgba(217,169,98,0.1)); border-radius: 12px;">
+      <h2 style="margin-bottom: 8px;">Ready to Get Started?</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Join 570+ youth already using Room XI Connect
+      </p>
+      <p style="font-size: 16px; font-weight: 600; color: var(--teal);">
+        Visit: roomxiconnect.replit.app
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+
+  <!-- Page 4: Visual Mockups -->
+  <div class="page">
+    <div class="header">
+      <div class="logo">XI</div>
+      <div class="header-text">
+        <h1>App Screens Overview</h1>
+        <p>Youth Experience</p>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>Key Screens</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Below are descriptions of the main screens youth interact with. Visit the live app at 
+        <strong>roomxiconnect.replit.app</strong> for the full interactive experience.
+      </p>
+    </div>
+    
+    <div class="feature-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--coral), var(--gold)); height: 120px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">🌈</div>
+        </div>
+        <div style="padding: 12px;">
+          <h4 style="font-size: 13px; margin-bottom: 4px;">Mood Orb</h4>
+          <p style="font-size: 11px; color: var(--sage);">7-day mood visualization with pastel gradients</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--teal), var(--sage)); height: 120px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">📍</div>
+        </div>
+        <div style="padding: 12px;">
+          <h4 style="font-size: 13px; margin-bottom: 4px;">Program List</h4>
+          <p style="font-size: 11px; color: var(--sage);">Browse 75+ Edmonton youth programs</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #6366f1, var(--teal)); height: 120px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">💬</div>
+        </div>
+        <div style="padding: 12px;">
+          <h4 style="font-size: 13px; margin-bottom: 4px;">Ximi Chat</h4>
+          <p style="font-size: 11px; color: var(--sage);">24/7 AI companion with crisis detection</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--sage), var(--deep-sage)); height: 120px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">🛡️</div>
+        </div>
+        <div style="padding: 12px;">
+          <h4 style="font-size: 13px; margin-bottom: 4px;">Privacy Center</h4>
+          <p style="font-size: 11px; color: var(--sage);">Granular consent toggles, data export</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--coral), #f43f5e); height: 120px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">🆘</div>
+        </div>
+        <div style="padding: 12px;">
+          <h4 style="font-size: 13px; margin-bottom: 4px;">Crisis Support</h4>
+          <p style="font-size: 11px; color: var(--sage);">One-tap calling to crisis lines</p>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, var(--gold), #f59e0b); height: 120px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">📱</div>
+        </div>
+        <div style="padding: 12px;">
+          <h4 style="font-size: 13px; margin-bottom: 4px;">QR Scanner</h4>
+          <p style="font-size: 11px; color: var(--sage);">Paperless program attendance</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section" style="margin-top: 24px;">
+      <h2>Consent Flow</h2>
+      <p style="font-size: 14px; color: var(--sage); margin-bottom: 16px;">
+        Youth control their data at every step with a two-layer consent system.
+      </p>
+      
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        <div style="flex: 1; padding: 16px; background: rgba(95,168,163,0.1); border-radius: 12px;">
+          <h4 style="color: var(--teal); margin-bottom: 8px;">Layer 1: Basic Consent</h4>
+          <ul style="font-size: 12px;">
+            <li>Terms of service acceptance</li>
+            <li>Privacy policy acknowledgment</li>
+            <li>Age verification (13-25)</li>
+          </ul>
+        </div>
+        <div style="flex-shrink: 0; padding-top: 24px; color: var(--sage);">→</div>
+        <div style="flex: 1; padding: 16px; background: rgba(217,169,98,0.1); border-radius: 12px;">
+          <h4 style="color: var(--gold); margin-bottom: 8px;">Layer 2: Safety Profile</h4>
+          <ul style="font-size: 12px;">
+            <li>Optional health information</li>
+            <li>Granular toggles (all OFF by default)</li>
+            <li>Monthly review reminders</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2025 Room 11 Foundation | Edmonton, Alberta | room11foundation.org</p>
+    </div>
+  </div>
+</body>
+</html>
