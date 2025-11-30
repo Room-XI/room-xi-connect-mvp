@@ -23,7 +23,6 @@ export default function Header({ title, showCrisis = true }: HeaderProps) {
           <div className="flex items-center space-x-3">
             <RoomXILogo
               size={32}
-              variant="deepSage"
               whileHover={{ scale: 1.1 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             />
