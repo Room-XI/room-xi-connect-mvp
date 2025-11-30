@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
   MapPin, 
-  Clock, 
   DollarSign, 
   Users, 
   Calendar,
@@ -72,7 +71,6 @@ export default function ProgramDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [peerInsights, setPeerInsights] = useState<PeerInsights | null>(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -108,14 +106,11 @@ export default function ProgramDetail() {
 
   const loadPeerInsights = async () => {
     try {
-      setLoadingInsights(true);
       const { data } = await fetchApi(`/outcomes/program/${id}`);
       setPeerInsights(data);
     } catch (error) {
       console.error('Error loading peer insights:', error);
       setPeerInsights(null);
-    } finally {
-      setLoadingInsights(false);
     }
   };
 
@@ -192,24 +187,6 @@ export default function ProgramDetail() {
     } else {
       // Fallback to clipboard
       navigator.clipboard.writeText(window.location.href);
-    }
-  };
-
-  const formatTime = (timestamp: string | null) => {
-    if (!timestamp) return null;
-    
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleDateString('en-CA', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    } catch {
-      return null;
     }
   };
 
@@ -427,26 +404,6 @@ export default function ProgramDetail() {
                   {paragraph}
                 </p>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* Schedule */}
-        {program.next_start && (
-          <div className="space-y-3">
-            <h3 className="font-semibold text-deepSage">Schedule</h3>
-            <div className="flex items-start space-x-3">
-              <Clock className="w-5 h-5 text-teal mt-0.5" />
-              <div>
-                <p className="font-medium text-deepSage">
-                  {formatTime(program.next_start)}
-                </p>
-                {program.next_end && (
-                  <p className="text-sm text-textSecondaryLight">
-                    Ends: {formatTime(program.next_end)}
-                  </p>
-                )}
-              </div>
             </div>
           </div>
         )}

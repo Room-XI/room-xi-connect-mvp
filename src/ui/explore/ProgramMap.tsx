@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { MapPin, ExternalLink } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapPin, ExternalLink, List, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '@/lib/api';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default markers in react-leaflet
 import L from 'leaflet';
 
 const DefaultIcon = L.icon({
@@ -16,6 +15,13 @@ const DefaultIcon = L.icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
+});
+
+const UserIcon = L.divIcon({
+  className: 'user-location-marker',
+  html: '<div class="w-4 h-4 bg-teal rounded-full border-2 border-white shadow-lg animate-pulse"></div>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8]
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
@@ -31,14 +37,41 @@ interface Program {
   lng: string | null;
   tags: string[];
   free: boolean;
+  distance?: number;
 }
 
-export default function ProgramMap() {
+interface ProgramMapProps {
+  userLocation?: { lat: number; lng: number } | null;
+  locationEnabled?: boolean;
+  radiusKm?: number;
+}
+
+function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
+  
+  return null;
+}
+
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export default function ProgramMap({ userLocation, locationEnabled = false, radiusKm = 2 }: ProgramMapProps) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
 
-  // Edmonton coordinates as default center
   const defaultCenter: [number, number] = [53.5461, -113.4938];
 
   useEffect(() => {
@@ -56,12 +89,11 @@ export default function ProgramMap() {
         return;
       }
 
-      // Filter programs with valid coordinates
       const validPrograms = (data || []).filter((program: any) => {
         const lat = program.lat ? parseFloat(program.lat) : NaN;
         const lng = program.lng ? parseFloat(program.lng) : NaN;
         return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-      }).slice(0, 50); // Limit to 50 programs
+      }).slice(0, 50);
 
       setPrograms(validPrograms);
     } catch (error) {
@@ -71,6 +103,30 @@ export default function ProgramMap() {
       setLoading(false);
     }
   };
+
+  const filteredPrograms = useMemo(() => {
+    if (!locationEnabled || !userLocation) {
+      return programs;
+    }
+
+    return programs
+      .map(program => {
+        const lat = parseFloat(program.lat!);
+        const lng = parseFloat(program.lng!);
+        const distance = calculateDistance(userLocation.lat, userLocation.lng, lat, lng);
+        return { ...program, distance };
+      })
+      .filter(program => program.distance <= radiusKm)
+      .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+  }, [programs, userLocation, locationEnabled, radiusKm]);
+
+  const mapCenter: [number, number] = userLocation && locationEnabled 
+    ? [userLocation.lat, userLocation.lng] 
+    : defaultCenter;
+
+  const mapZoom = locationEnabled && userLocation 
+    ? (radiusKm <= 1 ? 14 : radiusKm <= 2 ? 13 : 12)
+    : 11;
 
   if (loading) {
     return (
@@ -114,7 +170,6 @@ export default function ProgramMap() {
 
   return (
     <div className="space-y-4">
-      {/* Map */}
       <motion.div
         className="cosmic-card overflow-hidden"
         initial={{ opacity: 0, y: 20 }}
@@ -123,17 +178,38 @@ export default function ProgramMap() {
       >
         <div className="h-80 w-full">
           <MapContainer
-            center={defaultCenter}
-            zoom={11}
+            center={mapCenter}
+            zoom={mapZoom}
             style={{ height: '100%', width: '100%' }}
             className="rounded-xl"
           >
+            <MapController center={mapCenter} zoom={mapZoom} />
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="&copy; OpenStreetMap contributors"
             />
             
-            {programs.map(program => {
+            {locationEnabled && userLocation && (
+              <>
+                <Circle
+                  center={[userLocation.lat, userLocation.lng]}
+                  radius={radiusKm * 1000}
+                  pathOptions={{
+                    color: '#2EC489',
+                    fillColor: '#2EC489',
+                    fillOpacity: 0.1,
+                    weight: 2,
+                    dashArray: '5, 5'
+                  }}
+                />
+                <Marker 
+                  position={[userLocation.lat, userLocation.lng]} 
+                  icon={UserIcon}
+                />
+              </>
+            )}
+            
+            {filteredPrograms.map(program => {
               const lat = parseFloat(program.lat!);
               const lng = parseFloat(program.lng!);
               
@@ -152,14 +228,15 @@ export default function ProgramMap() {
                       )}
                       
                       {program.location_name && (
-                        <p className="text-sm text-textSecondaryLight">
-                          📍 {program.location_name}
+                        <p className="text-sm text-textSecondaryLight flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {program.location_name}
                         </p>
                       )}
-                      
-                      {program.description && (
-                        <p className="text-sm text-textSecondaryLight line-clamp-2">
-                          {program.description}
+
+                      {program.distance !== undefined && (
+                        <p className="text-sm text-teal font-medium">
+                          {program.distance.toFixed(1)}km away
                         </p>
                       )}
                       
@@ -187,7 +264,6 @@ export default function ProgramMap() {
         </div>
       </motion.div>
 
-      {/* Map Info */}
       <motion.div
         className="cosmic-card p-4"
         initial={{ opacity: 0, y: 20 }}
@@ -198,52 +274,75 @@ export default function ProgramMap() {
           <div className="flex items-center space-x-2">
             <MapPin className="w-4 h-4 text-teal" />
             <span className="text-sm font-medium text-deepSage">
-              {programs.length} program{programs.length !== 1 ? 's' : ''} with locations
+              {filteredPrograms.length} program{filteredPrograms.length !== 1 ? 's' : ''}
+              {locationEnabled && userLocation && ` within ${radiusKm}km`}
             </span>
           </div>
           
-          <p className="text-xs text-textSecondaryLight">
-            Tap markers for details
-          </p>
+          {locationEnabled && userLocation && (
+            <div className="flex items-center space-x-1 text-xs text-textSecondaryLight">
+              <Navigation className="w-3 h-3" />
+              <span>Your location</span>
+            </div>
+          )}
         </div>
       </motion.div>
 
-      {/* Program List */}
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-deepSage">Programs on Map</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-deepSage">
+            {locationEnabled && userLocation ? 'Nearby Programs' : 'Programs on Map'}
+          </h3>
+          <Link 
+            to="/explore/programs"
+            className="text-sm text-teal hover:text-teal/80 flex items-center gap-1"
+          >
+            <List className="w-4 h-4" />
+            List view
+          </Link>
+        </div>
         <div className="space-y-2">
-          {programs.map((program, index) => (
+          {filteredPrograms.slice(0, 10).map((program, index) => (
             <motion.div
               key={program.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.4 }}
+              transition={{ delay: index * 0.03, duration: 0.3 }}
             >
               <Link to={`/program/${program.id}`}>
                 <div className="cosmic-card p-4 hover:shadow-soft transition-all duration-200">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h4 className="font-medium text-deepSage">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <h4 className="font-medium text-deepSage truncate">
                         {program.title}
                       </h4>
-                      <p className="text-sm text-textSecondaryLight">
+                      <p className="text-sm text-textSecondaryLight truncate">
                         {program.location_name || program.address}
                       </p>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-shrink-0 ml-3">
+                      {program.distance !== undefined && (
+                        <span className="text-xs font-medium text-sage bg-sage/10 px-2 py-1 rounded-full">
+                          {program.distance.toFixed(1)}km
+                        </span>
+                      )}
                       {program.free && (
                         <span className="text-xs font-medium text-teal bg-teal/10 px-2 py-1 rounded-full">
                           Free
                         </span>
                       )}
-                      <ExternalLink className="w-4 h-4 text-textSecondaryLight" />
                     </div>
                   </div>
                 </div>
               </Link>
             </motion.div>
           ))}
+          {filteredPrograms.length > 10 && (
+            <p className="text-center text-sm text-textSecondaryLight py-2">
+              +{filteredPrograms.length - 10} more programs
+            </p>
+          )}
         </div>
       </div>
     </div>

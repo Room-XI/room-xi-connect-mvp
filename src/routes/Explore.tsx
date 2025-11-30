@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Check, Info } from 'lucide-react';
 import ExploreTabs from '@/ui/explore/ExploreTabs';
 import TodayList from '@/ui/explore/TodayList';
 import ProgramList from '@/ui/explore/ProgramList';
 import ProgramMap from '@/ui/explore/ProgramMap';
 import SavedList from '@/ui/explore/SavedList';
 import XimiDock from '@/ui/explore/XimiDock';
+import LocationToggle from '@/ui/explore/LocationToggle';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
 import { useSession } from '@/lib/session';
 import { useExploreGate } from '@/hooks/useExploreGate';
@@ -26,6 +26,11 @@ export default function Explore() {
   const [locationEnabled, setLocationEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('locationPreference') === 'true';
+  });
+  const [radiusKm, setRadiusKm] = useState<number>(() => {
+    if (typeof window === 'undefined') return 2;
+    const saved = localStorage.getItem('locationRadiusKm');
+    return saved ? parseInt(saved, 10) : 2;
   });
 
   // 8am Gate Enforcement: Redirect to check-in if gate not passed
@@ -48,6 +53,13 @@ export default function Explore() {
       localStorage.setItem('locationPreference', locationEnabled.toString());
     }
   }, [locationEnabled]);
+
+  // Persist radiusKm changes to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('locationRadiusKm', radiusKm.toString());
+    }
+  }, [radiusKm]);
 
   // Restore permission state from sessionStorage on mount
   useEffect(() => {
@@ -170,64 +182,14 @@ export default function Explore() {
         )}
 
         {/* Location Toggle */}
-        <motion.div
-          className="cosmic-card p-4 bg-gradient-to-r from-teal/10 to-sage/10 border-l-4 border-teal"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          {locationPermission === 'denied' ? (
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <Info className="w-5 h-5 mt-0.5 text-coral" />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium text-deepSage">
-                    Location access was denied
-                  </p>
-                  <p className="text-sm text-textSecondaryLight">
-                    To enable location-based sorting, please allow location access in your browser settings.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleRetryLocation}
-                className="text-sm font-medium text-teal hover:text-teal/80 transition-colors"
-              >
-                Retry permission request →
-              </button>
-            </div>
-          ) : locationEnabled && locationPermission === 'granted' ? (
-            <button
-              onClick={handleLocationToggle}
-              className="w-full flex items-start space-x-3 text-left hover:opacity-80 transition-opacity"
-            >
-              <Check className="w-5 h-5 mt-0.5 text-teal" />
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium text-deepSage">
-                  Location enabled
-                </p>
-                <p className="text-sm text-textSecondaryLight">
-                  Events are sorted by distance. Click to disable location-based sorting.
-                </p>
-              </div>
-            </button>
-          ) : (
-            <button
-              onClick={handleLocationToggle}
-              className="w-full flex items-start space-x-3 text-left hover:opacity-80 transition-opacity"
-            >
-              <MapPin className="w-5 h-5 mt-0.5 text-teal" />
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium text-deepSage">
-                  Use my location
-                </p>
-                <p className="text-sm text-textSecondaryLight">
-                  Enable location to see events sorted by distance and filter by proximity.
-                </p>
-              </div>
-            </button>
-          )}
-        </motion.div>
+        <LocationToggle
+          enabled={locationEnabled}
+          onToggle={handleLocationToggle}
+          radiusKm={radiusKm}
+          onRadiusChange={setRadiusKm}
+          permissionState={locationPermission}
+          onRetryPermission={handleRetryLocation}
+        />
 
         {/* Segmented Control */}
         <ExploreTabs current={currentView} />
@@ -244,6 +206,7 @@ export default function Explore() {
               userLocation={userLocation}
               locationPermission={locationPermission}
               locationEnabled={locationEnabled}
+              radiusKm={radiusKm}
             />
           )}
           {currentView === 'programs' && (
@@ -251,9 +214,16 @@ export default function Explore() {
               userLocation={userLocation}
               locationPermission={locationPermission}
               locationEnabled={locationEnabled}
+              radiusKm={radiusKm}
             />
           )}
-          {currentView === 'map' && <ProgramMap />}
+          {currentView === 'map' && (
+            <ProgramMap
+              userLocation={userLocation}
+              locationEnabled={locationEnabled}
+              radiusKm={radiusKm}
+            />
+          )}
           {currentView === 'saved' && <SavedList />}
         </motion.div>
 

@@ -39,9 +39,10 @@ interface TodayListProps {
   userLocation: { lat: number; lng: number } | null;
   locationPermission: 'granted' | 'denied' | 'prompt';
   locationEnabled: boolean;
+  radiusKm?: number;
 }
 
-export default function TodayList({ userLocation, locationPermission, locationEnabled }: TodayListProps) {
+export default function TodayList({ userLocation, locationPermission, locationEnabled, radiusKm = 2 }: TodayListProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +70,7 @@ export default function TodayList({ userLocation, locationPermission, locationEn
 
   useEffect(() => {
     applyFilters();
-  }, [events, filters, userLocation, locationEnabled]);
+  }, [events, filters, userLocation, locationEnabled, radiusKm]);
 
   const parseTimeToHour = (timeString: string): number => {
     const [hours] = timeString.split(':').map(Number);
@@ -109,10 +110,14 @@ export default function TodayList({ userLocation, locationPermission, locationEn
       filtered = filtered.filter(event => event.isDropIn === true);
     }
 
-    if (filters.maxDistance !== null && filters.maxDistance !== undefined && filters.maxDistance > 0 && locationEnabled && userLocation) {
-      filtered = filtered.filter(event => 
-        event.distance !== null && event.distance <= filters.maxDistance!
-      );
+    if (locationEnabled && userLocation) {
+      const effectiveMaxDistance = filters.maxDistance ?? radiusKm;
+      if (effectiveMaxDistance > 0) {
+        filtered = filtered.filter(event => 
+          event.distance !== null && event.distance <= effectiveMaxDistance
+        );
+      }
+      filtered.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
     }
 
     setFilteredEvents(filtered);

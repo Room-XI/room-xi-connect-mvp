@@ -43,9 +43,10 @@ interface ProgramListProps {
   userLocation: { lat: number; lng: number } | null;
   locationPermission: 'granted' | 'denied' | 'prompt';
   locationEnabled: boolean;
+  radiusKm?: number;
 }
 
-export default function ProgramList({ userLocation, locationPermission, locationEnabled }: ProgramListProps) {
+export default function ProgramList({ userLocation, locationPermission, locationEnabled, radiusKm = 2 }: ProgramListProps) {
   const [programs, setPrograms] = useState<GroupedProgram[]>([]);
   const [filteredPrograms, setFilteredPrograms] = useState<GroupedProgram[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +66,7 @@ export default function ProgramList({ userLocation, locationPermission, location
 
   useEffect(() => {
     applyFilters();
-  }, [programs, filters]);
+  }, [programs, filters, radiusKm, locationEnabled, userLocation]);
 
   const loadPrograms = async () => {
     try {
@@ -119,10 +120,14 @@ export default function ProgramList({ userLocation, locationPermission, location
       filtered = filtered.filter(program => program.isDropIn);
     }
 
-    if (filters.maxDistance !== undefined && filters.maxDistance !== null && filters.maxDistance > 0 && locationEnabled && userLocation) {
-      filtered = filtered.filter(program => 
-        program.distance !== null && program.distance <= filters.maxDistance!
-      );
+    if (locationEnabled && userLocation) {
+      const effectiveMaxDistance = filters.maxDistance ?? radiusKm;
+      if (effectiveMaxDistance > 0) {
+        filtered = filtered.filter(program => 
+          program.distance !== null && program.distance <= effectiveMaxDistance
+        );
+      }
+      filtered.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
     }
 
     setFilteredPrograms(filtered);

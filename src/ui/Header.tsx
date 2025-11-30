@@ -20,9 +20,13 @@ export default function Header({ title, showCrisis = true }: HeaderProps) {
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* App Title */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-cosmic-gradient flex items-center justify-center">
-              <div className="w-4 h-4 rounded-full bg-teal" />
-            </div>
+            <motion.img
+              src="/roomxi-logo.png"
+              alt="Room XI logo"
+              className="w-8 h-8"
+              whileHover={{ scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            />
             <h1 className="text-lg font-display font-semibold text-deepSage">
               {title || 'Room XI Connect'}
             </h1>
