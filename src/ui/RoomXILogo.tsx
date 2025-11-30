@@ -20,6 +20,10 @@ export default function RoomXILogo({
         src="/roomxi-logo.png"
         alt="Room XI logo"
         className="w-full h-full object-contain"
+        style={{
+          mixBlendMode: 'multiply',
+          filter: 'sepia(100%) saturate(300%) brightness(65%) hue-rotate(95deg)',
+        }}
       />
     </motion.div>
   );
