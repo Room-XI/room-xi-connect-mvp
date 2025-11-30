@@ -1,7 +1,9 @@
 import OpenAI from 'openai';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
-import type { MoodTrendData } from './moodTrends.js';
-import type { ProgramRecommendation } from './recommendations.js';
+import type { MoodTrendData } from './moodTrends.ts';
+import type { ProgramRecommendation } from './recommendations.ts';
+import { moderateText } from './moderation.ts';
+import { recordAiMetrics } from './aiTransparency.ts';
 
 // Initialize OpenAI client with Replit AI Integrations
 // The AI_INTEGRATIONS_OPENAI_API_KEY and AI_INTEGRATIONS_OPENAI_BASE_URL
@@ -259,6 +261,21 @@ export async function generateXimiResponse(
     };
   }
 
+  // TASK 8: Content moderation - second safety layer
+  const moderation = await moderateText(userMessage);
+  if (moderation.flagged) {
+    // Record moderation flag (aggregate count only)
+    await recordAiMetrics({
+      totalMessagesDelta: 1,
+      moderationFlaggedDelta: 1,
+    });
+    return {
+      message: "I'm not able to continue with that topic, but I'm still here to talk about how you're feeling.",
+      crisisDetected: false,
+      crisisKeywords: [],
+    };
+  }
+
   const mode = context.mode || 'sibling';
   const systemPrompt = SYSTEM_PROMPTS[mode];
 
@@ -371,23 +388,30 @@ export async function generateXimiResponse(
 
       const completion = await openai.chat.completions.create(completionParams);
 
-      // Log the completion for debugging
-      console.log(`[Ximi AI] OpenAI response received:`, {
-        model: modelToUse,
-        hasChoices: !!completion.choices,
-        choicesLength: completion.choices?.length,
-        hasContent: !!completion.choices?.[0]?.message?.content,
-        contentLength: completion.choices?.[0]?.message?.content?.length || 0,
-        finishReason: completion.choices?.[0]?.finish_reason,
-      });
+      // Log the completion for debugging (no text in production)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Ximi AI] OpenAI response received:`, {
+          model: modelToUse,
+          hasChoices: !!completion.choices,
+          choicesLength: completion.choices?.length,
+          hasContent: !!completion.choices?.[0]?.message?.content,
+          contentLength: completion.choices?.[0]?.message?.content?.length || 0,
+          finishReason: completion.choices?.[0]?.finish_reason,
+        });
+      }
 
       const responseText = completion.choices[0]?.message?.content?.trim();
       
       // Check if we got an empty response
       if (!responseText) {
-        console.error(`[Ximi AI] Empty response from ${modelToUse}:`, {
-          completion: JSON.stringify(completion, null, 2),
-        });
+        // Log full completion only in development (never log response text in production)
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(`[Ximi AI] Empty response from ${modelToUse}:`, {
+            completion: JSON.stringify(completion, null, 2),
+          });
+        } else {
+          console.error(`[Ximi AI] Empty response from ${modelToUse}`);
+        }
         throw new Error('Empty response from OpenAI API');
       }
 

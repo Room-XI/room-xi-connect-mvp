@@ -54,7 +54,7 @@ async function createServer() {
   const { validateCsrfToken, requireGuardianVerification } = await import('./middleware/security.ts');
   
   // Import rate limiters
-  const { authLimiter, writeLimiter } = await import('./middleware/rateLimit.ts');
+  const { authLimiter, writeLimiter, adminLimiter } = await import('./middleware/rateLimit.ts');
 
   // Import API routes
   const { default: authRoutes } = await import('./routes/auth.js');
@@ -90,13 +90,17 @@ async function createServer() {
   const { default: adminPortalRoutes } = await import('./routes/adminPortal.js');
   const { default: disclosureRoutes } = await import('./routes/disclosure.js');
   const { default: healthRoutes } = await import('./routes/health.js');
+  const { default: analyticsRoutes } = await import('./routes/analytics.ts');
 
   // Health check endpoints (no auth required for monitoring)
   app.use('/health', healthRoutes);
   app.use('/api/health', healthRoutes);
 
-  // Admin Portal routes (separate CSRF handling)
-  app.use('/api/admin-portal', authLimiter, adminPortalRoutes);
+  // Admin Portal routes (separate CSRF handling, stricter rate limiting)
+  app.use('/api/admin-portal', adminLimiter, adminPortalRoutes);
+  
+  // Privacy-safe analytics (admin only)
+  app.use('/api/analytics', adminLimiter, analyticsRoutes);
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   app.use('/api/auth', authLimiter, authRoutes);

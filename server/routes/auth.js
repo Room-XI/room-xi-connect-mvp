@@ -195,11 +195,29 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Check guardian verification status
+    // TASK 6: Recalculate age from DOB on login for accurate guardian gating
+    let computedAge = user.profile?.age ?? null;
+    
+    if (user.profile?.dateOfBirth) {
+      const newAge = calculateAge(user.profile.dateOfBirth);
+      if (newAge !== null) {
+        computedAge = newAge;
+        
+        // Update stored age if it has changed (e.g., user had a birthday)
+        if (!user.profile.age || user.profile.age !== newAge) {
+          await db
+            .update(profiles)
+            .set({ age: newAge })
+            .where(eq(profiles.userId, user.id));
+        }
+      }
+    }
+
+    // Check guardian verification status using computed age
     let guardianVerifiedAt = null;
     let requiresGuardianVerification = false;
     
-    if (user.profile && user.profile.age && user.profile.age < 16) {
+    if (computedAge !== null && computedAge < 16) {
       requiresGuardianVerification = true;
       
       // Check if guardian has verified
@@ -216,7 +234,7 @@ router.post('/login', async (req, res) => {
     // Set session with guardian verification status
     req.session.userId = user.id;
     req.session.email = user.email;
-    req.session.age = user.profile?.age || null;
+    req.session.age = computedAge;
     req.session.requiresGuardianVerification = requiresGuardianVerification;
     req.session.guardianVerifiedAt = guardianVerifiedAt || (requiresGuardianVerification ? null : new Date().toISOString());
 
@@ -224,7 +242,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        age: user.profile?.age,
+        age: computedAge,
         requiresGuardianVerification,
         guardianVerifiedAt: req.session.guardianVerifiedAt,
       }

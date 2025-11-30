@@ -4,8 +4,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../db.js';
-import { consents } from '../schema.js';
+import { db } from '../db.ts';
+import { consents } from '../schema.ts';
 import { eq, and } from 'drizzle-orm';
 
 /**

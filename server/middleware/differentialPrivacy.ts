@@ -4,8 +4,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../db.js';
-import { dpApplications } from '../schema.js';
+import { db } from '../db.ts';
+import { dpApplications } from '../schema.ts';
 import { applyDPToStats, addLaplaceNoise } from '../lib/differentialPrivacy.js';
 
 interface DPMetadata {

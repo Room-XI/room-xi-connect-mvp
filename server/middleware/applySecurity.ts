@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { securityHeaders } from "./security.js";
+import { securityHeaders } from "./security.ts";
 
 export function applySecurity(app: Express) {
   // Apply security headers globally

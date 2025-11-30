@@ -189,6 +189,7 @@ export const guardianVerifications = pgTable("guardian_verifications", {
   verifiedByIp: text("verified_by_ip"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
 }, (table) => ({
   userIdx: index("guardian_verifications_user_idx").on(table.userId),
   tokenIdx: index("guardian_verifications_token_idx").on(table.verificationToken),
@@ -857,3 +858,11 @@ export const programEvents = pgTable("program_events", {
   activeTimeIdx: index("idx_program_events_active_time").on(table.active, table.dayOfWeek, table.startTime),
   activeDateIdx: index("idx_program_events_active_date").on(table.active, table.occursOnDate),
 }));
+
+// TASK 14: AI Transparency Metrics
+export const aiTransparencyMetrics = pgTable("ai_transparency_metrics", {
+  date: date("date").primaryKey(),
+  totalMessages: integer("total_messages").default(0).notNull(),
+  crisisDetected: integer("crisis_detected").default(0).notNull(),
+  moderationFlagged: integer("moderation_flagged").default(0).notNull(),
+});

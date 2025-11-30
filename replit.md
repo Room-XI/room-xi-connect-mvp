@@ -74,8 +74,11 @@ Guardian invitation emails now include comprehensive Room XI overview explaining
 - `server/routes/health.js` - Health check endpoints for monitoring
 - `server/routes/programs.js` - Programs API with search, filtering, and geolocation
 - `server/routes/events.js` - Events API with grouped programs, today, and happening-now endpoints
-- `server/services/scheduler.js` - Background scheduler with data retention
+- `server/services/scheduler.js` - Background scheduler with data retention and guardian reminders
 - `server/middleware/security.ts` - Security headers and CSRF protection
+- `server/services/moderation.ts` - OpenAI content moderation wrapper for Ximi
+- `server/services/aiTransparency.ts` - Aggregate AI metrics recording (no content logging)
+- `server/routes/analytics.ts` - Privacy-safe aggregate analytics (admin-only)
 - `src/components/ProfileProgress.tsx` - Visual profile completion meter
 - `src/components/XimiChat.tsx` - AI companion with persistent disclaimer banner
 - `src/routes/TermsOfService.tsx` - Terms including mandatory reporting clause
@@ -85,14 +88,23 @@ Guardian invitation emails now include comprehensive Room XI overview explaining
 - `src/hooks/useExploreGate.ts` - Auth-aware explore gate hook
 - `server/services/parentInvite.ts` - Enhanced guardian email service
 
-## Recent Changes (November 28, 2025)
+## Recent Changes (November 30, 2025) - Production Hardening
+- **Content Moderation**: Added OpenAI moderation wrapper for Ximi chat (server/services/moderation.ts) as second safety layer beyond crisis keywords
+- **AI Transparency**: Added aggregate-only metrics tracking (server/services/aiTransparency.ts) - counts total messages, crisis detections, moderation flags without logging content
+- **Privacy-Safe Analytics**: Added /api/analytics endpoints (admin-only) for aggregate mood trends, crisis counts, program engagement
+- **Configurable Data Retention**: Added RETENTION_XIMI_DAYS and RETENTION_CHECKINS_DAYS environment variables for optional cleanup of old data
+- **Guardian Reminders**: Scheduler now sends one reminder email after 7 days for unverified guardians, tracking via reminder_sent_at column
+- **TypeScript Server Config**: Added tsconfig.server.json and npm run typecheck:server for server-specific type checking
+- **Rate Limiting Tightened**: Auth endpoints now limited to 15 requests/15min, admin endpoints to 5 requests/15min
+
+## Previous Changes (November 28, 2025)
 - Implemented grouped programs view: Programs tab now shows each program once with weekly schedule summary
 - Added `/api/events/programs-grouped` endpoint for program-centric browsing
 - Today tab continues showing individual daily events
 - Filtered overnight programs (22:00-06:00) from day programs view
 - Created reproducible seed file for Edmonton youth programs
 
-## Previous Changes (November 26, 2025)
+## Changes (November 26, 2025)
 - Removed duplicate "Youth Maker & Tech Club" program from database
 - Deleted unused files: OrgDashboard.tsx (341 lines), ui/home/MoodOrb.tsx (135 lines)
 - Removed legacy supabase/ folder (app uses Neon PostgreSQL, not Supabase)

@@ -5,8 +5,9 @@ import { sendCheckinReminder, pushEnabled } from './pushNotification.ts';
 import { computeTrendsForAllUsers } from './moodTrends.ts';
 import { computePeerInsightsForAllPrograms } from './peerInsights.ts';
 import { db } from '../db.js';
-import { privacyConsents, checkins, profiles } from '../schema.js';
+import { privacyConsents, checkins, profiles, ximiConversations, guardianVerifications } from '../schema.js';
 import { eq, and, lt, sql } from 'drizzle-orm';
+import { sendGuardianVerificationEmail } from './email.js';
 
 // Store the interval ID for the scheduler
 let schedulerInterval = null;
@@ -262,7 +263,10 @@ async function runDataRetentionCleanup() {
   const results = {
     expiredDisclosureRequests: 0,
     expiredGuardianInvites: 0,
-    orphanedSessions: 0
+    orphanedSessions: 0,
+    deletedXimiConversations: 0,
+    deletedCheckins: 0,
+    guardianReminders: 0,
   };
   
   try {
@@ -290,12 +294,87 @@ async function runDataRetentionCleanup() {
     `);
     results.orphanedSessions = sessionResult.rowCount || 0;
     
+    // TASK 5: Optional cleanup of old Ximi conversations
+    const ximiDays = parseInt(process.env.RETENTION_XIMI_DAYS || '0', 10);
+    if (ximiDays > 0) {
+      const ximiResult = await db.execute(sql`
+        DELETE FROM ximi_conversations
+        WHERE created_at < NOW() - INTERVAL '1 day' * ${ximiDays}
+      `);
+      results.deletedXimiConversations = ximiResult.rowCount || 0;
+    }
+    
+    // TASK 5: Optional cleanup of old check-ins
+    const checkinDays = parseInt(process.env.RETENTION_CHECKINS_DAYS || '0', 10);
+    if (checkinDays > 0) {
+      const checkinResult = await db.execute(sql`
+        DELETE FROM checkins
+        WHERE timestamp < NOW() - INTERVAL '1 day' * ${checkinDays}
+      `);
+      results.deletedCheckins = checkinResult.rowCount || 0;
+    }
+    
+    // TASK 11: Send guardian verification reminders after 7 days
+    results.guardianReminders = await sendGuardianReminders();
+    
     console.log('[DataRetention] Cleanup results:', results);
     return results;
   } catch (error) {
     console.error('[DataRetention] Cleanup error:', error);
     throw error;
   }
+}
+
+/**
+ * TASK 11: Send guardian verification reminder emails
+ * Sends one reminder after 7 days if not yet verified
+ */
+async function sendGuardianReminders() {
+  let sentCount = 0;
+  
+  try {
+    // Find pending verifications older than 7 days that haven't received a reminder
+    const pending = await db.execute(sql`
+      SELECT id, user_id, guardian_contact_type, guardian_contact_value, verification_token
+      FROM guardian_verifications
+      WHERE verified_at IS NULL
+        AND created_at <= NOW() - INTERVAL '7 days'
+        AND reminder_sent_at IS NULL
+        AND expires_at > NOW()
+    `);
+    
+    for (const row of pending.rows) {
+      try {
+        await sendGuardianVerificationEmail({
+          guardianEmail: row.guardian_contact_value,
+          youthName: 'your child',
+          verificationLink: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/guardian/verify/${row.verification_token}`,
+        });
+        
+        // Mark reminder as sent
+        await db.execute(sql`
+          UPDATE guardian_verifications
+          SET reminder_sent_at = NOW()
+          WHERE id = ${row.id}
+        `);
+        
+        sentCount++;
+      } catch (err) {
+        console.error('[GuardianReminder] Failed to send reminder:', {
+          id: row.id,
+          error: err,
+        });
+      }
+    }
+    
+    if (sentCount > 0) {
+      console.log(`[GuardianReminder] Sent ${sentCount} reminder emails`);
+    }
+  } catch (error) {
+    console.error('[GuardianReminder] Error:', error);
+  }
+  
+  return sentCount;
 }
 
 /**
