@@ -83,19 +83,6 @@ export const caseNoteSchema = z.object({
 export type CaseNote = z.infer<typeof caseNoteSchema>;
 
 // ============================================================================
-// JOURNAL ENTRIES
-// ============================================================================
-
-export const journalEntrySchema = z.object({
-  mood: z.number().int().min(1).max(5),
-  content: z.string().min(1, 'Entry cannot be empty').max(5000, 'Entry too long (max 5000 characters)'),
-  prompt: z.string().max(500).optional(),
-  ximi_conversation: z.boolean().default(false)
-});
-
-export type JournalEntry = z.infer<typeof journalEntrySchema>;
-
-// ============================================================================
 // PROGRAMS
 // ============================================================================
 

@@ -205,7 +205,7 @@ export default function ParentPortal() {
         >
           <p>
             <strong>Privacy Note:</strong> You can manage consent and view program participation,
-            but cannot access mood check-ins, journal entries, or AI conversations.
+            but cannot access mood check-ins or AI conversations.
           </p>
         </motion.div>
       </div>

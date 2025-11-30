@@ -126,7 +126,7 @@ export default function ParentInviteForm() {
       <div className="pt-4 border-t border-sage/20">
         <p className="text-xs text-textSecondaryLight">
           <strong>Privacy Note:</strong> The invitation will be sent via email and expires in 30 days. 
-          Your parent/guardian can manage consent and view program participation, but cannot access your mood check-ins or journal entries.
+          Your parent/guardian can manage consent and view program participation, but cannot access your mood check-ins or AI conversations.
         </p>
       </div>
     </motion.div>

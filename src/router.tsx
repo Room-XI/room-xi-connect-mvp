@@ -32,14 +32,12 @@ const TermsOfService = lazy(() => import('./routes/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./routes/PrivacyPolicy'));
 const CheckInHistory = lazy(() => import('./routes/CheckInHistory'));
 const SavedPrograms = lazy(() => import('./routes/SavedPrograms'));
-const Journal = lazy(() => import('./routes/Journal'));
 const VerifyConsent = lazy(() => import('./routes/VerifyConsent'));
 const GuardianVerify = lazy(() => import('./routes/GuardianVerify'));
 const OrgDashboard = lazy(() => import('./routes/org/Dashboard'));
 const ProgramManagement = lazy(() => import('./routes/org/ProgramManagement'));
 const TransparencyDashboard = lazy(() => import('./components/TransparencyDashboard').then(m => ({ default: m.TransparencyDashboard })));
 const PrivacyCenter = lazy(() => import('./components/PrivacyCenter').then(m => ({ default: m.PrivacyCenter })));
-const LivingJournal = lazy(() => import('./components/LivingJournal').then(m => ({ default: m.LivingJournal })));
 const Achievements = lazy(() => import('./components/Achievements').then(m => ({ default: m.Achievements })));
 const KPIDashboard = lazy(() => import('./components/KPIDashboard').then(m => ({ default: m.KPIDashboard })));
 const OrbTimelapse = lazy(() => import('./components/OrbTimelapse'));
@@ -80,8 +78,6 @@ export const router = createBrowserRouter([
       { path: 'privacy-policy', element: withSuspense(PrivacyPolicy) },
       { path: 'check-in-history', element: withSuspense(CheckInHistory) },
       { path: 'saved-programs', element: withSuspense(SavedPrograms) },
-      { path: 'journal', element: withSuspense(Journal) },
-      { path: 'living-journal', element: withSuspense(LivingJournal) },
       { path: 'verify-consent/:token', element: withSuspense(VerifyConsent) },
       { path: 'guardian/verify/:token', element: withSuspense(GuardianVerify) },
       { path: 'parent', element: withSuspense(ParentPortal) },

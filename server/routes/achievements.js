@@ -140,19 +140,6 @@ async function calculateAchievements(userId) {
       });
     }
 
-    // Add more achievements based on journal entries (when implemented)
-    achievements.push({
-      id: 'journal-starter',
-      name: 'Journal Starter',
-      description: 'Write your first journal entry',
-      icon: 'award',
-      category: 'journal',
-      points: 20,
-      progress: 0,
-      maxProgress: 1,
-      rarity: 'common'
-    });
-
     return achievements;
   } catch (error) {
     console.error('Error calculating achievements:', error);

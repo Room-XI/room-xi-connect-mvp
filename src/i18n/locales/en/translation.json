@@ -134,21 +134,6 @@
     "no": "No",
     "pageOf": "Page {{current}} of {{total}}"
   },
-  "journal": {
-    "title": "Living Journal",
-    "newEntry": "New Entry",
-    "totalEntries": "Total Entries",
-    "currentStreak": "Current Streak",
-    "totalWords": "Total Words",
-    "moodBoost": "Mood Boost",
-    "entryTitle": "Entry Title (optional)",
-    "writeYourThoughts": "Write your thoughts...",
-    "wordCount": "{{count}} words",
-    "encrypt": "Encrypt Entry",
-    "searchEntries": "Search entries...",
-    "allMoods": "All Moods",
-    "words": "words"
-  },
   "achievements": {
     "title": "Achievements",
     "level": "Level",
@@ -161,7 +146,6 @@
     "allCategories": "All",
     "streaks": "Streaks",
     "checkIns": "Check-ins",
-    "journal": "Journal",
     "programs": "Programs",
     "community": "Community",
     "special": "Special"

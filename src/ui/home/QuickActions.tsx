@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, Building, Heart, Sparkles } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface QuickAction {
@@ -11,13 +11,6 @@ interface QuickAction {
 }
 
 const actions: QuickAction[] = [
-  {
-    to: '/journal',
-    icon: <BookOpen className="w-6 h-6" />,
-    label: 'Living Journal',
-    description: 'Write or talk with Ximi',
-    gradient: 'from-teal to-sage'
-  },
   {
     to: '/explore',
     icon: <Heart className="w-6 h-6" />,

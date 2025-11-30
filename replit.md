@@ -88,7 +88,8 @@ Guardian invitation emails now include comprehensive Room XI overview explaining
 - `src/hooks/useExploreGate.ts` - Auth-aware explore gate hook
 - `server/services/parentInvite.ts` - Enhanced guardian email service
 
-## Recent Changes (November 30, 2025) - Production Hardening
+## Recent Changes (November 30, 2025) - Production Hardening & Cleanup
+- **Journal Feature Removed**: Removed all journal-related routes, components, and UI (Journal.tsx, LivingJournal.tsx, journal.js). Database table retained for historical data export compliance.
 - **Content Moderation**: Added OpenAI moderation wrapper for Ximi chat (server/services/moderation.ts) as second safety layer beyond crisis keywords
 - **AI Transparency**: Added aggregate-only metrics tracking (server/services/aiTransparency.ts) - counts total messages, crisis detections, moderation flags without logging content
 - **Privacy-Safe Analytics**: Added /api/analytics endpoints (admin-only) for aggregate mood trends, crisis counts, program engagement
@@ -119,4 +120,5 @@ Guardian invitation emails now include comprehensive Room XI overview explaining
 ## Cleanup Completed
 - Removed: `supabase/` folder, `src/routes/org/OrgDashboard.tsx`, `src/ui/home/MoodOrb.tsx`
 - Removed: `DEVELOPER-HANDOFF.md`, `README_V2.md`
+- Removed: `src/routes/Journal.tsx`, `src/components/LivingJournal.tsx`, `server/routes/journal.js` (journal feature disabled)
 - Moved to tests/: `test-e2e.js`, `test-ximi.js`, `test-ximi.ts`, `test-ximi-integration.js`, `test-parent-consent.js`, `test-low-power-mode.html`

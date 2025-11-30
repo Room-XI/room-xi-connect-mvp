@@ -70,7 +70,6 @@ async function createServer() {
   const { default: orgRoutes } = await import('./routes/org.js');
   const { default: privacyRoutes } = await import('./routes/privacy.js');
   const { default: transparencyRoutes } = await import('./routes/transparency.js');
-  const { default: journalRoutes } = await import('./routes/journal.js');
   const { default: achievementsRoutes } = await import('./routes/achievements.js');
   const { default: kpiRoutes } = await import('./routes/kpi.js');
   const { default: orbSnapshotsRoutes } = await import('./routes/orbSnapshots.js');
@@ -115,7 +114,6 @@ async function createServer() {
   app.use('/api/xid', validateCsrfToken, requireGuardianVerification, writeLimiter, xidRoutes);
   app.use('/api/consent', validateCsrfToken, writeLimiter, consentRoutes);
   app.use('/api/ximi', validateCsrfToken, requireGuardianVerification, writeLimiter, ximiRoutes);
-  app.use('/api/journal', validateCsrfToken, requireGuardianVerification, writeLimiter, journalRoutes);
   app.use('/api/admin', validateCsrfToken, writeLimiter, adminRoutes);
   app.use('/api/org', validateCsrfToken, writeLimiter, orgRoutes);
   app.use('/api/privacy', validateCsrfToken, writeLimiter, privacyRoutes);

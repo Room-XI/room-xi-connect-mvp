@@ -69,7 +69,7 @@ async function sendParentInviteEmail(toEmail: string, token: string, youthName?:
         
         <div style="background: #E8F5F3; padding: 12px 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #5FA8A3;">
           <p style="color: #2C4A3E; margin: 0; font-size: 14px;">
-            <strong>Privacy Note:</strong> Your youth's personal journal entries and detailed mood data remain private. 
+            <strong>Privacy Note:</strong> Your youth's detailed mood data and conversations remain private. 
             You will only see general activity and program interests unless they choose to share more.
           </p>
         </div>

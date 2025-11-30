@@ -19,7 +19,7 @@ interface Achievement {
   name: string;
   description: string;
   icon: string;
-  category: 'streak' | 'checkin' | 'journal' | 'program' | 'community' | 'special';
+  category: 'streak' | 'checkin' | 'program' | 'community' | 'special';
   points: number;
   unlockedAt?: string;
   progress?: number;
@@ -134,17 +134,6 @@ export function Achievements() {
       rarity: 'rare'
     },
     {
-      id: '3',
-      name: 'Journal Master',
-      description: 'Write 30 journal entries',
-      icon: 'award',
-      category: 'journal',
-      points: 100,
-      progress: 12,
-      maxProgress: 30,
-      rarity: 'epic'
-    },
-    {
       id: '4',
       name: 'Community Champion',
       description: 'Attend 10 community programs',
@@ -194,7 +183,6 @@ export function Achievements() {
     { id: 'all', label: t('achievements.allCategories') },
     { id: 'streak', label: t('achievements.streaks') },
     { id: 'checkin', label: t('achievements.checkIns') },
-    { id: 'journal', label: t('achievements.journal') },
     { id: 'program', label: t('achievements.programs') },
     { id: 'community', label: t('achievements.community') },
     { id: 'special', label: t('achievements.special') }

@@ -188,7 +188,7 @@ const MOOD_RESPONSES: Record<MoodKey, Record<XimiMode, MoodDialogue>> = {
     sibling: {
       opening: "Whoa, you're glowing today! What's lighting you up?",
       followUp: "If you could bottle this feeling, what would you call it?",
-      encouragement: "Let's save this in your journal so Future You remembers how strong this feels.",
+      encouragement: "Let's remember this moment - Future You will want to remember how strong this feels.",
     },
     peer: {
       opening: "Everything's clicking today, huh? Feels good.",
