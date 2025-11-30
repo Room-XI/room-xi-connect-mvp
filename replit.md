@@ -16,6 +16,16 @@ A comprehensive admin dashboard provides real-time analytics and monitoring with
 ### Feature Specifications
 The application utilizes a 6-level mood system and SAMHSA Wellness Dimensions. Ximi AI includes consent gating, crisis keyword detection, and a persistent "not a clinician" disclaimer. A legally compliant consent system involves basic consent and a second layer for a "Safety Profile" with optional health information. A breach notification system is in place for OIPC compliance. Authenticated users must complete a daily check-in before browsing programs, managed by an "Explore Gate." Ximi proactively supports users during mood declines based on statistical mood variance detection. A dedicated consent flow for Ximi AI requires explicit user opt-in. An outcome tracking system enables youth to share program experiences and view privacy-safe peer insights, utilizing k-anonymity and differential privacy. A Real-Time Event Finder enables discovery of programs currently running in Edmonton with time-based filtering, supporting recurring, one-time, seasonal, and overnight events. The Programs tab uses a grouped view that combines recurring events into single program entries with weekly schedule summaries.
 
+### Location-Based Discovery (Updated Nov 2025)
+A compact "Show nearby" toggle replaces the previous card-based location UI. Features include:
+- Three radius options: 1km (~12 min walk), 2km (default, ~25 min walk), 5km (~60 min/transit)
+- 2km default optimized for Edmonton youth based on transit/bike research
+- Permission state handling (prompt, granted, denied) with retry functionality
+- localStorage persistence for both location preference and radius selection
+- ProgramMap shows radius circle overlay and filters markers within selected distance
+- All list views (ProgramList, TodayList) automatically filter and sort by distance when enabled
+- Distance badges displayed on program cards when location is active
+
 ### Edmonton Youth Programs Database
 The database contains over 75 comprehensive Edmonton youth resources across categories such as Mental Health, LGBTQ+ & 2Spirit, Indigenous, Arts & Creative, Sports & Recreation, Employment & Career, and Crisis Support.
 
