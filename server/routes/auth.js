@@ -8,6 +8,7 @@ import { generateCsrfToken } from '../middleware/security.ts';
 import { sendGuardianVerificationEmail } from '../services/email.js';
 import { validateBody } from '../middleware/validate.ts';
 import { registerSchema, loginSchema, deleteAccountSchema } from '../schemas/auth.ts';
+import { lookupCommunity, normalizePostalCode } from '../services/communityLookup.ts';
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ function calculateAge(dateOfBirth) {
 // Register
 router.post('/register', validateBody(registerSchema), async (req, res) => {
   try {
-    const { email, password, firstName, lastName, dateOfBirth, guardianEmail, guardianName } = req.body;
+    const { email, password, firstName, lastName, dateOfBirth, postalCode, guardianEmail, guardianName } = req.body;
 
     // VALIDATION
     if (!email || !password) {
@@ -98,13 +99,19 @@ router.post('/register', validateBody(registerSchema), async (req, res) => {
       passwordHash,
     }).returning();
 
-    // Create profile
+    // Look up community/ward from postal code
+    const normalizedPostalCode = normalizePostalCode(postalCode);
+    const communityInfo = lookupCommunity(postalCode);
+
+    // Create profile with community/ward assignment (privacy: don't store postal code)
     const [newProfile] = await db.insert(profiles).values({
       userId: newUser.id,
       firstName: firstName || null,
       lastName: lastName || null,
       age: userAge,
       dateOfBirth: dateOfBirth,
+      communityName: communityInfo?.community || null,
+      wardName: communityInfo?.ward || null,
     }).returning();
 
     // Handle guardian verification for users under 16
@@ -155,6 +162,8 @@ router.post('/register', validateBody(registerSchema), async (req, res) => {
         id: newUser.id,
         email: newUser.email,
         age: userAge,
+        communityName: communityInfo?.community || null,
+        wardName: communityInfo?.ward || null,
         requiresGuardianVerification,
         guardianVerifiedAt: req.session.guardianVerifiedAt,
       }

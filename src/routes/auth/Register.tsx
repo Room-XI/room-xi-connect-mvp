@@ -1,18 +1,26 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle, MapPin } from 'lucide-react';
 import api from '@/lib/api';
+
+const CANADIAN_POSTAL_CODE_REGEX = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
+
+function isValidCanadianPostalCode(postalCode: string): boolean {
+  return CANADIAN_POSTAL_CODE_REGEX.test(postalCode.trim());
+}
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [assignedWard, setAssignedWard] = useState<string | null>(null);
 
   const validatePassword = (password: string) => {
     if (password.length < 8) {
@@ -33,7 +41,7 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !postalCode) {
       setError('Please fill in all fields');
       return;
     }
@@ -49,17 +57,25 @@ export default function Register() {
       return;
     }
 
+    if (!isValidCanadianPostalCode(postalCode)) {
+      setError('Please enter a valid Canadian postal code (e.g., T5X 1Y2)');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const { error } = await api.auth.register(email.trim(), password);
+      const { data, error } = await api.auth.register(email.trim(), password, { postalCode: postalCode.trim() });
 
       if (error) {
         setError(error);
         return;
       }
 
+      if (data?.user?.wardName) {
+        setAssignedWard(data.user.wardName);
+      }
       setSuccess(true);
     } catch (error) {
       console.error('Registration error:', error);
@@ -91,6 +107,18 @@ export default function Register() {
               Please check your email and click the link to activate your account.
             </p>
           </div>
+
+          {assignedWard && (
+            <div className="cosmic-card p-4 bg-gradient-to-r from-teal/10 to-coral/10 border-teal/20">
+              <div className="flex items-center space-x-3">
+                <MapPin className="w-5 h-5 text-teal flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-deepSage">Your Edmonton Ward</p>
+                  <p className="text-lg font-bold text-teal">{assignedWard}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="cosmic-card p-4 bg-teal/10 border-teal/20">
             <p className="text-sm text-teal">
@@ -184,6 +212,30 @@ export default function Register() {
                 autoComplete="email"
               />
             </div>
+          </div>
+
+          {/* Postal Code Field */}
+          <div className="space-y-2">
+            <label htmlFor="postalCode" className="block text-sm font-medium text-deepSage">
+              Postal Code <span className="text-coral">*</span>
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+              <input
+                id="postalCode"
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+                placeholder="T5X 1Y2"
+                className="cosmic-input pl-10"
+                disabled={loading}
+                autoComplete="postal-code"
+                maxLength={7}
+              />
+            </div>
+            <p className="text-xs text-textSecondaryLight">
+              Edmonton postal code (e.g., T5X 1Y2) - used to assign your local ward
+            </p>
           </div>
 
           {/* Password Field */}
@@ -297,14 +349,14 @@ export default function Register() {
           {/* Submit Button */}
           <motion.button
             type="submit"
-            disabled={loading || !email || !password || !confirmPassword || password !== confirmPassword}
+            disabled={loading || !email || !password || !confirmPassword || !postalCode || password !== confirmPassword}
             className={`w-full cosmic-button ${
-              loading || !email || !password || !confirmPassword || password !== confirmPassword 
+              loading || !email || !password || !confirmPassword || !postalCode || password !== confirmPassword 
                 ? 'opacity-50 cursor-not-allowed' 
                 : ''
             }`}
-            whileHover={!loading && email && password && confirmPassword && password === confirmPassword ? { scale: 1.02 } : {}}
-            whileTap={!loading && email && password && confirmPassword && password === confirmPassword ? { scale: 0.98 } : {}}
+            whileHover={!loading && email && password && confirmPassword && postalCode && password === confirmPassword ? { scale: 1.02 } : {}}
+            whileTap={!loading && email && password && confirmPassword && postalCode && password === confirmPassword ? { scale: 0.98 } : {}}
           >
             {loading ? (
               <div className="flex items-center justify-center space-x-2">

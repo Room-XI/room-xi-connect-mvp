@@ -118,6 +118,10 @@ export const profiles = pgTable("profiles", {
   postalCode: text("postal_code"),
   timezone: text("timezone").default("America/Edmonton"),
   
+  // Edmonton Ward/Community Assignment
+  communityName: text("community_name"),
+  wardName: text("ward_name"),
+  
   // Layer 2: Safety Profile
   legalFirstName: text("legal_first_name"),
   legalLastName: text("legal_last_name"),
