@@ -91,7 +91,6 @@ export default function Home() {
           });
         }
       } catch (err) {
-        console.log('Privacy consents not loaded:', err);
       }
     } catch (error) {
       console.error('Error loading user data:', error);

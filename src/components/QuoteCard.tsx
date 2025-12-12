@@ -4,9 +4,9 @@
  * Shows one quote per day with elegant design
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Quote, RefreshCw, Heart, Share2, X } from 'lucide-react';
+import { Quote, Heart, Share2, X } from 'lucide-react';
 import api from '@/lib/api';
 
 interface DailyQuote {
@@ -75,8 +75,6 @@ export default function QuoteCard({ className = '', onClose }: QuoteCardProps) {
           title: 'Daily Reflection'
         });
       } catch (err) {
-        // User cancelled or error occurred
-        console.log('Share cancelled or failed');
       }
     } else {
       // Fallback: Copy to clipboard

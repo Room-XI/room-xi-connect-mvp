@@ -36,9 +36,10 @@ export default function LocationToggle({
         {onRetryPermission && (
           <button
             onClick={onRetryPermission}
+            aria-label="Retry location permission request"
             className="flex items-center gap-1 text-xs font-medium text-teal hover:text-teal/80 transition-colors"
           >
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className="w-3 h-3" aria-hidden="true" />
             Retry
           </button>
         )}
@@ -58,6 +59,7 @@ export default function LocationToggle({
           onClick={onToggle}
           role="switch"
           aria-checked={enabled}
+          aria-label={`Show nearby programs: ${enabled ? 'enabled' : 'disabled'}`}
           className={`
             relative w-11 h-6 rounded-full transition-colors duration-200
             ${enabled ? 'bg-teal' : 'bg-sage/30'}
@@ -86,6 +88,8 @@ export default function LocationToggle({
                   <button
                     key={option.km}
                     onClick={() => onRadiusChange(option.km)}
+                    aria-pressed={radiusKm === option.km}
+                    aria-label={`Set search radius to ${option.km} kilometers, ${option.walkTime}`}
                     className={`
                       px-3 py-1 text-xs font-medium rounded-full transition-all duration-200
                       ${radiusKm === option.km

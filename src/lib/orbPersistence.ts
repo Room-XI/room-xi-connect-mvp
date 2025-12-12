@@ -25,7 +25,6 @@ export function saveOrbTweenState(state: OrbTweenState): void {
   try {
     localStorage.setItem(ORB_STATE_KEY, JSON.stringify(state));
   } catch (error) {
-    console.warn('Failed to save orb tween state:', error);
   }
 }
 
@@ -46,7 +45,6 @@ export function loadOrbTweenState(): OrbTweenState | null {
     
     return state;
   } catch (error) {
-    console.warn('Failed to load orb tween state:', error);
     return null;
   }
 }
@@ -68,7 +66,6 @@ export function clearOrbTweenState(): void {
   try {
     localStorage.removeItem(ORB_STATE_KEY);
   } catch (error) {
-    console.warn('Failed to clear orb tween state:', error);
   }
 }
 

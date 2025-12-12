@@ -225,9 +225,12 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
   const ageRange = formatAgeRange(ageMin, ageMax);
 
   return (
-    <Link to={`/program/${programId}`}>
+    <Link 
+      to={`/program/${programId}`}
+      aria-label={`View details for ${title}${organizer ? ` by ${organizer}` : ''}${isFree ? ', Free' : ''}${isDropIn ? ', Drop-in available' : ''}`}
+    >
       <motion.div
-        className="cosmic-card p-5 hover:shadow-soft transition-all duration-200 relative"
+        className="cosmic-card p-5 hover:shadow-soft transition-all duration-200 relative focus-within:ring-2 focus-within:ring-teal focus-within:ring-offset-2"
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
       >

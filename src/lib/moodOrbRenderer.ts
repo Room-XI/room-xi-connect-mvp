@@ -456,10 +456,6 @@ export class MoodOrbRenderer {
     this.lastFrameTime = now;
     this.frameCount++;
     
-    // Log performance warning if FPS drops below 30
-    if (this.frameCount % 60 === 0 && this.fps < 30) {
-      console.warn(`[MoodOrbRenderer] Low FPS detected: ${this.fps.toFixed(1)}`);
-    }
   }
   
   /**

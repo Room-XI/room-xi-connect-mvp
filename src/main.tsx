@@ -9,21 +9,15 @@ import { isNativePlatform } from './lib/capacitor';
 
 if (isNativePlatform()) {
   import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-    StatusBar.setStyle({ style: Style.Dark }).catch(err => {
-      console.warn('StatusBar.setStyle failed:', err);
-    });
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
 
     if (navigator.userAgent.includes('Android')) {
-      StatusBar.setBackgroundColor({ color: '#1e293b' }).catch(err => {
-        console.warn('StatusBar.setBackgroundColor failed:', err);
-      });
+      StatusBar.setBackgroundColor({ color: '#1e293b' }).catch(() => {});
     }
   });
 
   import('@capacitor/splash-screen').then(({ SplashScreen }) => {
-    SplashScreen.hide().catch(err => {
-      console.warn('SplashScreen.hide failed:', err);
-    });
+    SplashScreen.hide().catch(() => {});
   });
 }
 

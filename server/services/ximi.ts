@@ -351,8 +351,7 @@ export async function generateXimiResponse(
   // Retry logic for rate limits and transient errors
   const maxRetries = 3;
   let lastError: any;
-  // Use gpt-4o-mini as default for now (more reliable with Replit AI Integrations)
-  // TODO: Re-enable gpt-5 once confirmed working with Replit
+  // Using gpt-4o-mini as the default model (reliable with Replit AI Integrations)
   let modelToUse = 'gpt-4o-mini';
   let useGpt5Params = false;
   

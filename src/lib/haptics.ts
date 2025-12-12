@@ -23,9 +23,7 @@ export const haptics = {
     const module = await getHapticsModule();
     if (!module) return;
     
-    await module.Haptics.impact({ style: module.ImpactStyle.Light }).catch(err => {
-      console.warn('Haptic feedback failed:', err);
-    });
+    await module.Haptics.impact({ style: module.ImpactStyle.Light }).catch(() => {});
   },
 
   medium: async () => {
@@ -33,9 +31,7 @@ export const haptics = {
     const module = await getHapticsModule();
     if (!module) return;
     
-    await module.Haptics.impact({ style: module.ImpactStyle.Medium }).catch(err => {
-      console.warn('Haptic feedback failed:', err);
-    });
+    await module.Haptics.impact({ style: module.ImpactStyle.Medium }).catch(() => {});
   },
 
   heavy: async () => {
@@ -43,9 +39,7 @@ export const haptics = {
     const module = await getHapticsModule();
     if (!module) return;
     
-    await module.Haptics.impact({ style: module.ImpactStyle.Heavy }).catch(err => {
-      console.warn('Haptic feedback failed:', err);
-    });
+    await module.Haptics.impact({ style: module.ImpactStyle.Heavy }).catch(() => {});
   },
 
   success: async () => {
@@ -53,9 +47,7 @@ export const haptics = {
     const module = await getHapticsModule();
     if (!module) return;
     
-    await module.Haptics.notification({ type: module.NotificationType.Success }).catch(err => {
-      console.warn('Haptic feedback failed:', err);
-    });
+    await module.Haptics.notification({ type: module.NotificationType.Success }).catch(() => {});
   },
 
   warning: async () => {
@@ -63,9 +55,7 @@ export const haptics = {
     const module = await getHapticsModule();
     if (!module) return;
     
-    await module.Haptics.notification({ type: module.NotificationType.Warning }).catch(err => {
-      console.warn('Haptic feedback failed:', err);
-    });
+    await module.Haptics.notification({ type: module.NotificationType.Warning }).catch(() => {});
   },
 
   error: async () => {
@@ -73,9 +63,7 @@ export const haptics = {
     const module = await getHapticsModule();
     if (!module) return;
     
-    await module.Haptics.notification({ type: module.NotificationType.Error }).catch(err => {
-      console.warn('Haptic feedback failed:', err);
-    });
+    await module.Haptics.notification({ type: module.NotificationType.Error }).catch(() => {});
   },
 
   selection: async () => {
@@ -88,7 +76,6 @@ export const haptics = {
       await module.Haptics.selectionChanged();
       await module.Haptics.selectionEnd();
     } catch (error) {
-      console.warn('Haptics not available:', error);
     }
   }
 };

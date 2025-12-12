@@ -89,6 +89,9 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
         
         {/* Sheet */}
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="crisis-sheet-title"
           className="fixed bottom-0 left-0 right-0 bg-surface rounded-t-3xl shadow-2xl border-t border-borderMutedLight max-h-[90vh] overflow-y-auto"
           initial={{ transform: 'translateY(100%)' }}
           animate={{ transform: 'translateY(0)' }}
@@ -98,7 +101,7 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
           <div className="p-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-display font-bold text-deepSage">
+              <h2 id="crisis-sheet-title" className="text-xl font-display font-bold text-deepSage">
                 Crisis Support
               </h2>
               <button
@@ -118,11 +121,12 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
             </div>
             
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-6 h-6 border-2 border-teal border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center justify-center py-8" role="status" aria-label="Loading crisis resources">
+                <div className="w-6 h-6 border-2 border-teal border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                <span className="sr-only">Loading crisis support resources...</span>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-6" aria-live="polite">
                 {/* Call Support */}
                 {groupedSupports.call && (
                   <div className="space-y-3">
@@ -135,6 +139,7 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
                         <motion.button
                           key={support.id}
                           onClick={() => support.phone && handleCall(support.phone)}
+                          aria-label={`Call ${support.name} at ${support.phone}${support.hours ? `, available ${support.hours}` : ''}`}
                           className="w-full bg-coral text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 hover:bg-coral/90 hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2"
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -178,11 +183,12 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
                             {support.phone && (
                               <motion.button
                                 onClick={() => handleText(support.phone!, support.text_code)}
+                                aria-label={`Text ${support.name} at ${support.phone}${support.text_code ? ` with code ${support.text_code}` : ''}`}
                                 className="teal-button flex items-center justify-center space-x-2"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
-                                <MessageSquare className="w-4 h-4" />
+                                <MessageSquare className="w-4 h-4" aria-hidden="true" />
                                 <span>
                                   Text {support.phone}
                                   {support.text_code && ` (${support.text_code})`}
@@ -192,11 +198,12 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
                             {support.chat_url && (
                               <motion.button
                                 onClick={() => handleChat(support.chat_url!)}
+                                aria-label={`Open live chat with ${support.name} in new window`}
                                 className="ghost-button flex items-center justify-center space-x-2"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
-                                <ExternalLink className="w-4 h-4" />
+                                <ExternalLink className="w-4 h-4" aria-hidden="true" />
                                 <span>Live Chat</span>
                               </motion.button>
                             )}

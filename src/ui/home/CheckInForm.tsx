@@ -20,7 +20,7 @@ const affectOptions = [
 ];
 
 export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormProps) {
-  const { needsGuardianVerification, user } = useSession();
+  const { needsGuardianVerification } = useSession();
   const [step, setStep] = useState(1);
   const [selectedMood, setSelectedMood] = useState<MoodKey | null>(null);
   const [selectedDimensions, setSelectedDimensions] = useState<WellnessDimensionKey[]>([]);
@@ -57,7 +57,6 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
           }
         } catch (error) {
           // If immediate submission fails, queue it
-          console.log('Immediate submission failed, queuing for later:', error);
           await addToQueue('checkin', checkInData);
         }
       } else {
@@ -192,7 +191,7 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" aria-label="Mood check-in form">
               {/* Step 1: Mood Selection */}
               {step === 1 && (
                 <motion.div
@@ -201,16 +200,20 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                   exit={{ opacity: 0, x: 20 }}
                   className="space-y-3"
                 >
-                  <label className="block text-sm font-medium text-deepSage">
-                    Choose your mood level
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-deepSage mb-3">
+                      Choose your mood level
+                    </legend>
+                    <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Mood options">
                     {MOODS.map((mood) => {
                       const Icon = mood.icon;
                       return (
                         <motion.button
                           key={mood.key}
                           type="button"
+                          role="radio"
+                          aria-checked={selectedMood === mood.key}
+                          aria-label={`${mood.label}: ${mood.desc}`}
                           onClick={() => setSelectedMood(mood.key)}
                           className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${
                             selectedMood === mood.key
@@ -235,12 +238,14 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                         </motion.button>
                       );
                     })}
-                  </div>
+                    </div>
+                  </fieldset>
                   
                   <motion.button
                     type="button"
                     disabled={!canProceedToStep2}
                     onClick={() => setStep(2)}
+                    aria-label="Continue to step 2: wellness dimensions"
                     className={`w-full cosmic-button flex items-center justify-center space-x-2 ${
                       !canProceedToStep2 ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
@@ -248,7 +253,7 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                     whileTap={canProceedToStep2 ? { scale: 0.98 } : {}}
                   >
                     <span>Next</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4" aria-hidden="true" />
                   </motion.button>
                 </motion.div>
               )}
@@ -261,23 +266,26 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                   exit={{ opacity: 0, x: 20 }}
                   className="space-y-3"
                 >
-                  <label className="block text-sm font-medium text-deepSage">
-                    Pick 1-3 areas of your life that are affecting your mood right now
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {WELLNESS_DIMENSIONS.map((dimension) => (
-                      <motion.button
-                        key={dimension.key}
-                        type="button"
-                        onClick={() => toggleDimension(dimension.key)}
-                        className={`p-3 rounded-xl border-2 transition-all duration-200 text-left ${
-                          selectedDimensions.includes(dimension.key)
-                            ? 'border-teal bg-teal/10 shadow-glow-teal'
-                            : 'border-borderMutedLight bg-surface hover:border-sage'
-                        }`}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-deepSage mb-3">
+                      Pick 1-3 areas of your life that are affecting your mood right now
+                    </legend>
+                    <div className="grid grid-cols-2 gap-3" role="group" aria-label="Wellness dimensions">
+                      {WELLNESS_DIMENSIONS.map((dimension) => (
+                        <motion.button
+                          key={dimension.key}
+                          type="button"
+                          aria-pressed={selectedDimensions.includes(dimension.key)}
+                          aria-label={`${dimension.label}: ${dimension.description}`}
+                          onClick={() => toggleDimension(dimension.key)}
+                          className={`p-3 rounded-xl border-2 transition-all duration-200 text-left ${
+                            selectedDimensions.includes(dimension.key)
+                              ? 'border-teal bg-teal/10 shadow-glow-teal'
+                              : 'border-borderMutedLight bg-surface hover:border-sage'
+                          }`}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
                         <div className="text-2xl mb-1">{dimension.emoji}</div>
                         <div className="text-sm font-semibold text-deepSage">
                           {dimension.label}
@@ -285,12 +293,13 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                         <div className="text-xs text-textSecondaryLight mt-1">
                           {dimension.description}
                         </div>
-                      </motion.button>
-                    ))}
-                  </div>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </fieldset>
                   
                   {selectedDimensions.length > 0 && (
-                    <div className="text-xs text-textSecondaryLight text-center">
+                    <div className="text-xs text-textSecondaryLight text-center" aria-live="polite">
                       {selectedDimensions.length} of 3 selected
                     </div>
                   )}
@@ -299,6 +308,7 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                     type="button"
                     disabled={!canProceedToStep3}
                     onClick={() => setStep(3)}
+                    aria-label="Continue to step 3: add notes"
                     className={`w-full cosmic-button flex items-center justify-center space-x-2 ${
                       !canProceedToStep3 ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
@@ -306,7 +316,7 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                     whileTap={canProceedToStep3 ? { scale: 0.98 } : {}}
                   >
                     <span>Next</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4" aria-hidden="true" />
                   </motion.button>
                 </motion.div>
               )}
@@ -320,15 +330,16 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                   className="space-y-6"
                 >
                   {/* Affect Tags */}
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium text-deepSage">
+                  <fieldset className="space-y-3">
+                    <legend className="block text-sm font-medium text-deepSage">
                       What else are you feeling? (optional)
-                    </label>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                    </legend>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto" role="group" aria-label="Affect options">
                       {affectOptions.map(affect => (
                         <motion.button
                           key={affect}
                           type="button"
+                          aria-pressed={selectedAffects.includes(affect)}
                           onClick={() => toggleAffect(affect)}
                           className={`cosmic-chip ${
                             selectedAffects.includes(affect) ? 'selected' : ''
@@ -340,7 +351,7 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                         </motion.button>
                       ))}
                     </div>
-                  </div>
+                  </fieldset>
                   
                   {/* Note */}
                   <div className="space-y-3">

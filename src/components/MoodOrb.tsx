@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Info, Palette, Accessibility, Battery } from 'lucide-react';
@@ -161,10 +161,6 @@ export function MoodOrb({
   
   const settleTime = calculateSettleTime();
   
-  // Easing function for smooth settle animation (ease-in-out cubic)
-  const easeInOutCubic = (t: number): number => {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  };
 
   // Create gradient with caching
   const createCachedGradient = useCallback((
@@ -194,7 +190,9 @@ export function MoodOrb({
     // Limit cache size
     if (gradientCacheRef.current.size >= GRADIENT_CACHE_SIZE * 3) {
       const firstKey = gradientCacheRef.current.keys().next().value;
-      gradientCacheRef.current.delete(firstKey);
+      if (firstKey) {
+        gradientCacheRef.current.delete(firstKey);
+      }
     }
 
     gradientCacheRef.current.set(cacheKey, gradient);
@@ -405,13 +403,9 @@ export function MoodOrb({
       lastDrawTime = currentTime;
       frameCount++;
       
-      // Log performance metrics every 60 frames (roughly 2 seconds)
+      // Track frame timing for performance metrics
       if (frameCount % 60 === 0) {
-        const fps = Math.round(1000 / (currentTime - lastFrameTimeRef.current) * 60);
         lastFrameTimeRef.current = currentTime;
-        if (fps < 25) {
-          console.warn('MoodOrb: Low FPS detected:', fps);
-        }
       }
       
       // Continue animation
@@ -447,8 +441,16 @@ export function MoodOrb({
         <canvas 
           ref={canvasRef}
           className="w-full max-w-[300px] h-auto rounded-full"
-          aria-label={t('mood.orbVisualization')}
+          role="img"
+          aria-label={t('mood.orbVisualization', { mood: dominantMood, streak: streakCount })}
+          aria-describedby="mood-orb-description"
         />
+        <span id="mood-orb-description" className="sr-only">
+          {t('mood.orbDescription', { 
+            mood: dominantMood, 
+            animating: isAnimating ? 'animated' : 'static' 
+          })}
+        </span>
       </motion.div>
 
       {/* Controls */}
@@ -461,11 +463,7 @@ export function MoodOrb({
           <Palette className="w-5 h-5" />
         </button>
         <button
-          onClick={() => {
-            const newValue = !showPatterns;
-            // This would normally update a parent state or preference
-            console.log('Toggle patterns:', newValue);
-          }}
+          onClick={() => {}}
           className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
           aria-label={t('mood.togglePatterns')}
         >

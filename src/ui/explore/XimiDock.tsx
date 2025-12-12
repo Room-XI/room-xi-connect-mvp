@@ -57,10 +57,11 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
           return;
         }
 
-        if (data && data.length > 0) {
+        const conversations = Array.isArray(data) ? data : (data?.conversations || []);
+        if (conversations.length > 0) {
           const historyMessages: Message[] = [];
           
-          data.forEach((conv: any) => {
+          conversations.forEach((conv: any) => {
             historyMessages.push({
               id: `${conv.id}-user`,
               text: conv.userMessage,
@@ -195,8 +196,6 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
       setPendingMessage(null);
 
       if (data.crisisDetected) {
-        console.warn('[Ximi] Crisis detected, triggering crisis support');
-        
         const crisisResponse: Message = {
           id: data.id.toString(),
           text: data.ximiResponse,
@@ -274,8 +273,6 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         }
 
         if (data.crisisDetected) {
-          console.warn('[Ximi] Crisis detected after consent');
-          
           const crisisResponse: Message = {
             id: data.id.toString(),
             text: data.ximiResponse,

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Play, Pause, SkipBack, Calendar, Info, ChevronLeft } from 'lucide-react';
 import { DateTime } from 'luxon';
@@ -127,7 +127,6 @@ export default function OrbTimelapse() {
         }
         
         // Process the data into daily mood data
-        const thirtyDaysAgo = DateTime.now().setZone('America/Edmonton').minus({ days: 30 });
         const dailyData: DailyMoodData[] = [];
         
         // Create an entry for each of the last 30 days
@@ -143,13 +142,13 @@ export default function OrbTimelapse() {
           
           if (dayData) {
             dailyData.push({
-              date,
+              date: date || '',
               moodType: dayData.mood_type || null,
               moodLevel: dayData.mood_level_1_6 || null,
             });
           } else {
             dailyData.push({
-              date,
+              date: date || '',
               moodType: null,
               moodLevel: null,
             });
@@ -181,7 +180,6 @@ export default function OrbTimelapse() {
             });
           }
         } catch (err) {
-          console.warn('Could not fetch weekly snapshots:', err);
         }
         
       } catch (err) {

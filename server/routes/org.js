@@ -1,11 +1,78 @@
 import express from 'express';
-import { db } from '../db.js';
-import { attendance, programs, profiles, checkins, orgMembers, xids } from '../schema.js';
-import { eq, sql, desc, and, gte, lte } from 'drizzle-orm';
+import { db, pool } from '../db.js';
+import { attendance, programs, profiles, checkins, orgMembers, xids, users } from '../schema.js';
+import { eq, sql, desc, and, gte, lte, count } from 'drizzle-orm';
 import { Parser } from '@json2csv/plainjs';
 import { DateTime } from 'luxon';
 
 const router = express.Router();
+
+router.get('/dashboard/stats', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, req.session.userId))
+      .limit(1);
+
+    if (!profile || !profile.isAdmin) {
+      return res.status(403).json({ error: 'Organization admin access required' });
+    }
+
+    const edmontonNow = DateTime.now().setZone('America/Edmonton');
+    const thirtyDaysAgo = edmontonNow.minus({ days: 30 }).startOf('day').toJSDate();
+
+    const [
+      totalUsersResult,
+      activeUsersResult,
+      totalCheckinsResult,
+      avgMoodResult,
+      programsCountResult,
+      thisMonthAttendanceResult
+    ] = await Promise.all([
+      db.select({ count: count() }).from(users),
+      
+      db.select({ count: sql`COUNT(DISTINCT ${checkins.userId})` })
+        .from(checkins)
+        .where(gte(checkins.timestamp, thirtyDaysAgo)),
+      
+      db.select({ count: count() }).from(checkins),
+      
+      db.select({ avgMood: sql`ROUND(AVG(${checkins.moodLevel16})::numeric, 2)` })
+        .from(checkins)
+        .where(gte(checkins.timestamp, thirtyDaysAgo)),
+      
+      db.select({ count: count() }).from(programs),
+      
+      db.select({ count: count() })
+        .from(attendance)
+        .where(gte(attendance.timestamp, thirtyDaysAgo))
+    ]);
+
+    const totalUsers = Number(totalUsersResult[0]?.count || 0);
+    const activeUsers = Number(activeUsersResult[0]?.count || 0);
+    const totalCheckins = Number(totalCheckinsResult[0]?.count || 0);
+    const avgMood = Number(avgMoodResult[0]?.avgMood || 0);
+    const programsCount = Number(programsCountResult[0]?.count || 0);
+    const thisMonthAttendance = Number(thisMonthAttendanceResult[0]?.count || 0);
+
+    res.json({
+      totalUsers,
+      activeUsers,
+      totalCheckins,
+      avgMood,
+      programsCount,
+      thisMonthAttendance
+    });
+  } catch (error) {
+    console.error('Error fetching org dashboard stats:', error);
+    res.status(500).json({ error: 'Failed to fetch org dashboard stats' });
+  }
+});
 
 router.get('/dashboard', async (req, res) => {
   try {
@@ -16,10 +83,10 @@ router.get('/dashboard', async (req, res) => {
     const [profile] = await db
       .select()
       .from(profiles)
-      .where(eq(profiles.id, req.session.userId))
+      .where(eq(profiles.userId, req.session.userId))
       .limit(1);
 
-    if (!profile || !['org_admin', 'admin'].includes(profile.role)) {
+    if (!profile || !profile.isAdmin) {
       return res.status(403).json({ error: 'Organization admin access required' });
     }
 

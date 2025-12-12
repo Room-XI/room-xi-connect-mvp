@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Sparkles, Users, AlertCircle } from 'lucide-react';
+import { X, Send, Sparkles, Users, AlertCircle, Loader2, ChevronUp } from 'lucide-react';
 import api, { type ProgramRecommendation, type MoodTrendData } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import VoiceControls from '@/components/VoiceControls';
@@ -19,6 +19,26 @@ interface XimiChatProps {
   onConsentRequired?: () => void;
 }
 
+const formatMessageTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  
+  return date.toLocaleDateString(undefined, { 
+    month: 'short', 
+    day: 'numeric',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {})
+  });
+};
+
 export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiChatProps) {
   const { needsGuardianVerification } = useSession();
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +50,12 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
   const [recommendations, setRecommendations] = useState<ProgramRecommendation[]>([]);
   const [moodTrend, setMoodTrend] = useState<MoodTrendData | null>(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [currentOffset, setCurrentOffset] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -71,17 +96,56 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
   };
 
   const loadConversations = async () => {
+    setIsLoadingHistory(true);
     try {
-      const { data, error } = await api.ximi.getConversations();
+      const { data, error } = await api.ximi.getConversations(20, 0);
       if (error) {
         console.error('[Ximi] Failed to load conversations:', error);
         return;
       }
-      setMessages(data || []);
+      if (data) {
+        setMessages(data.conversations || []);
+        setHasMore(data.pagination?.hasMore || false);
+        setCurrentOffset(data.pagination?.limit || 20);
+      }
     } catch (error) {
       console.error('[Ximi] Exception while loading conversations:', error);
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
+
+  const loadMoreConversations = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    setIsLoadingMore(true);
+    const scrollContainer = messagesContainerRef.current;
+    const previousScrollHeight = scrollContainer?.scrollHeight || 0;
+
+    try {
+      const { data, error } = await api.ximi.getConversations(20, currentOffset);
+      if (error) {
+        console.error('[Ximi] Failed to load more conversations:', error);
+        return;
+      }
+      if (data) {
+        setMessages(prev => [...data.conversations, ...prev]);
+        setHasMore(data.pagination?.hasMore || false);
+        setCurrentOffset(prev => prev + (data.pagination?.limit || 20));
+        
+        requestAnimationFrame(() => {
+          if (scrollContainer) {
+            const newScrollHeight = scrollContainer.scrollHeight;
+            scrollContainer.scrollTop = newScrollHeight - previousScrollHeight;
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[Ximi] Exception while loading more conversations:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, currentOffset]);
 
   const handleAppendTranscript = (text: string) => {
     setInputMessage(prev => prev + text);
@@ -110,7 +174,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
       }
 
       if (data.crisisDetected) {
-        console.warn('[Ximi] Crisis detected in response');
         setShowCrisisWarning(true);
       }
 
@@ -146,6 +209,7 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
       {!isOpen && (
         <motion.button
           onClick={() => setIsOpen(true)}
+          aria-label="Open Ximi chat assistant"
           className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-gradient-to-br from-purple-500 to-teal rounded-full shadow-glow-purple flex items-center justify-center"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
@@ -153,7 +217,7 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', damping: 15 }}
         >
-          <Sparkles className="w-6 h-6 text-cream" />
+          <Sparkles className="w-6 h-6 text-cream" aria-hidden="true" />
         </motion.button>
       )}
 
@@ -161,6 +225,9 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ximi-chat-title"
             className="fixed bottom-6 right-6 z-50 w-full max-w-md h-[600px] bg-surface border-2 border-borderMutedLight rounded-2xl shadow-xl flex flex-col overflow-hidden"
             initial={{ scale: 0, opacity: 0, transformOrigin: 'bottom right' }}
             animate={{ scale: 1, opacity: 1 }}
@@ -175,7 +242,7 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                     <Sparkles className="w-5 h-5 text-cream" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-display font-semibold text-deepSage">
+                    <h3 id="ximi-chat-title" className="text-lg font-display font-semibold text-deepSage">
                       Ximi
                     </h3>
                     <p className="text-xs text-textSecondaryLight">
@@ -195,6 +262,7 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
               {/* Mode Toggle */}
               <button
                 onClick={toggleMode}
+                aria-label={`Switch to ${mode === 'sibling' ? 'Peer Guide' : 'Little Sibling'} mode. Currently in ${mode === 'sibling' ? 'Little Sibling' : 'Peer Guide'} mode`}
                 className="mt-3 w-full p-2 rounded-lg bg-surface border border-borderMutedLight hover:border-teal transition-colors flex items-center justify-center space-x-2 text-sm"
               >
                 {mode === 'sibling' ? (
@@ -259,17 +327,32 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                   </div>
                   <button
                     onClick={() => setShowCrisisWarning(false)}
+                    aria-label="Dismiss crisis warning"
                     className="p-1 hover:bg-coral/20 rounded"
                   >
-                    <X className="w-4 h-4 text-textSecondaryLight" />
+                    <X className="w-4 h-4 text-textSecondaryLight" aria-hidden="true" />
                   </button>
                 </div>
               </motion.div>
             )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 && (
+            <div 
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4" 
+              aria-live="polite" 
+              aria-label="Chat messages"
+            >
+              {/* Loading History State */}
+              {isLoadingHistory && (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 mx-auto text-purple-400 mb-3 animate-spin" />
+                  <p className="text-textSecondaryLight text-sm">Loading conversation history...</p>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!isLoadingHistory && messages.length === 0 && (
                 <div className="text-center py-12">
                   <Sparkles className="w-12 h-12 mx-auto text-purple-300 mb-4" />
                   <p className="text-textSecondaryLight text-sm">
@@ -277,6 +360,30 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                       ? "Hey! I'm here to chat whenever you want."
                       : "Ready to talk when you are."}
                   </p>
+                </div>
+              )}
+
+              {/* Load More Button */}
+              {hasMore && !isLoadingHistory && (
+                <div className="text-center pb-2">
+                  <button
+                    onClick={loadMoreConversations}
+                    disabled={isLoadingMore}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50"
+                    aria-label="Load older messages"
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Loading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronUp className="w-4 h-4" />
+                        <span>Load older messages</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 
@@ -312,21 +419,29 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
               {messages.map((msg) => (
                 <div key={msg.id} className="space-y-3">
                   {msg.userMessage && (
-                    <div className="flex justify-end">
+                    <div className="flex flex-col items-end">
                       <div className="bg-teal/10 text-deepSage px-4 py-2 rounded-2xl rounded-tr-sm max-w-[80%]">
                         <p className="text-sm">{msg.userMessage}</p>
                       </div>
+                      <span className="text-[10px] text-textSecondaryLight mt-1 mr-1">
+                        {formatMessageTime(msg.createdAt)}
+                      </span>
                     </div>
                   )}
-                  <div className="flex justify-start items-start gap-2">
-                    <div className="bg-purple-50 text-deepSage px-4 py-2 rounded-2xl rounded-tl-sm max-w-[80%]">
-                      <p className="text-sm">{msg.ximiResponse}</p>
+                  <div className="flex flex-col items-start">
+                    <div className="flex items-start gap-2">
+                      <div className="bg-purple-50 text-deepSage px-4 py-2 rounded-2xl rounded-tl-sm max-w-[80%]">
+                        <p className="text-sm">{msg.ximiResponse}</p>
+                      </div>
+                      <VoiceControls
+                        mode="playback"
+                        getTextToSpeak={() => msg.ximiResponse}
+                        className="flex-shrink-0 mt-1"
+                      />
                     </div>
-                    <VoiceControls
-                      mode="playback"
-                      getTextToSpeak={() => msg.ximiResponse}
-                      className="flex-shrink-0 mt-1"
-                    />
+                    <span className="text-[10px] text-textSecondaryLight mt-1 ml-1">
+                      {formatMessageTime(msg.createdAt)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -343,7 +458,11 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                 />
               </div>
               <div className="flex space-x-2">
+                <label htmlFor="ximi-message-input" className="sr-only">
+                  Type your message to Ximi
+                </label>
                 <input
+                  id="ximi-message-input"
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
@@ -351,10 +470,12 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                   maxLength={500}
                   className="flex-1 px-4 py-2 rounded-full border-2 border-borderMutedLight focus:border-teal focus:outline-none text-sm bg-cream"
                   disabled={isSending}
+                  aria-describedby="ximi-char-count"
                 />
                 <motion.button
                   type="submit"
                   disabled={!inputMessage.trim() || isSending || needsGuardianVerification}
+                  aria-label={isSending ? 'Sending message...' : 'Send message'}
                   className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     inputMessage.trim() && !isSending && !needsGuardianVerification
                       ? 'bg-gradient-to-br from-purple-500 to-teal text-cream'
@@ -364,13 +485,13 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                   whileTap={inputMessage.trim() && !isSending && !needsGuardianVerification ? { scale: 0.95 } : {}}
                 >
                   {isSending ? (
-                    <div className="w-4 h-4 border-2 border-cream border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-cream border-t-transparent rounded-full animate-spin" aria-hidden="true" />
                   ) : (
-                    <Send className="w-4 h-4" />
+                    <Send className="w-4 h-4" aria-hidden="true" />
                   )}
                 </motion.button>
               </div>
-              <p className="text-xs text-textSecondaryLight text-center mt-2">
+              <p id="ximi-char-count" className="text-xs text-textSecondaryLight text-center mt-2" aria-live="polite">
                 {inputMessage.length}/500
               </p>
             </form>

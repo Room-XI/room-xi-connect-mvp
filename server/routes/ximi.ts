@@ -3,7 +3,7 @@
 import express from 'express';
 import { db } from '../db.ts';
 import { ximiConversations, profiles, checkins } from '../schema.ts';
-import { eq } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { generateXimiResponse, generateFollowUpPrompt, type XimiMode } from '../services/ximi.ts';
 import { getLatestMoodTrend, computeMoodTrends, storeMoodTrends } from '../services/moodTrends.ts';
 import { getRecommendationsWithContext } from '../services/recommendations.ts';
@@ -14,21 +14,45 @@ import { ximiChatSchema, ximiModeSchema, ximiConsentSchema, ximiRecommendationsS
 
 const router = express.Router();
 
-// Get conversation history for user
+// Get conversation history for user with pagination
 router.get('/conversations', async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    // Get total count for pagination
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(ximiConversations)
+      .where(eq(ximiConversations.userId, req.session.userId));
+
+    const totalCount = countResult?.count || 0;
+
+    // Fetch conversations ordered by most recent first, then reverse for display
     const conversations = await db
       .select()
       .from(ximiConversations)
       .where(eq(ximiConversations.userId, req.session.userId))
-      .orderBy(ximiConversations.createdAt)
-      .limit(50);
+      .orderBy(desc(ximiConversations.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    res.json(conversations);
+    // Reverse to show oldest first in the chat window
+    const orderedConversations = conversations.reverse();
+
+    res.json({
+      conversations: orderedConversations,
+      pagination: {
+        total: totalCount,
+        limit,
+        offset,
+        hasMore: offset + limit < totalCount,
+      },
+    });
   } catch (error) {
     console.error('Get conversations error:', error);
     res.status(500).json({ error: 'Internal server error' });

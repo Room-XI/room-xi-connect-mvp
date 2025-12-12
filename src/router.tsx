@@ -42,7 +42,6 @@ const Achievements = lazy(() => import('./components/Achievements').then(m => ({
 const KPIDashboard = lazy(() => import('./components/KPIDashboard').then(m => ({ default: m.KPIDashboard })));
 const OrbTimelapse = lazy(() => import('./components/OrbTimelapse'));
 const ParentPortal = lazy(() => import('./routes/ParentPortal'));
-const TestParentConsent = lazy(() => import('./components/TestParentConsent').then(m => ({ default: m.TestParentConsent })));
 const AdminPortal = lazy(() => import('./routes/AdminPortal'));
 const DemoYouth = lazy(() => import('./routes/demos/Youth'));
 const DemoOrganization = lazy(() => import('./routes/demos/Organization'));
@@ -84,7 +83,6 @@ export const router = createBrowserRouter([
       { path: 'guardian/verify/:token', element: withSuspense(GuardianVerify) },
       { path: 'parent', element: withSuspense(ParentPortal) },
       { path: 'parent/accept/:token', element: withSuspense(ParentPortal) },
-      { path: 'test-parent-consent', element: withSuspense(TestParentConsent) },
       { path: 'org/dashboard', element: withSuspense(OrgDashboard) },
       { path: 'org/programs', element: withSuspense(ProgramManagement) },
       { path: 'kpi-dashboard', element: withSuspense(KPIDashboard) },

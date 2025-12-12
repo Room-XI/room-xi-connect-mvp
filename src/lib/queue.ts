@@ -182,7 +182,6 @@ async function processQueueItem(item: QueueItem): Promise<boolean> {
       }
         
       default:
-        console.warn('Unknown queue item type:', item.type);
         return false;
     }
     
@@ -214,7 +213,6 @@ export async function syncQueue(): Promise<void> {
     for (const item of items) {
       // Skip items that have exceeded max retries
       if (item.tries >= MAX_RETRIES) {
-        console.warn(`Item ${item.id} exceeded max retries, flagging for manual review`);
         // Update the item with error status but don't delete it
         await database.put('queue', {
           ...item,

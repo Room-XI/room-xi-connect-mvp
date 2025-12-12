@@ -118,7 +118,6 @@ async function fetchApi<T = any>(
     if (!response.ok) {
       // Handle invalid CSRF token with retry
       if (response.status === 403 && data.error === 'Invalid CSRF token' && !isRetry) {
-        console.log('CSRF token invalid, fetching fresh token and retrying...');
         csrfToken = null;
         // Retry once with fresh token
         return fetchApi<T>(endpoint, options, true);
@@ -311,7 +310,11 @@ export const api = {
 
   // Ximi AI
   ximi: {
-    getConversations: () => fetchApi('/ximi/conversations'),
+    getConversations: (limit: number = 20, offset: number = 0) => 
+      fetchApi<{ 
+        conversations: any[]; 
+        pagination: { total: number; limit: number; offset: number; hasMore: boolean } 
+      }>(`/ximi/conversations?limit=${limit}&offset=${offset}`),
     chat: async (data: { message: string; checkinId?: string; moodType?: string; wellnessDimensions?: string[] }) => {
       return await fetchApi('/ximi/chat', {
         method: 'POST',
