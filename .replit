@@ -43,3 +43,10 @@ externalPort = 3000
 deploymentTarget = "autoscale"
 run = ["npm", "run", "start"]
 build = ["npm", "run", "build"]
+
+[userenv]
+
+[userenv.shared]
+VAPID_PUBLIC_KEY = "BOPkGXynIkGtz0-rHcUgCdsagv2sAIsytNJeB0iuhWYuIKSzmYaJY-3SEc713eslnVTmWp0mtPsOX1WRtRnE5Wk"
+VAPID_PRIVATE_KEY = "7LFv_85sf97PWv4g_it8nV3R1HirYMfE_w5hgp1r9PE"
+VAPID_EMAIL = "mailto:admin@roomxi.org"
