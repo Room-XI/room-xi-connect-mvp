@@ -9,6 +9,7 @@ import { sendGuardianVerificationEmail } from '../services/email.js';
 import { validateBody } from '../middleware/validate.ts';
 import { registerSchema, loginSchema, deleteAccountSchema } from '../schemas/auth.ts';
 import { lookupCommunity, normalizePostalCode } from '../services/communityLookup.ts';
+import { authLimiter } from '../middleware/rateLimit.ts';
 
 const router = express.Router();
 
@@ -35,8 +36,8 @@ function calculateAge(dateOfBirth) {
   return age;
 }
 
-// Register
-router.post('/register', validateBody(registerSchema), async (req, res) => {
+// Register (rate limited to prevent abuse)
+router.post('/register', authLimiter, validateBody(registerSchema), async (req, res) => {
   try {
     const { email, password, firstName, lastName, dateOfBirth, postalCode, guardianEmail, guardianName } = req.body;
 
@@ -175,7 +176,7 @@ router.post('/register', validateBody(registerSchema), async (req, res) => {
 });
 
 // Login
-router.post('/login', validateBody(loginSchema), async (req, res) => {
+router.post('/login', authLimiter, validateBody(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
 

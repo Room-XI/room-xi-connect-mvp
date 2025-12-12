@@ -107,7 +107,8 @@ async function createServer() {
   app.use('/api/analytics', adminLimiter, analyticsRoutes);
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
-  app.use('/api/auth', authLimiter, authRoutes);
+  // Note: authLimiter is applied per-route in auth.js for login/register only (not session checks)
+  app.use('/api/auth', authRoutes);
   app.use('/api/programs', programRoutes);
   app.use('/api/events', eventsRoutes);
   app.use('/api/crisis', crisisRoutes);
