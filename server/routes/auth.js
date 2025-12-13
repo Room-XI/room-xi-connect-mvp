@@ -39,7 +39,7 @@ function calculateAge(dateOfBirth) {
 // Register (rate limited to prevent abuse)
 router.post('/register', authLimiter, validateBody(registerSchema), async (req, res) => {
   try {
-    const { email, password, firstName, lastName, dateOfBirth, guardianEmail, guardianName } = req.body;
+    const { email, password, firstName, lastName, dateOfBirth, guardianEmail, guardianName, postalCode } = req.body;
 
     // VALIDATION
     if (!email || !password) {
@@ -100,6 +100,20 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       passwordHash,
     }).returning();
 
+    // Lookup community from postal code
+    let communityName = null;
+    let wardName = null;
+    let normalizedPostal = null;
+    
+    if (postalCode) {
+      normalizedPostal = normalizePostalCode(postalCode);
+      const communityInfo = lookupCommunity(postalCode);
+      if (communityInfo) {
+        communityName = communityInfo.community;
+        wardName = communityInfo.ward;
+      }
+    }
+
     // Create profile
     const [newProfile] = await db.insert(profiles).values({
       userId: newUser.id,
@@ -107,6 +121,9 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       lastName: lastName || null,
       age: userAge,
       dateOfBirth: dateOfBirth,
+      postalCode: normalizedPostal,
+      communityName: communityName,
+      wardName: wardName,
     }).returning();
 
     // Handle guardian verification for users under 16

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,8 +34,15 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !postalCode) {
       setError('Please fill in all fields');
+      return;
+    }
+
+    // Validate postal code format (Canadian)
+    const postalCodeRegex = /^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i;
+    if (!postalCodeRegex.test(postalCode.trim())) {
+      setError('Please enter a valid Canadian postal code (e.g., T5J 2N4)');
       return;
     }
 
@@ -53,7 +61,7 @@ export default function Register() {
     setError(null);
 
     try {
-      const { data, error } = await api.auth.register(email.trim(), password, {});
+      const { data, error } = await api.auth.register(email.trim(), password, { postalCode: postalCode.trim() });
 
       if (error) {
         setError(error);
@@ -292,6 +300,30 @@ export default function Register() {
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Postal Code Field */}
+          <div className="space-y-2">
+            <label htmlFor="postalCode" className="block text-sm font-medium text-deepSage">
+              Postal Code
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+              <input
+                id="postalCode"
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+                placeholder="e.g., T5J 2N4"
+                className="cosmic-input pl-10"
+                disabled={loading}
+                autoComplete="postal-code"
+                maxLength={7}
+              />
+            </div>
+            <p className="text-xs text-textSecondaryLight">
+              Used to connect you with nearby programs and resources
+            </p>
           </div>
 
           {/* Submit Button */}

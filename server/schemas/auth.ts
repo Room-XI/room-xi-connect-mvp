@@ -8,6 +8,7 @@ export const registerSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   guardianEmail: z.string().email('Invalid guardian email').max(255).optional(),
   guardianName: z.string().max(100).optional(),
+  postalCode: z.string().regex(/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/i, 'Invalid Canadian postal code').optional(),
 });
 
 export const loginSchema = z.object({
