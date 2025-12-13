@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Moon,
   Smartphone,
-  Sparkles
+  Sparkles,
+  MapPin
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
@@ -26,6 +27,8 @@ export default function Settings() {
   const [notifications, setNotifications] = useState(true);
   const [ximiConsent, setXimiConsent] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [communityName, setCommunityName] = useState<string | null>(null);
+  const [wardName, setWardName] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -39,6 +42,8 @@ export default function Settings() {
       
       const { data } = await api.profile.get();
       setXimiConsent(data?.ximiConsent || false);
+      setCommunityName(data?.communityName || null);
+      setWardName(data?.wardName || null);
     } catch (error) {
       console.error('Unexpected error loading profile:', error);
     } finally {
@@ -186,6 +191,42 @@ export default function Settings() {
           </div>
         </div>
       </motion.div>
+
+      {/* Your Community Section */}
+      {(wardName || communityName) && (
+        <motion.div
+          className="cosmic-card p-6 space-y-3"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.6 }}
+        >
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-teal/10 rounded-lg flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-teal" />
+            </div>
+            <h3 className="font-semibold text-deepSage">Your Community</h3>
+          </div>
+          
+          <div className="pl-13 space-y-2">
+            {communityName && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-textSecondaryLight">Neighbourhood</span>
+                <span className="text-sm font-medium text-deepSage">{communityName}</span>
+              </div>
+            )}
+            {wardName && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-textSecondaryLight">Ward</span>
+                <span className="text-sm font-medium text-deepSage">{wardName}</span>
+              </div>
+            )}
+          </div>
+          
+          <p className="text-xs text-textSecondaryLight mt-2">
+            Based on your postal code. This helps us show you nearby programs.
+          </p>
+        </motion.div>
+      )}
 
       {/* Settings Sections */}
       <div className="space-y-4">

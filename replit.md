@@ -26,6 +26,14 @@ A compact "Show nearby" toggle replaces the previous card-based location UI. Fea
 - All list views (ProgramList, TodayList) automatically filter and sort by distance when enabled
 - Distance badges displayed on program cards when location is active
 
+### Community & Ward Assignment
+During registration, users provide a Canadian postal code which is used to:
+- Identify their Edmonton neighbourhood/community
+- Assign them to one of Edmonton's 12 wards using FSA (Forward Sortation Area) lookup
+- Display this information in their Settings page under "Your Community"
+
+The FSA-to-ward mapping is approximate and uses a local lookup table (`server/services/communityLookup.ts`). For FSAs that span multiple wards, users are assigned "Pending Verification" status which staff can update during onboarding. TODO: Replace with City of Edmonton Open Data API for accurate ward boundaries.
+
 ### Edmonton Youth Programs Database
 The database contains over 75 comprehensive Edmonton youth resources across categories such as Mental Health, LGBTQ+ & 2Spirit, Indigenous, Arts & Creative, Sports & Recreation, Employment & Career, and Crisis Support.
 
