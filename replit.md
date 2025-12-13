@@ -26,14 +26,6 @@ A compact "Show nearby" toggle replaces the previous card-based location UI. Fea
 - All list views (ProgramList, TodayList) automatically filter and sort by distance when enabled
 - Distance badges displayed on program cards when location is active
 
-### Postal Code Community Assignment (Dec 2025)
-Registration now requires an Edmonton postal code (T5X 1Y2 format) for community league partnership tracking. Privacy-first design:
-- Postal code is used for lookup ONLY - not stored in database per PIPA/HIA compliance
-- Only derived community_name and ward_name are persisted
-- FSA (Forward Sortation Area) to ward mapping is approximate - TODO: integrate City of Edmonton Open Data API
-- Unmapped FSAs return "Pending Verification" status for manual staff review
-- Users see their assigned ward after registration for transparency
-
 ### Edmonton Youth Programs Database
 The database contains over 75 comprehensive Edmonton youth resources across categories such as Mental Health, LGBTQ+ & 2Spirit, Indigenous, Arts & Creative, Sports & Recreation, Employment & Career, and Crisis Support.
 
