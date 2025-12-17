@@ -282,7 +282,7 @@ async function runDataRetentionCleanup() {
     // 2. Clean up unverified guardian invites older than 30 days
     const guardianResult = await db.execute(sql`
       DELETE FROM parent_invites 
-      WHERE verified_at IS NULL 
+      WHERE accepted_at IS NULL 
         AND created_at < NOW() - INTERVAL '30 days'
     `);
     results.expiredGuardianInvites = guardianResult.rowCount || 0;
