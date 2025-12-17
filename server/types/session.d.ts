@@ -13,5 +13,8 @@ declare module 'express-session' {
     email?: string;
     firstName?: string;
     age?: number;
+    csrfToken?: string;
+    requiresGuardianVerification?: boolean;
+    guardianVerifiedAt?: string | null;
   }
 }

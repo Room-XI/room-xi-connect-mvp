@@ -129,17 +129,6 @@ export const rateLimitConfig = {
  */
 import crypto from 'crypto';
 
-declare module 'express-session' {
-  interface SessionData {
-    userId?: string;
-    email?: string;
-    csrfToken?: string;
-    requiresGuardianVerification?: boolean;
-    guardianVerifiedAt?: string | null;
-    age?: number;
-  }
-}
-
 /**
  * Generate a CSRF token for the session
  */
