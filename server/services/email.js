@@ -217,6 +217,477 @@ For support, contact: ${process.env.GMAIL_USER}
 }
 
 /**
+ * Send initial consent email with link to view full consent notice
+ * Part of the two-step "Email Plus" consent flow for PIPA/PIPEDA compliance
+ * 
+ * @param {Object} options - Email options
+ * @param {string} options.guardianEmail - Guardian's email address
+ * @param {string} options.guardianName - Guardian's name
+ * @param {string} options.youthName - Youth's name
+ * @param {string} options.consentLink - Full URL to consent viewing page
+ * @returns {Promise<Object>} - Nodemailer send result
+ */
+export async function sendInitialConsentEmail({ guardianEmail, guardianName, youthName, consentLink }) {
+  const mailOptions = {
+    from: {
+      name: 'Room XI Connect',
+      address: process.env.GMAIL_USER,
+    },
+    to: guardianEmail,
+    subject: `Consent Required for ${youthName} - Room XI Connect`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+          }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content {
+            background: #ffffff;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+          }
+          .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+          }
+          .info-box {
+            background: #f5f7fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+          .footer {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+          }
+          .warning {
+            background: #fff3cd;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Parent/Guardian Consent Required</h1>
+        </div>
+        
+        <div class="content">
+          <p>Hello${guardianName ? ` ${guardianName}` : ''},</p>
+          
+          <p><strong>${youthName}</strong> has registered for <strong>Room XI Connect</strong>, a youth mental health and wellness platform for ages 13-25 in Edmonton.</p>
+          
+          <div class="info-box">
+            <p><strong>Why do we need your consent?</strong></p>
+            <p>Under Alberta's Personal Information Protection Act (PIPA) and Canada's PIPEDA, parental consent is required for youth under 16 to use platforms that collect health-related information.</p>
+          </div>
+          
+          <p><strong>What happens next?</strong></p>
+          <ol>
+            <li><strong>Step 1:</strong> Click the button below to review our consent form</li>
+            <li><strong>Step 2:</strong> Read what information we collect and your rights</li>
+            <li><strong>Step 3:</strong> If you agree, submit the consent form</li>
+            <li><strong>Step 4:</strong> You'll receive a final confirmation email to verify</li>
+          </ol>
+          
+          <center style="margin: 30px 0;">
+            <a href="${consentLink}" class="button">Review Consent Form</a>
+          </center>
+          
+          <div class="warning">
+            <p><strong>This link expires in 24 hours</strong> for security reasons.</p>
+            <p>If it expires, ${youthName} can request a new link from their account.</p>
+          </div>
+          
+          <p>If you did not expect this email or have questions, please contact us at ${process.env.GMAIL_USER}.</p>
+          
+          <p style="margin-top: 30px;">
+            Thank you,<br>
+            <strong>Room XI Connect Team</strong>
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+          <p>Edmonton, Alberta, Canada</p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Parent/Guardian Consent Required - Room XI Connect
+
+Hello${guardianName ? ` ${guardianName}` : ''},
+
+${youthName} has registered for Room XI Connect, a youth mental health and wellness platform for ages 13-25 in Edmonton.
+
+Why do we need your consent?
+Under Alberta's Personal Information Protection Act (PIPA) and Canada's PIPEDA, parental consent is required for youth under 16 to use platforms that collect health-related information.
+
+What happens next?
+1. Click the link below to review our consent form
+2. Read what information we collect and your rights
+3. If you agree, submit the consent form
+4. You'll receive a final confirmation email to verify
+
+Review Consent Form: ${consentLink}
+
+This link expires in 24 hours for security reasons.
+
+If you did not expect this email or have questions, please contact us at ${process.env.GMAIL_USER}.
+
+Thank you,
+Room XI Connect Team
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Initial consent email sent:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Failed to send initial consent email:', error);
+    throw new Error('Failed to send consent email');
+  }
+}
+
+/**
+ * Send confirmation email after parent has agreed to consent
+ * This is the second step of the two-step "Email Plus" flow
+ * 
+ * @param {Object} options - Email options
+ * @param {string} options.guardianEmail - Guardian's email address
+ * @param {string} options.youthName - Youth's name
+ * @param {string} options.confirmationLink - Full URL to confirm consent
+ * @returns {Promise<Object>} - Nodemailer send result
+ */
+export async function sendConfirmationEmail({ guardianEmail, youthName, confirmationLink }) {
+  const mailOptions = {
+    from: {
+      name: 'Room XI Connect',
+      address: process.env.GMAIL_USER,
+    },
+    to: guardianEmail,
+    subject: `Confirm Your Consent for ${youthName} - Room XI Connect`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+          }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content {
+            background: #ffffff;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+          }
+          .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            padding: 16px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+          }
+          .info-box {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+          .footer {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Almost Done! Confirm Your Consent</h1>
+        </div>
+        
+        <div class="content">
+          <p>Thank you for reviewing and agreeing to the consent form for <strong>${youthName}</strong>.</p>
+          
+          <div class="info-box">
+            <p><strong>One final step:</strong> Please click the button below to confirm your consent.</p>
+            <p>This two-step verification helps ensure the consent was provided by you.</p>
+          </div>
+          
+          <center style="margin: 30px 0;">
+            <a href="${confirmationLink}" class="button">Confirm My Consent</a>
+          </center>
+          
+          <p>Once confirmed:</p>
+          <ul>
+            <li>${youthName}'s Room XI Connect account will be fully activated</li>
+            <li>You'll receive a confirmation email for your records</li>
+            <li>You can manage or withdraw consent at any time</li>
+          </ul>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            This link expires in 24 hours. If you did not request this, please ignore this email.
+          </p>
+          
+          <p style="margin-top: 20px;">
+            Thank you,<br>
+            <strong>Room XI Connect Team</strong>
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+          <p>Edmonton, Alberta, Canada</p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Almost Done! Confirm Your Consent - Room XI Connect
+
+Thank you for reviewing and agreeing to the consent form for ${youthName}.
+
+One final step: Please click the link below to confirm your consent.
+This two-step verification helps ensure the consent was provided by you.
+
+Confirm My Consent: ${confirmationLink}
+
+Once confirmed:
+- ${youthName}'s Room XI Connect account will be fully activated
+- You'll receive a confirmation email for your records
+- You can manage or withdraw consent at any time
+
+This link expires in 24 hours. If you did not request this, please ignore this email.
+
+Thank you,
+Room XI Connect Team
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Confirmation email sent:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Failed to send confirmation email:', error);
+    throw new Error('Failed to send confirmation email');
+  }
+}
+
+/**
+ * Send final consent completion email to guardian
+ * 
+ * @param {Object} options - Email options
+ * @param {string} options.guardianEmail - Guardian's email address
+ * @param {string} options.youthName - Youth's name
+ * @param {string} options.consentDate - Date consent was confirmed
+ * @returns {Promise<Object>} - Nodemailer send result
+ */
+export async function sendConsentCompleteEmail({ guardianEmail, youthName, consentDate }) {
+  const mailOptions = {
+    from: {
+      name: 'Room XI Connect',
+      address: process.env.GMAIL_USER,
+    },
+    to: guardianEmail,
+    subject: `Consent Confirmed for ${youthName} - Room XI Connect`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+          }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content {
+            background: #ffffff;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+          }
+          .info-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+          }
+          .footer {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Consent Confirmed</h1>
+        </div>
+        
+        <div class="content">
+          <p>Your consent for <strong>${youthName}</strong> to use Room XI Connect has been confirmed.</p>
+          
+          <div class="info-box">
+            <p><strong>Consent Details:</strong></p>
+            <ul>
+              <li>Youth: ${youthName}</li>
+              <li>Platform: Room XI Connect</li>
+              <li>Date Confirmed: ${consentDate}</li>
+              <li>Status: Active</li>
+            </ul>
+          </div>
+          
+          <p><strong>What's Next?</strong></p>
+          <ul>
+            <li>${youthName}'s account is now fully active</li>
+            <li>They can access all features of Room XI Connect</li>
+            <li>You can contact us anytime to review or withdraw consent</li>
+          </ul>
+          
+          <p><strong>Your Rights:</strong></p>
+          <ul>
+            <li>Request a copy of ${youthName}'s data at any time</li>
+            <li>Request corrections to inaccurate information</li>
+            <li>Withdraw consent (which will deactivate the account)</li>
+            <li>Request deletion of all data</li>
+          </ul>
+          
+          <p>Please save this email for your records.</p>
+          
+          <p style="margin-top: 30px;">
+            Thank you for supporting ${youthName}'s wellness journey,<br>
+            <strong>Room XI Connect Team</strong>
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+          <p>For support: ${process.env.GMAIL_USER}</p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Consent Confirmed - Room XI Connect
+
+Your consent for ${youthName} to use Room XI Connect has been confirmed.
+
+Consent Details:
+- Youth: ${youthName}
+- Platform: Room XI Connect
+- Date Confirmed: ${consentDate}
+- Status: Active
+
+What's Next?
+- ${youthName}'s account is now fully active
+- They can access all features of Room XI Connect
+- You can contact us anytime to review or withdraw consent
+
+Your Rights:
+- Request a copy of ${youthName}'s data at any time
+- Request corrections to inaccurate information
+- Withdraw consent (which will deactivate the account)
+- Request deletion of all data
+
+Please save this email for your records.
+
+Thank you for supporting ${youthName}'s wellness journey,
+Room XI Connect Team
+
+For support: ${process.env.GMAIL_USER}
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Consent complete email sent:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Failed to send consent complete email:', error);
+    throw new Error('Failed to send consent complete email');
+  }
+}
+
+/**
  * Verify email configuration is working
  * @returns {Promise<boolean>}
  */

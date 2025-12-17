@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db.js';
-import { consents, consentEvents, profiles, consentAuditLog, xids } from '../schema.js';
+import { consents, consentEvents, profiles, consentAuditLog, xids, guardianVerifications, users } from '../schema.js';
 import { eq, and, desc } from 'drizzle-orm';
 import crypto from 'crypto';
 import { Parser } from 'json2csv';
@@ -12,9 +12,234 @@ import {
   exportUserData,
   deleteUserData,
 } from '../services/consent.js';
-import { sendGuardianVerificationEmail } from '../services/email.js';
+import { sendGuardianVerificationEmail, sendInitialConsentEmail, sendConfirmationEmail, sendConsentCompleteEmail } from '../services/email.js';
+import { consentNoticeV1, CONSENT_NOTICE_VERSION, confirmationSuccessPage, pendingConfirmationPage, expiredLinkPage } from '../services/consentNotices.js';
 
 const router = express.Router();
+
+// ========== TWO-STEP EMAIL PLUS CONSENT FLOW ==========
+
+/**
+ * GET /consent/view/:token
+ * Display the full consent notice for parent to review
+ */
+router.get('/view/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    const [verification] = await db.select({
+      id: guardianVerifications.id,
+      userId: guardianVerifications.userId,
+      status: guardianVerifications.status,
+      expiresAt: guardianVerifications.expiresAt,
+      guardianContactValue: guardianVerifications.guardianContactValue,
+    })
+    .from(guardianVerifications)
+    .where(eq(guardianVerifications.initialConsentToken, token))
+    .limit(1);
+
+    if (!verification) {
+      return res.status(404).send(expiredLinkPage());
+    }
+
+    if (verification.status !== 'pending_initial_consent') {
+      return res.status(400).send(`
+        <html><body style="font-family: sans-serif; padding: 40px; text-align: center;">
+        <h1>Consent Already Processed</h1>
+        <p>This consent form has already been submitted. Current status: ${verification.status}</p>
+        </body></html>
+      `);
+    }
+
+    if (new Date() > new Date(verification.expiresAt)) {
+      return res.status(410).send(expiredLinkPage());
+    }
+
+    const [profile] = await db.select({
+      firstName: profiles.firstName,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, verification.userId))
+    .limit(1);
+
+    const youthName = profile?.firstName || 'Your child';
+    
+    res.send(consentNoticeV1(youthName, token));
+  } catch (error) {
+    console.error('Consent view error:', error);
+    res.status(500).send('<html><body><h1>Error</h1><p>Something went wrong. Please try again.</p></body></html>');
+  }
+});
+
+/**
+ * POST /consent/agree/:token
+ * Handle parent's initial consent agreement (Step 1)
+ * After this, send confirmation email (Step 2)
+ */
+router.post('/agree/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    const [verification] = await db.select()
+    .from(guardianVerifications)
+    .where(eq(guardianVerifications.initialConsentToken, token))
+    .limit(1);
+
+    if (!verification) {
+      return res.status(404).send(expiredLinkPage());
+    }
+
+    if (verification.status !== 'pending_initial_consent') {
+      return res.status(400).send(`
+        <html><body style="font-family: sans-serif; padding: 40px; text-align: center;">
+        <h1>Consent Already Processed</h1>
+        <p>This consent form has already been submitted.</p>
+        </body></html>
+      `);
+    }
+
+    if (new Date() > new Date(verification.expiresAt)) {
+      return res.status(410).send(expiredLinkPage());
+    }
+
+    const confirmationToken = crypto.randomBytes(32).toString('hex');
+
+    await db.update(guardianVerifications)
+      .set({
+        status: 'pending_confirmation',
+        initialConsentAt: new Date(),
+        initialConsentIp: ipAddress,
+        initialConsentUserAgent: userAgent,
+        confirmationToken: confirmationToken,
+        confirmationSentAt: new Date(),
+      })
+      .where(eq(guardianVerifications.id, verification.id));
+
+    const [profile] = await db.select({
+      firstName: profiles.firstName,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, verification.userId))
+    .limit(1);
+
+    const youthName = profile?.firstName || 'Your child';
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const confirmationLink = `${baseUrl}/api/consent/confirm/${confirmationToken}`;
+
+    await sendConfirmationEmail({
+      guardianEmail: verification.guardianContactValue,
+      youthName,
+      confirmationLink,
+    });
+
+    res.send(pendingConfirmationPage(verification.guardianContactValue));
+  } catch (error) {
+    console.error('Consent agree error:', error);
+    res.status(500).send('<html><body><h1>Error</h1><p>Something went wrong. Please try again.</p></body></html>');
+  }
+});
+
+/**
+ * GET /consent/confirm/:token
+ * Handle final confirmation click from second email (Step 2)
+ * This completes the consent process
+ */
+router.get('/confirm/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    const [verification] = await db.select()
+    .from(guardianVerifications)
+    .where(eq(guardianVerifications.confirmationToken, token))
+    .limit(1);
+
+    if (!verification) {
+      return res.status(404).send(expiredLinkPage());
+    }
+
+    if (verification.status === 'confirmed') {
+      const [profile] = await db.select({ firstName: profiles.firstName })
+        .from(profiles)
+        .where(eq(profiles.userId, verification.userId))
+        .limit(1);
+      return res.send(confirmationSuccessPage(profile?.firstName || 'Your child'));
+    }
+
+    if (verification.status !== 'pending_confirmation') {
+      return res.status(400).send(`
+        <html><body style="font-family: sans-serif; padding: 40px; text-align: center;">
+        <h1>Invalid Status</h1>
+        <p>This consent link cannot be processed. Current status: ${verification.status}</p>
+        </body></html>
+      `);
+    }
+
+    if (new Date() > new Date(verification.expiresAt)) {
+      return res.status(410).send(expiredLinkPage());
+    }
+
+    const confirmedAt = new Date();
+
+    await db.update(guardianVerifications)
+      .set({
+        status: 'confirmed',
+        confirmedAt: confirmedAt,
+        confirmedIp: ipAddress,
+        confirmedUserAgent: userAgent,
+        verifiedAt: confirmedAt,
+        verifiedByIp: ipAddress,
+      })
+      .where(eq(guardianVerifications.id, verification.id));
+
+    const [profile] = await db.select({
+      firstName: profiles.firstName,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, verification.userId))
+    .limit(1);
+
+    const youthName = profile?.firstName || 'Your child';
+
+    try {
+      await sendConsentCompleteEmail({
+        guardianEmail: verification.guardianContactValue,
+        youthName,
+        consentDate: confirmedAt.toLocaleDateString('en-CA', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'America/Edmonton'
+        }),
+      });
+    } catch (emailError) {
+      console.error('Failed to send consent complete email:', emailError);
+    }
+
+    await db.insert(consentEvents).values({
+      userId: verification.userId,
+      actor: 'guardian',
+      eventType: 'guardian_consent_confirmed',
+      consentKey: 'guardian_verification',
+      newValue: true,
+      ipAddress,
+      userAgent,
+      notes: `Two-step Email Plus consent confirmed. Version: ${CONSENT_NOTICE_VERSION}`,
+    });
+
+    res.send(confirmationSuccessPage(youthName));
+  } catch (error) {
+    console.error('Consent confirm error:', error);
+    res.status(500).send('<html><body><h1>Error</h1><p>Something went wrong. Please try again.</p></body></html>');
+  }
+});
+
+// ========== END TWO-STEP EMAIL PLUS CONSENT FLOW ==========
 
 // Get user's consents
 router.get('/', async (req, res) => {

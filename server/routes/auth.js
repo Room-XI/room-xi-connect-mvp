@@ -126,39 +126,54 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       wardName: wardName,
     }).returning();
 
-    // Handle guardian verification for users under 16
+    // Handle guardian verification for users under 16 using two-step Email Plus consent flow
     if (requiresGuardianVerification) {
-      // Generate verification token
       const crypto = await import('crypto');
-      const bcrypt = await import('bcrypt');
+      const bcryptLib = await import('bcrypt');
+      
+      // Generate tokens for two-step consent flow
       const verificationToken = crypto.randomBytes(32).toString('hex');
-      const contactHash = await bcrypt.hash(guardianEmail.toLowerCase(), 10);
+      const initialConsentToken = crypto.randomBytes(32).toString('hex');
+      const contactHash = await bcryptLib.hash(guardianEmail.toLowerCase(), 10);
       
-      // Set expiration to 30 days from now
+      // Set expiration to 24 hours (PIPA/PIPEDA compliant)
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      expiresAt.setHours(expiresAt.getHours() + 24);
       
-      // Create guardian verification request
-      const [verification] = await db.insert(guardianVerifications).values({
+      // Get current consent notice version
+      const { CONSENT_NOTICE_VERSION } = await import('../services/consentNotices.js');
+      
+      // Create guardian verification request with two-step flow
+      await db.insert(guardianVerifications).values({
         userId: newUser.id,
         guardianContactType: 'email',
         guardianContactValue: guardianEmail,
         guardianContactHash: contactHash,
+        guardianName: guardianName || null,
         verificationToken: verificationToken,
-        verificationMethod: 'email_link',
+        verificationMethod: 'email_plus',
+        initialConsentToken: initialConsentToken,
+        consentNoticeVersion: CONSENT_NOTICE_VERSION,
+        consentNoticeSentAt: new Date(),
+        status: 'pending_initial_consent',
         expiresAt: expiresAt,
-      }).returning();
+      });
 
-      // Send verification email
+      // Send initial consent email with link to view full consent notice
       try {
-        await sendGuardianVerificationEmail({
+        const { sendInitialConsentEmail } = await import('../services/email.js');
+        const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+          ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+          : 'http://localhost:5000';
+        
+        await sendInitialConsentEmail({
           guardianEmail: guardianEmail,
+          guardianName: guardianName || null,
           youthName: firstName || 'your child',
-          verificationLink: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/api/auth/verify-guardian/${verificationToken}`
+          consentLink: `${baseUrl}/api/consent/view/${initialConsentToken}`
         });
       } catch (emailError) {
-        console.error('Failed to send guardian verification email:', emailError);
-        // Don't fail registration, but log the error
+        console.error('Failed to send initial consent email:', emailError);
       }
     }
 
