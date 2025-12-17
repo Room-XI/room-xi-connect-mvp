@@ -180,23 +180,61 @@ export const attendance = pgTable("attendance", {
 export const guardianVerifications = pgTable("guardian_verifications", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Guardian contact info (existing fields preserved)
   guardianContactType: text("guardian_contact_type").notNull(),
   guardianContactValue: text("guardian_contact_value").notNull(),
   guardianContactHash: text("guardian_contact_hash").notNull(),
   guardianPhoneNumber: text("guardian_phone_number"),
   guardianPhoneHash: text("guardian_phone_hash"),
+  guardianName: text("guardian_name"),
+  
+  // Original token (legacy, preserved for backward compatibility)
   verificationToken: text("verification_token").notNull(),
   verificationMethod: text("verification_method"),
   pinHash: text("pin_hash"),
+  
+  // ========== NEW: Two-Step "Email Plus" Consent Flow ==========
+  
+  // Consent Notice Details (for audit trail)
+  consentNoticeVersion: text("consent_notice_version"),
+  consentNoticeSentAt: timestamp("consent_notice_sent_at", { withTimezone: true }),
+  
+  // Step 1: Initial Consent (Parent views page and clicks "I Agree")
+  initialConsentToken: text("initial_consent_token").unique(),
+  initialConsentAt: timestamp("initial_consent_at", { withTimezone: true }),
+  initialConsentIp: text("initial_consent_ip"),
+  initialConsentUserAgent: text("initial_consent_user_agent"),
+  
+  // Step 2: Confirmation (Parent clicks link in second email)
+  confirmationToken: text("confirmation_token").unique(),
+  confirmationSentAt: timestamp("confirmation_sent_at", { withTimezone: true }),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  confirmedIp: text("confirmed_ip"),
+  confirmedUserAgent: text("confirmed_user_agent"),
+  
+  // Status: pending_initial_consent -> pending_confirmation -> confirmed -> withdrawn
+  status: text("status").default("pending_initial_consent"),
+  
+  // ========== END NEW FIELDS ==========
+  
+  // Existing verification fields (preserved)
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   verifiedByName: text("verified_by_name"),
   verifiedByIp: text("verified_by_ip"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+  
+  // Consent Withdrawal (new for PIPEDA compliance)
+  withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+  withdrawalIp: text("withdrawal_ip"),
+  withdrawalUserAgent: text("withdrawal_user_agent"),
 }, (table) => ({
   userIdx: index("guardian_verifications_user_idx").on(table.userId),
   tokenIdx: index("guardian_verifications_token_idx").on(table.verificationToken),
+  initialTokenIdx: index("guardian_verifications_initial_token_idx").on(table.initialConsentToken),
+  confirmationTokenIdx: index("guardian_verifications_confirmation_token_idx").on(table.confirmationToken),
 }));
 
 export const consents = pgTable("consents", {
