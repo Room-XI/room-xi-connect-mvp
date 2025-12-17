@@ -300,6 +300,20 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ confirmation }),
       }),
+    withdraw: (youthUserId?: string) =>
+      fetchApi('/consent/withdraw', {
+        method: 'POST',
+        body: JSON.stringify({ youthUserId }),
+      }),
+    matureMinor: {
+      getStatus: () => fetchApi('/consent/mature-minor/status'),
+      getQuestions: () => fetchApi('/consent/mature-minor/questions'),
+      submit: (responses: Record<string, { answer: string; explanation?: string }>) =>
+        fetchApi('/consent/mature-minor/submit', {
+          method: 'POST',
+          body: JSON.stringify({ responses }),
+        }),
+    },
   },
 
   // Crisis supports
@@ -463,6 +477,19 @@ export const api = {
       
       return response.json();
     },
+
+    getYouthSettings: () => fetchApi('/privacy/youth-settings'),
+    
+    updateYouthSettings: (data: {
+      parentCanSeeMood?: boolean;
+      parentCanSeeDemographics?: boolean;
+      parentCanSeeAttendance?: boolean;
+      parentCanSeeXimiChats?: boolean;
+      hiddenProgramIds?: string[];
+    }) => fetchApi('/privacy/youth-settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   },
 
   // Organization Dashboard
@@ -551,6 +578,16 @@ export const api = {
       fetchApi('/parent-auth/logout', {
         method: 'POST',
       }),
+  },
+
+  // Parent Portal (filtered youth data based on privacy settings)
+  parentPortal: {
+    getYouthData: (youthId?: string) => 
+      youthId 
+        ? fetchApi(`/parent-portal/youth-data/${youthId}`)
+        : fetchApi('/parent-portal/youth-data'),
+    getPrivacySummary: (youthId: string) =>
+      fetchApi(`/parent-portal/privacy-summary/${youthId}`),
   },
 
   // Consent Auto

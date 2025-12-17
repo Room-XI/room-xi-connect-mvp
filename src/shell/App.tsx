@@ -1,16 +1,38 @@
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from '../ui/Header';
 import Tab from './Tab';
 import { Home, Compass, QrCode, User } from 'lucide-react';
 import { useQueue } from '@/lib/queue';
 import { useSession } from '@/lib/session';
+import { useMatureMinorAssessment } from '@/hooks/useMatureMinorAssessment';
+import MatureMinorAssessment from '@/components/MatureMinorAssessment';
 
 export default function App() {
   const { itemCount } = useQueue();
   const { user, loading } = useSession();
+  const { assessmentRequired, loading: assessmentLoading, checkStatus } = useMatureMinorAssessment();
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [assessmentDismissed, setAssessmentDismissed] = useState(false);
 
-  // Show loading state while checking authentication
-  if (loading) {
+  useEffect(() => {
+    if (user && assessmentRequired && !assessmentDismissed) {
+      setShowAssessmentModal(true);
+    }
+  }, [user, assessmentRequired, assessmentDismissed]);
+
+  const handleAssessmentComplete = () => {
+    setShowAssessmentModal(false);
+    setAssessmentDismissed(true);
+    checkStatus();
+  };
+
+  const handleAssessmentClose = () => {
+    setShowAssessmentModal(false);
+    setAssessmentDismissed(true);
+  };
+
+  if (loading || (user && assessmentLoading)) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-cream">
         <div className="text-center space-y-4">
@@ -21,18 +43,15 @@ export default function App() {
     );
   }
 
-  // Define public routes that don't require authentication
   const publicRoutes = ['/auth', '/explore', '/events', '/program', '/transparency', '/control/entrance', '/about', '/privacy-policy', '/terms-of-service', '/home'];
   const currentPath = window.location.pathname;
   const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
 
-  // Redirect to explore page if not authenticated and trying to access protected routes
   if (!user && !isPublicRoute) {
     window.location.href = '/explore';
     return null;
   }
 
-  // Don't show navigation for auth routes or admin portal
   const isAuthRoute = currentPath.startsWith('/auth') || currentPath.startsWith('/control/entrance');
 
   return (
@@ -64,6 +83,13 @@ export default function App() {
             </div>
           )}
         </nav>
+      )}
+
+      {showAssessmentModal && (
+        <MatureMinorAssessment
+          onComplete={handleAssessmentComplete}
+          onClose={handleAssessmentClose}
+        />
       )}
     </div>
   );

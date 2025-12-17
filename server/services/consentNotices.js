@@ -8,7 +8,7 @@
  * Format: vX.Y-YYYY-MM-DD
  */
 
-export const CONSENT_NOTICE_VERSION = 'v1.0-2025-01-15';
+export const CONSENT_NOTICE_VERSION = 'v2.0-2025-01-17';
 
 /**
  * Generate the full consent notice HTML page for parents to view and agree to.
@@ -203,7 +203,7 @@ export function consentNoticeV1(youthName, token) {
     
     <div class="content">
       <div class="info-box">
-        <p><strong><span class="youth-name">${youthName}</span></strong> has registered for Room XI Connect and requires your consent to use the platform.</p>
+        <p><strong><span class="youth-name">${youthName}</span></strong> has registered for Room XI Connect and is requesting your consent to enable full platform features and partner program registration.</p>
       </div>
 
       <div class="section">
@@ -218,10 +218,30 @@ export function consentNoticeV1(youthName, token) {
       </div>
 
       <div class="section">
-        <h2>Why We Need Your Consent</h2>
+        <h2>Understanding This Consent</h2>
         <div class="warning-box">
-          <p>Under Alberta's <strong>Personal Information Protection Act (PIPA)</strong> and Canada's <strong>Personal Information Protection and Electronic Documents Act (PIPEDA)</strong>, parental or guardian consent is required for youth under 16 to use platforms that collect personal health-related information.</p>
+          <p><strong>What This Consent Enables:</strong></p>
+          <ul style="margin-top: 10px;">
+            <li><strong>Room XI Programs:</strong> Full access to Room XI-operated programs and services</li>
+            <li><strong>Partner Program Registration:</strong> Streamlined registration for partner organizations without additional paperwork</li>
+            <li><strong>Parent Portal Access:</strong> You'll be able to view ${youthName}'s activity (subject to their privacy preferences)</li>
+          </ul>
         </div>
+        <div class="info-box" style="margin-top: 15px;">
+          <p><strong>Important:</strong> ${youthName} has already agreed to the Room XI Terms of Service. This consent allows <em>additional</em> data sharing with partner programs and gives you access to the Parent Portal.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Youth Privacy Controls</h2>
+        <p>${youthName} has control over what you can see in the Parent Portal:</p>
+        <ul>
+          <li>They can choose to hide their mood data from your view</li>
+          <li>They can hide attendance at specific programs (e.g., support groups)</li>
+          <li>Demographic information (identity, orientation) is private by default</li>
+          <li>AI chat conversations are encrypted and not visible to parents</li>
+        </ul>
+        <p style="margin-top: 10px;"><em>This youth-empowerment approach aligns with the Mature Minor Doctrine and helps build trust while keeping you informed of what they're comfortable sharing.</em></p>
       </div>
 
       <div class="section">
@@ -246,12 +266,26 @@ export function consentNoticeV1(youthName, token) {
         <h2>Your Rights as a Guardian</h2>
         <div class="privacy-box">
           <ul>
-            <li><strong>Access:</strong> Request a copy of your child's data at any time</li>
+            <li><strong>Access:</strong> Request a copy of your child's data at any time via the Parent Portal</li>
             <li><strong>Correction:</strong> Request corrections to inaccurate information</li>
-            <li><strong>Deletion:</strong> Request deletion of your child's account and all data</li>
-            <li><strong>Withdraw Consent:</strong> Revoke consent at any time, which will disable your child's account</li>
+            <li><strong>Per-Program Consent:</strong> Approve or deny consent requests from individual partner programs</li>
             <li><strong>Notification:</strong> Be notified if there is ever a data breach affecting your child</li>
           </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>What Happens If You Withdraw Consent</h2>
+        <div class="info-box">
+          <p><strong>Withdrawing consent does not remove ${youthName}'s access to Room XI Connect.</strong></p>
+          <p style="margin-top: 10px;">If you withdraw consent:</p>
+          <ul style="margin-top: 10px;">
+            <li>Your Parent Portal access will be disabled</li>
+            <li>Data sharing with partner programs will stop</li>
+            <li>Room XI staff will be notified for in-person follow-up</li>
+            <li>${youthName} can still use the app to find programs and access crisis resources</li>
+          </ul>
+          <p style="margin-top: 10px;"><em>This approach ensures ${youthName} always has access to mental health resources, even during family disagreements. If consent needs to be re-established, we'll work with you and ${youthName} in person.</em></p>
         </div>
       </div>
 

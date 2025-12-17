@@ -95,6 +95,7 @@ async function createServer() {
   const { default: disclosureRoutes } = await import('./routes/disclosure.js');
   const { default: healthRoutes } = await import('./routes/health.js');
   const { default: analyticsRoutes } = await import('./routes/analytics.ts');
+  const { default: parentPortalRoutes } = await import('./routes/parent-portal.js');
 
   // Health check endpoints (no auth required for monitoring)
   app.use('/health', healthRoutes);
@@ -135,6 +136,7 @@ async function createServer() {
   app.use('/api/geo', validateCsrfToken, writeLimiter, geoRoutes);
   app.use('/api/outcomes', validateCsrfToken, requireGuardianVerification, writeLimiter, outcomesRoutes);
   app.use('/api/parent-auth', parentAuthRoutes);
+  app.use('/api/parent-portal', parentPortalRoutes);
   app.use('/api/consent-auto', validateCsrfToken, writeLimiter, consentAutoRoutes);
   app.use('/api/demographics', validateCsrfToken, writeLimiter, demographicsRoutes);
   app.use('/api/mood-tasks', validateCsrfToken, writeLimiter, moodTasksRoutes);

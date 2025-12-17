@@ -20,6 +20,7 @@ import { useSession } from '@/lib/session';
 import { clearQueue } from '@/lib/queue';
 import NotificationSettings from '@/components/NotificationSettings';
 import GuardianConsentStatus from '@/components/GuardianConsentStatus';
+import YouthPrivacySettings from '@/components/YouthPrivacySettings';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -231,6 +232,23 @@ export default function Settings() {
 
       {/* Guardian Consent Status */}
       <GuardianConsentStatus />
+
+      {/* Youth Privacy Settings - Control what parents can see */}
+      <motion.div
+        className="cosmic-card p-6 space-y-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18, duration: 0.6 }}
+      >
+        <h3 className="font-semibold text-deepSage flex items-center gap-2">
+          <Shield className="w-5 h-5 text-purple-600" />
+          Parent Visibility Settings
+        </h3>
+        <p className="text-sm text-textSecondaryLight">
+          Control what your parent/guardian can see in their Parent Portal.
+        </p>
+        <YouthPrivacySettings />
+      </motion.div>
 
       {/* Settings Sections */}
       <div className="space-y-4">

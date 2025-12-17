@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db.js';
-import { privacyConsents, consentAuditLog, consentReminders, dpApplications, xids } from '../schema.js';
+import { privacyConsents, consentAuditLog, consentReminders, dpApplications, xids, youthPrivacySettings } from '../schema.js';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import crypto from 'crypto';
 import { applyDPToStats, logDPApplication } from '../lib/differentialPrivacy.js';
@@ -485,6 +485,140 @@ router.get('/aggregate-stats', async (req, res) => {
   } catch (error) {
     console.error('Error fetching aggregate stats:', error);
     res.status(500).json({ error: 'Failed to fetch aggregate statistics' });
+  }
+});
+
+/**
+ * GET /api/privacy/youth-settings
+ * Get youth's privacy settings (controls what parents can see)
+ */
+router.get('/youth-settings', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    let [settings] = await db
+      .select()
+      .from(youthPrivacySettings)
+      .where(eq(youthPrivacySettings.userId, req.session.userId))
+      .limit(1);
+
+    if (!settings) {
+      [settings] = await db
+        .insert(youthPrivacySettings)
+        .values({
+          userId: req.session.userId,
+          parentCanSeeMood: true,
+          parentCanSeeDemographics: false,
+          parentCanSeeAttendance: true,
+          parentCanSeeXimiChats: false,
+          hiddenProgramIds: [],
+        })
+        .returning();
+    }
+
+    res.json({
+      parentCanSeeMood: settings.parentCanSeeMood,
+      parentCanSeeDemographics: settings.parentCanSeeDemographics,
+      parentCanSeeAttendance: settings.parentCanSeeAttendance,
+      parentCanSeeXimiChats: settings.parentCanSeeXimiChats,
+      hiddenProgramIds: settings.hiddenProgramIds || [],
+      lastReviewedAt: settings.lastReviewedAt,
+    });
+  } catch (error) {
+    console.error('Error fetching youth privacy settings:', error);
+    res.status(500).json({ error: 'Failed to fetch privacy settings' });
+  }
+});
+
+/**
+ * PUT /api/privacy/youth-settings
+ * Update youth's privacy settings
+ */
+router.put('/youth-settings', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { 
+      parentCanSeeMood, 
+      parentCanSeeDemographics, 
+      parentCanSeeAttendance, 
+      parentCanSeeXimiChats,
+      hiddenProgramIds 
+    } = req.body;
+
+    let [existingSettings] = await db
+      .select()
+      .from(youthPrivacySettings)
+      .where(eq(youthPrivacySettings.userId, req.session.userId))
+      .limit(1);
+
+    const updateData = {
+      ...(parentCanSeeMood !== undefined && { parentCanSeeMood }),
+      ...(parentCanSeeDemographics !== undefined && { parentCanSeeDemographics }),
+      ...(parentCanSeeAttendance !== undefined && { parentCanSeeAttendance }),
+      ...(parentCanSeeXimiChats !== undefined && { parentCanSeeXimiChats }),
+      ...(hiddenProgramIds !== undefined && { hiddenProgramIds }),
+      updatedAt: new Date(),
+      lastReviewedAt: new Date(),
+    };
+
+    let settings;
+    if (existingSettings) {
+      const oldValues = {
+        parentCanSeeMood: existingSettings.parentCanSeeMood,
+        parentCanSeeDemographics: existingSettings.parentCanSeeDemographics,
+        parentCanSeeAttendance: existingSettings.parentCanSeeAttendance,
+        parentCanSeeXimiChats: existingSettings.parentCanSeeXimiChats,
+      };
+
+      [settings] = await db
+        .update(youthPrivacySettings)
+        .set(updateData)
+        .where(eq(youthPrivacySettings.userId, req.session.userId))
+        .returning();
+
+      for (const key of ['parentCanSeeMood', 'parentCanSeeDemographics', 'parentCanSeeAttendance', 'parentCanSeeXimiChats']) {
+        if (req.body[key] !== undefined && req.body[key] !== oldValues[key]) {
+          await logConsentChange(
+            req.session.userId,
+            `youth_privacy_${key}`,
+            oldValues[key],
+            req.body[key],
+            'youth_settings',
+            req
+          );
+        }
+      }
+    } else {
+      [settings] = await db
+        .insert(youthPrivacySettings)
+        .values({
+          userId: req.session.userId,
+          parentCanSeeMood: parentCanSeeMood ?? true,
+          parentCanSeeDemographics: parentCanSeeDemographics ?? false,
+          parentCanSeeAttendance: parentCanSeeAttendance ?? true,
+          parentCanSeeXimiChats: parentCanSeeXimiChats ?? false,
+          hiddenProgramIds: hiddenProgramIds ?? [],
+          lastReviewedAt: new Date(),
+        })
+        .returning();
+    }
+
+    res.json({
+      parentCanSeeMood: settings.parentCanSeeMood,
+      parentCanSeeDemographics: settings.parentCanSeeDemographics,
+      parentCanSeeAttendance: settings.parentCanSeeAttendance,
+      parentCanSeeXimiChats: settings.parentCanSeeXimiChats,
+      hiddenProgramIds: settings.hiddenProgramIds || [],
+      lastReviewedAt: settings.lastReviewedAt,
+    });
+  } catch (error) {
+    console.error('Error updating youth privacy settings:', error);
+    res.status(500).json({ error: 'Failed to update privacy settings' });
   }
 });
 

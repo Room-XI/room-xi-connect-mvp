@@ -688,6 +688,201 @@ For support: ${process.env.GMAIL_USER}
 }
 
 /**
+ * Send staff notification email when parent withdraws consent
+ * This notifies Room XI staff so they can follow up appropriately
+ * 
+ * @param {Object} options - Email options
+ * @param {string} options.youthName - Youth's name
+ * @param {string} options.youthEmail - Youth's email
+ * @param {string} options.parentEmail - Parent's email who withdrew consent
+ * @param {string} options.withdrawalTimestamp - When the withdrawal occurred
+ * @param {string} options.youthId - Youth's user ID for reference
+ * @returns {Promise<Object>} - Nodemailer send result
+ */
+export async function sendConsentWithdrawalStaffNotification({ 
+  youthName, 
+  youthEmail, 
+  parentEmail, 
+  withdrawalTimestamp,
+  youthId 
+}) {
+  const staffEmail = process.env.STAFF_NOTIFICATION_EMAIL || process.env.GMAIL_USER;
+  
+  const mailOptions = {
+    from: {
+      name: 'Room XI Connect System',
+      address: process.env.GMAIL_USER,
+    },
+    to: staffEmail,
+    subject: `[STAFF ALERT] Guardian Consent Withdrawn - ${youthName}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+          }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content {
+            background: #ffffff;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+          }
+          .alert-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+          .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          .info-table th, .info-table td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+          }
+          .info-table th {
+            background: #f5f7fa;
+            font-weight: 600;
+            width: 40%;
+          }
+          .footer {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>⚠️ Guardian Consent Withdrawn</h1>
+        </div>
+        
+        <div class="content">
+          <div class="alert-box">
+            <p><strong>Action Required:</strong> A guardian has withdrawn consent for a youth user. The youth will be prompted to complete a Mature Minor Assessment on their next login.</p>
+          </div>
+          
+          <h3>Withdrawal Details</h3>
+          <table class="info-table">
+            <tr>
+              <th>Youth Name</th>
+              <td>${youthName}</td>
+            </tr>
+            <tr>
+              <th>Youth Email</th>
+              <td>${youthEmail}</td>
+            </tr>
+            <tr>
+              <th>Youth ID</th>
+              <td>${youthId}</td>
+            </tr>
+            <tr>
+              <th>Parent Email</th>
+              <td>${parentEmail}</td>
+            </tr>
+            <tr>
+              <th>Withdrawal Time</th>
+              <td>${withdrawalTimestamp}</td>
+            </tr>
+          </table>
+          
+          <h3>What Happens Next</h3>
+          <ul>
+            <li><strong>Youth Access:</strong> The youth retains access to the app for program discovery and crisis resources</li>
+            <li><strong>Parent Portal:</strong> Disabled - parent can no longer view youth data</li>
+            <li><strong>Third-Party Sharing:</strong> Stopped - no more data sharing with partner programs</li>
+            <li><strong>Mature Minor Assessment:</strong> Youth will be prompted to complete an assessment on next login</li>
+          </ul>
+          
+          <h3>Recommended Actions</h3>
+          <ol>
+            <li>Review the youth's account for any ongoing program enrollments</li>
+            <li>Check if any partner organizations need to be notified</li>
+            <li>Monitor the youth's mature minor assessment completion</li>
+            <li>Consider reaching out if appropriate based on context</li>
+          </ol>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            This is an automated notification. The consent withdrawal has been logged in the consent audit trail for compliance purposes.
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p>Room XI Connect - Staff Notification System</p>
+          <p>This email contains confidential information. Handle according to privacy policies.</p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+[STAFF ALERT] Guardian Consent Withdrawn
+
+Action Required: A guardian has withdrawn consent for a youth user.
+
+WITHDRAWAL DETAILS:
+- Youth Name: ${youthName}
+- Youth Email: ${youthEmail}
+- Youth ID: ${youthId}
+- Parent Email: ${parentEmail}
+- Withdrawal Time: ${withdrawalTimestamp}
+
+WHAT HAPPENS NEXT:
+- Youth Access: The youth retains access to the app for program discovery and crisis resources
+- Parent Portal: Disabled - parent can no longer view youth data
+- Third-Party Sharing: Stopped - no more data sharing with partner programs
+- Mature Minor Assessment: Youth will be prompted to complete an assessment on next login
+
+RECOMMENDED ACTIONS:
+1. Review the youth's account for any ongoing program enrollments
+2. Check if any partner organizations need to be notified
+3. Monitor the youth's mature minor assessment completion
+4. Consider reaching out if appropriate based on context
+
+This is an automated notification. The consent withdrawal has been logged in the consent audit trail for compliance purposes.
+
+---
+Room XI Connect - Staff Notification System
+This email contains confidential information. Handle according to privacy policies.
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Staff notification email sent:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Failed to send staff notification email:', error);
+    throw new Error('Failed to send staff notification email');
+  }
+}
+
+/**
  * Verify email configuration is working
  * @returns {Promise<boolean>}
  */

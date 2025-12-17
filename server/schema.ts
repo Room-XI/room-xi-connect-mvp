@@ -593,6 +593,64 @@ export const consentAuditLog = pgTable("consent_audit_log", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+// Youth Privacy Settings - controls what parents can see
+// This empowers youth to control their own data visibility
+export const youthPrivacySettings = pgTable("youth_privacy_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // What parents can see (default: all visible)
+  parentCanSeeMood: boolean("parent_can_see_mood").default(true),
+  parentCanSeeDemographics: boolean("parent_can_see_demographics").default(false),
+  parentCanSeeAttendance: boolean("parent_can_see_attendance").default(true),
+  parentCanSeeXimiChats: boolean("parent_can_see_ximi_chats").default(false),
+  
+  // Programs hidden from parent view (array of program IDs)
+  hiddenProgramIds: uuid("hidden_program_ids").array().default(sql`'{}'`),
+  
+  // Track when youth reviewed their settings
+  lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: uniqueIndex("youth_privacy_settings_user_idx").on(table.userId),
+}));
+
+// Mature Minor Assessments - documented capacity assessments for legal protection
+// Triggered when parent withdraws consent, to document youth's ability to consent independently
+export const matureMinorAssessments = pgTable("mature_minor_assessments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Assessment context
+  triggeredBy: text("triggered_by").notNull(), // 'consent_withdrawal', 'age_threshold', 'manual'
+  guardianVerificationId: uuid("guardian_verification_id").references(() => guardianVerifications.id),
+  
+  // Assessment questions and responses (stored as JSON for flexibility)
+  // Questions assess: understanding of app purpose, consequences, ability to seek help
+  responses: jsonb("responses").notNull(),
+  
+  // Assessment result
+  assessmentScore: integer("assessment_score"), // 0-100
+  meetsCapacityCriteria: boolean("meets_capacity_criteria").notNull(),
+  
+  // Legal documentation
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  
+  // Staff review (optional)
+  staffReviewedBy: uuid("staff_reviewed_by").references(() => users.id),
+  staffReviewedAt: timestamp("staff_reviewed_at", { withTimezone: true }),
+  staffNotes: text("staff_notes"),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("mature_minor_assessments_user_idx").on(table.userId, table.createdAt.desc()),
+  triggeredIdx: index("mature_minor_assessments_triggered_idx").on(table.triggeredBy, table.createdAt.desc()),
+}));
+
 // Differential privacy metadata table
 export const dpApplications = pgTable("dp_applications", {
   id: serial("id").primaryKey(),
