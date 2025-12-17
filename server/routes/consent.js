@@ -239,6 +239,130 @@ router.get('/confirm/:token', async (req, res) => {
   }
 });
 
+/**
+ * GET /consent/guardian-status
+ * Get current user's guardian consent status (for Settings page)
+ */
+router.get('/guardian-status', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const [verification] = await db.select({
+      id: guardianVerifications.id,
+      status: guardianVerifications.status,
+      guardianContactValue: guardianVerifications.guardianContactValue,
+      guardianName: guardianVerifications.guardianName,
+      expiresAt: guardianVerifications.expiresAt,
+      consentNoticeSentAt: guardianVerifications.consentNoticeSentAt,
+      verifiedAt: guardianVerifications.verifiedAt,
+    })
+    .from(guardianVerifications)
+    .where(eq(guardianVerifications.userId, req.session.userId))
+    .limit(1);
+
+    if (!verification) {
+      return res.json({ required: false, status: null });
+    }
+
+    const isExpired = new Date() > new Date(verification.expiresAt);
+
+    res.json({
+      required: true,
+      status: verification.status,
+      guardianEmail: verification.guardianContactValue,
+      guardianName: verification.guardianName,
+      sentAt: verification.consentNoticeSentAt,
+      expiresAt: verification.expiresAt,
+      verifiedAt: verification.verifiedAt,
+      isExpired: isExpired && verification.status !== 'confirmed',
+      canResend: isExpired || ['pending_initial_consent', 'pending_confirmation'].includes(verification.status),
+    });
+  } catch (error) {
+    console.error('Guardian status check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /consent/resend-guardian
+ * Resend guardian consent email with new token (for expired or unread links)
+ */
+router.post('/resend-guardian', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const [verification] = await db.select()
+      .from(guardianVerifications)
+      .where(eq(guardianVerifications.userId, req.session.userId))
+      .limit(1);
+
+    if (!verification) {
+      return res.status(404).json({ error: 'No guardian verification found' });
+    }
+
+    if (verification.status === 'confirmed') {
+      return res.status(400).json({ error: 'Guardian has already verified consent' });
+    }
+
+    const newToken = crypto.randomBytes(32).toString('hex');
+    const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await db.update(guardianVerifications)
+      .set({
+        initialConsentToken: newToken,
+        status: 'pending_initial_consent',
+        expiresAt: newExpiry,
+        consentNoticeSentAt: new Date(),
+        confirmationToken: null,
+        confirmationSentAt: null,
+        initialConsentAt: null,
+        initialConsentIp: null,
+        initialConsentUserAgent: null,
+      })
+      .where(eq(guardianVerifications.id, verification.id));
+
+    const [profile] = await db.select({
+      firstName: profiles.firstName,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, req.session.userId))
+    .limit(1);
+
+    const youthName = profile?.firstName || 'Your child';
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['host'] || req.headers['x-forwarded-host'];
+    const baseUrl = host ? `${protocol}://${host}` : 'https://localhost:5000';
+    const consentViewUrl = `${baseUrl}/api/consent/view/${newToken}`;
+
+    try {
+      await sendInitialConsentEmail({
+        guardianEmail: verification.guardianContactValue,
+        guardianName: verification.guardianName || 'Guardian',
+        youthName,
+        consentLink: consentViewUrl,
+        expiresIn: '24 hours',
+      });
+    } catch (emailError) {
+      console.error('Failed to resend consent email:', emailError);
+      return res.status(500).json({ error: 'Failed to send email. Please try again.' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Consent request resent successfully',
+      expiresAt: newExpiry.toISOString(),
+      consentLink: consentViewUrl,
+    });
+  } catch (error) {
+    console.error('Resend guardian consent error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ========== END TWO-STEP EMAIL PLUS CONSENT FLOW ==========
 
 // Get user's consents

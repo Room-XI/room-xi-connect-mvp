@@ -19,6 +19,7 @@ import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { clearQueue } from '@/lib/queue';
 import NotificationSettings from '@/components/NotificationSettings';
+import GuardianConsentStatus from '@/components/GuardianConsentStatus';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -227,6 +228,9 @@ export default function Settings() {
           </p>
         </motion.div>
       )}
+
+      {/* Guardian Consent Status */}
+      <GuardianConsentStatus />
 
       {/* Settings Sections */}
       <div className="space-y-4">

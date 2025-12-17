@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../lib/api';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Share2, Copy, Check, Mail, Clock } from 'lucide-react';
 import { DemographicsForm } from '../../ui/demographics/DemographicsForm';
 
-type SignupStep = 'name' | 'age' | 'location' | 'contact' | 'guardian' | 'demographics';
+type SignupStep = 'name' | 'age' | 'location' | 'contact' | 'guardian' | 'guardian_success' | 'demographics';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -27,6 +27,9 @@ export default function Signup() {
     guardianName: '',
     guardianContactType: 'email' as 'email' | 'phone',
   });
+
+  const [consentLink, setConsentLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Convert age to date of birth (approximate)
   const calculateDateOfBirth = (age: number) => {
@@ -122,8 +125,14 @@ export default function Signup() {
         // Don't fail signup if consent recording fails
       }
 
-      // After successful account creation, show demographics step
-      setStep('demographics');
+      // For under-16 users, show guardian success screen with share link
+      if (formData.age && formData.age < 16 && authData?.guardianVerification?.consentLink) {
+        setConsentLink(authData.guardianVerification.consentLink);
+        setStep('guardian_success');
+      } else {
+        // After successful account creation, show demographics step
+        setStep('demographics');
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred during signup');
     } finally {
@@ -432,6 +441,128 @@ export default function Signup() {
             </div>
           </div>
         );
+
+      case 'guardian_success':
+        const handleShareWithParent = async () => {
+          if (!consentLink) return;
+          
+          const shareData = {
+            title: 'Room XI Connect - Guardian Consent Required',
+            text: `Hi ${formData.guardianName || 'there'}! ${formData.firstName} has signed up for Room XI Connect and needs your consent. Please click this link to review and approve:`,
+            url: consentLink,
+          };
+
+          if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+            try {
+              await navigator.share(shareData);
+            } catch (err) {
+              if ((err as Error).name !== 'AbortError') {
+                console.error('Share failed:', err);
+              }
+            }
+          } else {
+            handleCopyLink();
+          }
+        };
+
+        const handleCopyLink = async () => {
+          if (!consentLink) return;
+          
+          try {
+            await navigator.clipboard.writeText(consentLink);
+            setLinkCopied(true);
+            setTimeout(() => setLinkCopied(false), 3000);
+          } catch (err) {
+            console.error('Copy failed:', err);
+            const textArea = document.createElement('textarea');
+            textArea.value = consentLink;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setLinkCopied(true);
+            setTimeout(() => setLinkCopied(false), 3000);
+          }
+        };
+
+        return (
+          <div className="space-y-6 text-center">
+            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+              <Mail className="w-8 h-8 text-green-600" />
+            </div>
+            
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Almost there!</h2>
+              <p className="text-gray-600 mt-2">
+                We've sent a consent request to <strong>{formData.guardianEmail || formData.guardianPhone}</strong>. 
+                Your guardian needs to approve before you can fully access Room XI Connect.
+              </p>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left">
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-900">
+                  <p className="font-medium">Link expires in 24 hours</p>
+                  <p className="mt-1">
+                    If your parent hasn't received the email, you can share the link directly with them.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-700">Share the consent link with your parent:</p>
+              
+              <button
+                onClick={handleShareWithParent}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+              >
+                <Share2 className="w-5 h-5" />
+                Share with Parent
+              </button>
+              
+              <button
+                onClick={handleCopyLink}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition ${
+                  linkCopied 
+                    ? 'bg-green-100 text-green-700 border border-green-300' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {linkCopied ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Link Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-5 h-5" />
+                    Copy Link
+                  </>
+                )}
+              </button>
+            </div>
+
+            {consentLink && (
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500 break-all">{consentLink}</p>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600 mb-3">
+                Once your parent approves, you can continue setting up your profile.
+              </p>
+              <button
+                onClick={() => setStep('demographics')}
+                className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+              >
+                Continue to profile setup →
+              </button>
+            </div>
+          </div>
+        );
       
       case 'demographics':
         return (
@@ -455,8 +586,8 @@ export default function Signup() {
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-xl font-bold text-gray-900">Join Room XI</h1>
             <div className="text-sm text-gray-500">
-              Step {step === 'name' ? 1 : step === 'age' ? 2 : step === 'location' ? 3 : step === 'contact' ? 4 : step === 'guardian' ? 5 : 6}{' '}
-              of {formData.age && formData.age < 16 ? 6 : 5}
+              Step {step === 'name' ? 1 : step === 'age' ? 2 : step === 'location' ? 3 : step === 'contact' ? 4 : step === 'guardian' ? 5 : step === 'guardian_success' ? 6 : formData.age && formData.age < 16 ? 7 : 6}{' '}
+              of {formData.age && formData.age < 16 ? 7 : 5}
             </div>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -464,11 +595,12 @@ export default function Signup() {
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{
                 width: `${
-                  step === 'name' ? 17 : 
-                  step === 'age' ? 34 : 
-                  step === 'location' ? 51 : 
-                  step === 'contact' ? 68 : 
-                  step === 'guardian' ? 85 : 
+                  step === 'name' ? 14 : 
+                  step === 'age' ? 28 : 
+                  step === 'location' ? 42 : 
+                  step === 'contact' ? 56 : 
+                  step === 'guardian' ? 70 : 
+                  step === 'guardian_success' ? 85 :
                   100
                 }%`,
               }}
