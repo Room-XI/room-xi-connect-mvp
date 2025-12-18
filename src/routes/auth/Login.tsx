@@ -87,21 +87,6 @@ export default function Login() {
 
   return (
     <div className="min-h-dvh bg-cream">
-      {/* Top Bar with Donate */}
-      <div className="flex justify-end p-4">
-        <motion.a
-          href="https://www.zeffy.com/en-CA/donation-form/build-the-room-xi-youth-hub-in-edmonton"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-coral/10 text-coral font-medium rounded-full hover:bg-coral/20 transition-all"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Heart className="w-4 h-4" />
-          <span>Support Our Mission</span>
-        </motion.a>
-      </div>
-
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-deepSage/5 via-teal/5 to-cosmic/10 py-16 px-6">
         <motion.div
@@ -141,6 +126,19 @@ export default function Login() {
               <ArrowRight className="w-5 h-5" />
             </motion.a>
           </div>
+
+          {/* Support Button */}
+          <motion.a
+            href="https://www.zeffy.com/en-CA/donation-form/build-the-room-xi-youth-hub-in-edmonton"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 text-coral font-medium hover:text-coral/80 transition-all"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Heart className="w-4 h-4" />
+            <span>Support Our Mission</span>
+          </motion.a>
 
         </motion.div>
       </div>
