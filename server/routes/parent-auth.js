@@ -103,6 +103,12 @@ router.get("/accept/:token", async (req, res) => {
     });
   } catch (error) {
     console.error("Error accepting parent invite:", error);
+    const safeErrorMessage = String(error.message || 'An error occurred')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
     res.status(400).send(`
       <html>
         <head>
@@ -133,7 +139,7 @@ router.get("/accept/:token", async (req, res) => {
         <body>
           <div class="container">
             <h1>Invalid or Expired Invitation</h1>
-            <p class="error">${error.message}</p>
+            <p class="error">${safeErrorMessage}</p>
             <p>Please contact the youth who sent you the invitation to request a new one.</p>
           </div>
         </body>

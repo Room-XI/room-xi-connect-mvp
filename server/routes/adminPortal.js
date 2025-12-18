@@ -7,12 +7,15 @@ import crypto from 'crypto';
 
 const router = Router();
 
-// Access code stored securely
-const ACCESS_CODE = '1458';
+// Admin credentials from environment (required in production)
+const ACCESS_CODE = process.env.ADMIN_ACCESS_CODE;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-// Admin credentials
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'roomxi';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin11';
+// Log warning if credentials are not set
+if (!ACCESS_CODE || !ADMIN_USERNAME || !ADMIN_PASSWORD) {
+  console.warn('[Security] ADMIN_ACCESS_CODE, ADMIN_USERNAME, and ADMIN_PASSWORD must be set for admin portal access');
+}
 
 // Rate limiting for access attempts
 const accessAttempts = new Map();
