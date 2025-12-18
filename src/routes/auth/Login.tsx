@@ -108,9 +108,9 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {/* Logo - Horizontal layout like reference */}
+          {/* Logo - Clean horizontal layout */}
           <motion.div
-            className="flex items-center justify-center gap-4"
+            className="flex items-center justify-center"
             animate={{ 
               scale: [1, 1.02, 1]
             }}
@@ -123,7 +123,7 @@ export default function Login() {
             <img
               src="/roomxi-logo.png"
               alt="Room XI Connect"
-              className="h-24 md:h-32 w-auto object-contain"
+              className="h-20 md:h-28 w-auto object-contain"
             />
           </motion.div>
 
