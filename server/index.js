@@ -135,7 +135,7 @@ async function createServer() {
   app.use('/api/mood-drop', validateCsrfToken, writeLimiter, moodDropRoutes);
   app.use('/api/geo', validateCsrfToken, writeLimiter, geoRoutes);
   app.use('/api/outcomes', validateCsrfToken, requireGuardianVerification, writeLimiter, outcomesRoutes);
-  app.use('/api/parent-auth', validateCsrfToken, writeLimiter, parentAuthRoutes);
+  app.use('/api/parent-auth', writeLimiter, parentAuthRoutes);
   app.use('/api/parent-portal', validateCsrfToken, writeLimiter, parentPortalRoutes);
   app.use('/api/consent-auto', validateCsrfToken, writeLimiter, consentAutoRoutes);
   app.use('/api/demographics', validateCsrfToken, writeLimiter, demographicsRoutes);

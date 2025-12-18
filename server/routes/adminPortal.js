@@ -23,6 +23,13 @@ const accessAttempts = new Map();
 // Verify access code
 router.post('/verify-access', async (req, res) => {
   try {
+    // Fail-safe: disable admin portal if credentials not configured
+    if (!ACCESS_CODE || !ADMIN_USERNAME || !ADMIN_PASSWORD) {
+      return res.status(503).json({ 
+        message: 'Admin portal is not configured. Please set ADMIN_ACCESS_CODE, ADMIN_USERNAME, and ADMIN_PASSWORD environment variables.' 
+      });
+    }
+
     const { code } = req.body;
     const ip = req.ip;
 
@@ -84,6 +91,13 @@ router.get('/csrf-token', (req, res) => {
 // Admin login (requires access granted)
 router.post('/login', async (req, res) => {
   try {
+    // Fail-safe: disable admin portal if credentials not configured
+    if (!ACCESS_CODE || !ADMIN_USERNAME || !ADMIN_PASSWORD) {
+      return res.status(503).json({ 
+        message: 'Admin portal is not configured.' 
+      });
+    }
+
     // Check access granted
     if (!req.session.adminAccessGranted) {
       return res.status(401).json({ 
