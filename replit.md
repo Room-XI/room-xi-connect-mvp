@@ -31,6 +31,26 @@ A comprehensive PIPA/PIPEDA compliant two-tier parental consent system:
 Database tables: `guardianVerifications`, `youth_privacy_settings`, `mature_minor_assessments`, `consentEvents`
 Key files: `server/routes/consent.js`, `server/routes/parent-portal.js`, `src/components/YouthPrivacySettings.tsx`, `src/components/MatureMinorAssessment.tsx`
 
+### Consent-as-a-Service (Added Dec 2025)
+Foundation for external organizations to request verified parental consent through Room XI's infrastructure:
+- **Partner Organizations**: Schools, community programs, and youth service providers can register as partners
+- **8 Consent Scopes**: field_trip, photo_release, video_release, medical_emergency, program_participation, transportation, overnight_activity, media_consent
+- **API Authentication**: Bearer token auth with client_id + client_secret, scope-based access control
+- **Reuses Existing Infrastructure**: Links to guardianVerifications table, leverages existing audit trail
+- **Privacy-First Design**: Partners see only consent status (granted/denied), never youth personal data
+
+API Endpoints:
+- `GET /api/partners/health` - API status and available scopes
+- `GET /api/partners/scopes` - Full scope list with descriptions
+- `POST /api/partners/consent-request` - Request consent (stubbed, returns not_implemented)
+- `GET /api/partners/consent-status/:id` - Check consent status
+- `GET /api/partners/my-consents` - List partner's consent requests
+
+Database tables: `partner_organizations`, `consent_delegations`, `consent_delegation_events`
+Key file: `server/routes/partner-consent.js`
+
+Status: Foundation in place. Endpoints return "not_implemented" until partner integrations go live. Positioned for funder presentations as ecosystem infrastructure.
+
 ### Location-Based Discovery (Updated Nov 2025)
 A compact "Show nearby" toggle replaces the previous card-based location UI. Features include:
 - Three radius options: 1km (~12 min walk), 2km (default, ~25 min walk), 5km (~60 min/transit)
