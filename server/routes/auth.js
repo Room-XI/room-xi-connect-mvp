@@ -92,7 +92,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
     }
 
     // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     // Create user
     const [newUser] = await db.insert(users).values({
@@ -263,21 +263,29 @@ router.post('/login', authLimiter, validateBody(loginSchema), async (req, res) =
       }
     }
 
-    // Set session with guardian verification status
-    req.session.userId = user.id;
-    req.session.email = user.email;
-    req.session.age = computedAge;
-    req.session.requiresGuardianVerification = requiresGuardianVerification;
-    req.session.guardianVerifiedAt = guardianVerifiedAt || (requiresGuardianVerification ? null : new Date().toISOString());
-
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        age: computedAge,
-        requiresGuardianVerification,
-        guardianVerifiedAt: req.session.guardianVerifiedAt,
+    // Regenerate session to prevent session fixation attacks
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error('Session regeneration error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
       }
+
+      // Set session with guardian verification status
+      req.session.userId = user.id;
+      req.session.email = user.email;
+      req.session.age = computedAge;
+      req.session.requiresGuardianVerification = requiresGuardianVerification;
+      req.session.guardianVerifiedAt = guardianVerifiedAt || (requiresGuardianVerification ? null : new Date().toISOString());
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          age: computedAge,
+          requiresGuardianVerification,
+          guardianVerifiedAt: req.session.guardianVerifiedAt,
+        }
+      });
     });
   } catch (error) {
     console.error('Login error:', error);

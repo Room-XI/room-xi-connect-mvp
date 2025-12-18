@@ -155,7 +155,7 @@ export async function verifyGuardianWithPIN(token: string, pin: string, guardian
   }
   
   if (!record.pinHash) {
-    const pinHash = await bcrypt.hash(pin, 10);
+    const pinHash = await bcrypt.hash(pin, 12);
     await db
       .update(guardianVerifications)
       .set({
