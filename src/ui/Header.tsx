@@ -4,7 +4,6 @@ import { Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CrisisSheet from './crisis/CrisisSheet';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import RoomXILogo from './RoomXILogo';
 
 interface HeaderProps {
   title?: string;
@@ -20,12 +19,7 @@ export default function Header({ title, showCrisis = true }: HeaderProps) {
       <header className="safe-area-top bg-surface border-b border-borderMutedLight/60 sticky top-0 z-40">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* App Title */}
-          <div className="flex items-center space-x-3">
-            <RoomXILogo
-              size={32}
-              whileHover={{ scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            />
+          <div className="flex items-center">
             <h1 className="text-lg font-display font-semibold text-deepSage">
               {title || 'Room XI Connect'}
             </h1>

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink, UserCog, X } from 'lucide-react';
 import api from '@/lib/api';
-import RoomXILogo from '@/ui/RoomXILogo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -109,20 +108,24 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {/* Logo */}
-          <RoomXILogo
-            size={96}
-            className="mx-auto"
+          {/* Logo - Horizontal layout like reference */}
+          <motion.div
+            className="flex items-center justify-center gap-4"
             animate={{ 
-              rotate: [0, 3, -3, 0],
-              scale: [1, 1.03, 1]
+              scale: [1, 1.02, 1]
             }}
             transition={{ 
               duration: 6,
               repeat: Infinity,
               ease: "easeInOut"
             }}
-          />
+          >
+            <img
+              src="/roomxi-logo.png"
+              alt="Room XI Connect"
+              className="h-24 md:h-32 w-auto object-contain"
+            />
+          </motion.div>
 
           {/* Headline */}
           <div className="space-y-4">
