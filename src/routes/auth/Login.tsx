@@ -110,25 +110,6 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {/* Logo - Clean horizontal layout */}
-          <motion.div
-            className="flex items-center justify-center"
-            animate={{ 
-              scale: [1, 1.02, 1]
-            }}
-            transition={{ 
-              duration: 6,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          >
-            <img
-              src="/roomxi-logo.png"
-              alt="Room XI Connect"
-              className="h-32 md:h-44 w-auto object-contain"
-            />
-          </motion.div>
-
           {/* Headline */}
           <div className="space-y-4">
             <h1 className="text-4xl md:text-5xl font-display font-bold text-deepSage leading-tight">
@@ -509,6 +490,28 @@ export default function Login() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Footer Banner with Logo */}
+      <div className="bg-gradient-to-r from-deepSage/5 via-teal/5 to-cosmic/5 py-12 px-6">
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <motion.div
+            className="flex items-center justify-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <img
+              src="/roomxi-logo.png"
+              alt="Room XI Connect"
+              className="h-24 md:h-32 w-auto object-contain"
+            />
+          </motion.div>
+          <p className="text-textSecondaryLight text-sm">
+            Empowering Edmonton youth ages 13-25
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
