@@ -96,6 +96,7 @@ async function createServer() {
   const { default: healthRoutes } = await import('./routes/health.js');
   const { default: analyticsRoutes } = await import('./routes/analytics.ts');
   const { default: parentPortalRoutes } = await import('./routes/parent-portal.js');
+  const { default: partnerConsentRoutes } = await import('./routes/partner-consent.js');
 
   // Health check endpoints (no auth required for monitoring)
   app.use('/health', healthRoutes);
@@ -106,6 +107,9 @@ async function createServer() {
   
   // Privacy-safe analytics (admin only)
   app.use('/api/analytics', adminLimiter, analyticsRoutes);
+
+  // Partner Consent API (uses Bearer token auth, no CSRF needed)
+  app.use('/api/partners', writeLimiter, partnerConsentRoutes);
 
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   // Note: authLimiter is applied per-route in auth.js for login/register only (not session checks)
