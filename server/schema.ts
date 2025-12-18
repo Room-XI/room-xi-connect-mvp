@@ -966,3 +966,113 @@ export const aiTransparencyMetrics = pgTable("ai_transparency_metrics", {
   crisisDetected: integer("crisis_detected").default(0).notNull(),
   moderationFlagged: integer("moderation_flagged").default(0).notNull(),
 });
+
+// ========== CONSENT-AS-A-SERVICE FOUNDATION ==========
+// Enables external organizations to request verified parental consent through Room XI
+
+// Partner Organizations - External orgs that can request consent
+export const partnerOrganizations = pgTable("partner_organizations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  
+  // Organization info
+  name: text("name").notNull(),
+  description: text("description"),
+  contactEmail: text("contact_email").notNull(),
+  contactPhone: text("contact_phone"),
+  website: text("website"),
+  
+  // Authentication credentials (for API access)
+  clientId: text("client_id").notNull().unique(),
+  clientSecretHash: text("client_secret_hash").notNull(),
+  
+  // Status: pending_approval -> approved -> suspended
+  status: text("status").default("pending_approval").notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  approvedBy: uuid("approved_by"),
+  
+  // Allowed consent scopes (what they can request)
+  allowedScopes: text("allowed_scopes").array().default(sql`'{}'`),
+  
+  // Rate limiting
+  dailyRequestLimit: integer("daily_request_limit").default(100),
+  
+  // Audit
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  clientIdIdx: uniqueIndex("idx_partner_orgs_client_id").on(table.clientId),
+  statusIdx: index("idx_partner_orgs_status").on(table.status),
+}));
+
+// Consent Delegations - Consent requests from partners
+export const consentDelegations = pgTable("consent_delegations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  
+  // Links to existing entities
+  partnerId: uuid("partner_id").notNull().references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+  youthId: uuid("youth_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  guardianVerificationId: uuid("guardian_verification_id").references(() => guardianVerifications.id),
+  
+  // Request details
+  requestedScopes: text("requested_scopes").array().notNull(), // ['field_trip', 'photo_release', etc]
+  purposeDescription: text("purpose_description").notNull(), // What the consent is for
+  eventName: text("event_name"), // Specific event/activity name
+  eventDate: date("event_date"), // When the activity occurs
+  
+  // Status: pending -> sent_to_guardian -> approved -> denied -> expired -> withdrawn
+  status: text("status").default("pending").notNull(),
+  
+  // Consent flow
+  consentLinkToken: text("consent_link_token").unique(),
+  consentLinkSentAt: timestamp("consent_link_sent_at", { withTimezone: true }),
+  consentLinkExpiresAt: timestamp("consent_link_expires_at", { withTimezone: true }),
+  
+  // Guardian decision
+  guardianDecision: text("guardian_decision"), // 'approved' | 'denied'
+  guardianDecisionAt: timestamp("guardian_decision_at", { withTimezone: true }),
+  guardianDecisionIp: text("guardian_decision_ip"),
+  guardianDecisionUserAgent: text("guardian_decision_user_agent"),
+  guardianNotes: text("guardian_notes"), // Optional notes from guardian
+  
+  // Consent validity
+  consentValidFrom: timestamp("consent_valid_from", { withTimezone: true }),
+  consentValidUntil: timestamp("consent_valid_until", { withTimezone: true }),
+  
+  // Withdrawal
+  withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
+  withdrawnBy: text("withdrawn_by"), // 'guardian' | 'youth' | 'partner' | 'admin'
+  withdrawalReason: text("withdrawal_reason"),
+  
+  // Metadata for compliance
+  consentNoticeVersion: text("consent_notice_version"),
+  
+  // Audit
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  partnerIdx: index("idx_consent_delegations_partner").on(table.partnerId),
+  youthIdx: index("idx_consent_delegations_youth").on(table.youthId),
+  statusIdx: index("idx_consent_delegations_status").on(table.status),
+  tokenIdx: uniqueIndex("idx_consent_delegations_token").on(table.consentLinkToken),
+}));
+
+// Consent Delegation Events - Audit log for delegation actions
+export const consentDelegationEvents = pgTable("consent_delegation_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  delegationId: uuid("delegation_id").notNull().references(() => consentDelegations.id, { onDelete: "cascade" }),
+  
+  // Event details
+  eventType: text("event_type").notNull(), // 'created', 'sent', 'viewed', 'approved', 'denied', 'expired', 'withdrawn'
+  eventData: jsonb("event_data"), // Additional context
+  
+  // Actor info
+  actorType: text("actor_type"), // 'partner', 'guardian', 'youth', 'system', 'admin'
+  actorId: text("actor_id"),
+  actorIp: text("actor_ip"),
+  actorUserAgent: text("actor_user_agent"),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  delegationIdx: index("idx_consent_delegation_events_delegation").on(table.delegationId),
+  eventTypeIdx: index("idx_consent_delegation_events_type").on(table.eventType),
+}));
