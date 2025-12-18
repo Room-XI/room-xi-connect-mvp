@@ -340,11 +340,6 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ checkinId }),
       }),
-    toggleMode: (mode: 'sibling' | 'peer') =>
-      fetchApi('/ximi/toggle-mode', {
-        method: 'POST',
-        body: JSON.stringify({ mode }),
-      }),
     setConsent: (consent: boolean) =>
       fetchApi('/ximi/consent', {
         method: 'POST',

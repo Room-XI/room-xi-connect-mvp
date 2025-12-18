@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Sparkles, Users, AlertCircle, Loader2, ChevronUp } from 'lucide-react';
+import { X, Send, Sparkles, AlertCircle, Loader2, ChevronUp } from 'lucide-react';
 import api, { type ProgramRecommendation, type MoodTrendData } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import VoiceControls from '@/components/VoiceControls';
@@ -45,7 +45,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [mode, setMode] = useState<'sibling' | 'peer'>('sibling');
   const [showCrisisWarning, setShowCrisisWarning] = useState(false);
   const [recommendations, setRecommendations] = useState<ProgramRecommendation[]>([]);
   const [moodTrend, setMoodTrend] = useState<MoodTrendData | null>(null);
@@ -185,27 +184,10 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
     }
   };
 
-  const toggleMode = async () => {
-    const newMode = mode === 'sibling' ? 'peer' : 'sibling';
-    
-    try {
-      const { error } = await api.ximi.toggleMode(newMode);
-
-      if (error) {
-        console.error('[Ximi] Failed to toggle mode:', error);
-      } else {
-        setMode(newMode);
-      }
-    } catch (error) {
-      console.error('[Ximi] Exception during mode toggle:', error);
-    }
-  };
-
   if (!isEnabled) return null;
 
   return (
     <>
-      {/* Floating Chat Button */}
       {!isOpen && (
         <motion.button
           onClick={() => setIsOpen(true)}
@@ -221,7 +203,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
         </motion.button>
       )}
 
-      {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -234,7 +215,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 20 }}
           >
-            {/* Header */}
             <div className="p-4 border-b border-borderMutedLight bg-gradient-to-r from-purple-50 to-teal/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -246,7 +226,7 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                       Ximi
                     </h3>
                     <p className="text-xs text-textSecondaryLight">
-                      {mode === 'sibling' ? 'Little Sibling' : 'Peer Guide'}
+                      Your AI Companion
                     </p>
                   </div>
                 </div>
@@ -258,36 +238,14 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                   <X className="w-5 h-5 text-textSecondaryLight" />
                 </button>
               </div>
-
-              {/* Mode Toggle */}
-              <button
-                onClick={toggleMode}
-                aria-label={`Switch to ${mode === 'sibling' ? 'Peer Guide' : 'Little Sibling'} mode. Currently in ${mode === 'sibling' ? 'Little Sibling' : 'Peer Guide'} mode`}
-                className="mt-3 w-full p-2 rounded-lg bg-surface border border-borderMutedLight hover:border-teal transition-colors flex items-center justify-center space-x-2 text-sm"
-              >
-                {mode === 'sibling' ? (
-                  <>
-                    <Sparkles className="w-4 h-4 text-purple-500" />
-                    <span className="text-deepSage">Little Sibling Mode</span>
-                  </>
-                ) : (
-                  <>
-                    <Users className="w-4 h-4 text-teal" />
-                    <span className="text-deepSage">Peer Guide Mode</span>
-                  </>
-                )}
-                <span className="text-xs text-textSecondaryLight ml-auto">Tap to switch</span>
-              </button>
             </div>
 
-            {/* Persistent Disclaimer Banner */}
             <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/50">
               <p className="text-xs text-amber-800 text-center">
                 <span className="font-medium">Reminder:</span> Ximi is an AI companion, not a licensed clinician. For professional mental health support, please contact a counselor or crisis line.
               </p>
             </div>
 
-            {/* Guardian Verification Warning */}
             {needsGuardianVerification && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
@@ -308,7 +266,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
               </motion.div>
             )}
 
-            {/* Crisis Warning */}
             {showCrisisWarning && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
@@ -336,14 +293,12 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
               </motion.div>
             )}
 
-            {/* Messages */}
             <div 
               ref={messagesContainerRef}
               className="flex-1 overflow-y-auto p-4 space-y-4" 
               aria-live="polite" 
               aria-label="Chat messages"
             >
-              {/* Loading History State */}
               {isLoadingHistory && (
                 <div className="text-center py-12">
                   <Loader2 className="w-8 h-8 mx-auto text-purple-400 mb-3 animate-spin" />
@@ -351,19 +306,15 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                 </div>
               )}
 
-              {/* Empty State */}
               {!isLoadingHistory && messages.length === 0 && (
                 <div className="text-center py-12">
                   <Sparkles className="w-12 h-12 mx-auto text-purple-300 mb-4" />
                   <p className="text-textSecondaryLight text-sm">
-                    {mode === 'sibling' 
-                      ? "Hey! I'm here to chat whenever you want."
-                      : "Ready to talk when you are."}
+                    Hey! I'm here whenever you want to chat.
                   </p>
                 </div>
               )}
 
-              {/* Load More Button */}
               {hasMore && !isLoadingHistory && (
                 <div className="text-center pb-2">
                   <button
@@ -387,7 +338,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                 </div>
               )}
 
-              {/* Recommendations Section */}
               {recommendations.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -402,7 +352,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                 </motion.div>
               )}
 
-              {/* Loading State for Recommendations */}
               {loadingRecommendations && recommendations.length === 0 && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -448,7 +397,6 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <form onSubmit={handleSendMessage} className="p-4 border-t border-borderMutedLight bg-surface">
               <div className="mb-3">
                 <VoiceControls
@@ -466,7 +414,7 @@ export default function XimiChat({ isEnabled = true, onConsentRequired }: XimiCh
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder={mode === 'sibling' ? "What's on your mind?" : "What's up?"}
+                  placeholder="What's on your mind?"
                   maxLength={500}
                   className="flex-1 px-4 py-2 rounded-full border-2 border-borderMutedLight focus:border-teal focus:outline-none text-sm bg-cream"
                   disabled={isSending}

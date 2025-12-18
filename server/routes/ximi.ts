@@ -4,17 +4,16 @@ import express from 'express';
 import { db } from '../db.ts';
 import { ximiConversations, profiles, checkins } from '../schema.ts';
 import { eq, desc, sql } from 'drizzle-orm';
-import { generateXimiResponse, generateFollowUpPrompt, type XimiMode } from '../services/ximi.ts';
+import { generateXimiResponse, generateFollowUpPrompt } from '../services/ximi.ts';
 import { getLatestMoodTrend, computeMoodTrends, storeMoodTrends } from '../services/moodTrends.ts';
 import { getRecommendationsWithContext } from '../services/recommendations.ts';
 import { recordAiMetrics } from '../services/aiTransparency.ts';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 import { validateBody } from '../middleware/validate.ts';
-import { ximiChatSchema, ximiModeSchema, ximiConsentSchema, ximiRecommendationsSchema } from '../schemas/ximi.ts';
+import { ximiChatSchema, ximiConsentSchema, ximiRecommendationsSchema } from '../schemas/ximi.ts';
 
 const router = express.Router();
 
-// Get conversation history for user with pagination
 router.get('/conversations', async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -24,7 +23,6 @@ router.get('/conversations', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
     const offset = parseInt(req.query.offset as string) || 0;
 
-    // Get total count for pagination
     const [countResult] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(ximiConversations)
@@ -32,7 +30,6 @@ router.get('/conversations', async (req, res) => {
 
     const totalCount = countResult?.count || 0;
 
-    // Fetch conversations ordered by most recent first, then reverse for display
     const conversations = await db
       .select()
       .from(ximiConversations)
@@ -41,7 +38,6 @@ router.get('/conversations', async (req, res) => {
       .limit(limit)
       .offset(offset);
 
-    // Reverse to show oldest first in the chat window
     const orderedConversations = conversations.reverse();
 
     res.json({
@@ -59,7 +55,6 @@ router.get('/conversations', async (req, res) => {
   }
 });
 
-// Chat with Ximi
 router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -68,25 +63,21 @@ router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
 
     const { message, checkinId, moodType, wellnessDimensions } = req.body;
 
-    // Get user's Ximi preferences from profile
     const [profile] = await db
       .select()
       .from(profiles)
       .where(eq(profiles.userId, req.session.userId))
       .limit(1);
 
-    // Log only in development (no user text in production)
     if (process.env.NODE_ENV !== 'production') {
       console.log('[Ximi AI] Chat request - checking consent:', {
         userId: req.session.userId,
         profileExists: !!profile,
         ximiConsent: profile?.ximiConsent,
-        ximiMode: profile?.ximiMode,
         timestamp: new Date().toISOString(),
       });
     }
 
-    // Check if user has consented to Ximi
     if (!profile?.ximiConsent) {
       if (process.env.NODE_ENV !== 'production') {
         console.log('[Ximi AI] Chat blocked: consent not granted');
@@ -101,12 +92,8 @@ router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
       console.log('[Ximi AI] Consent verified, processing chat request');
     }
 
-    const mode: XimiMode = (profile.ximiMode as XimiMode) || 'sibling';
-
-    // Get mood trend for context
     const moodTrend = await getLatestMoodTrend(req.session.userId, 'week');
 
-    // Get program recommendations if trend data is available
     let recommendations: any[] = [];
     if (moodTrend) {
       recommendations = await getRecommendationsWithContext(
@@ -120,22 +107,19 @@ router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
       );
     }
 
-    // Generate Ximi response with trend and recommendation context
     const ximiResponse = await generateXimiResponse(message, {
       moodType: moodType as MoodKey,
       wellnessDimensions,
-      mode,
       moodTrend,
       recommendations: recommendations.slice(0, 3),
     });
 
-    // Save conversation to database
     const [conversation] = await db
       .insert(ximiConversations)
       .values({
         userId: req.session.userId,
         checkinId: checkinId || null,
-        mode,
+        mode: 'unified',
         userMessage: message.trim(),
         ximiResponse: ximiResponse.message,
         moodContext: moodType || null,
@@ -145,7 +129,6 @@ router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
       })
       .returning();
 
-    // TASK 14: Record AI transparency metrics (aggregate counts only)
     await recordAiMetrics({
       totalMessagesDelta: 1,
       crisisDetectedDelta: ximiResponse.crisisDetected ? 1 : 0,
@@ -164,7 +147,6 @@ router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
   }
 });
 
-// Generate follow-up prompt after check-in
 router.post('/follow-up', async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -177,7 +159,6 @@ router.post('/follow-up', async (req, res) => {
       return res.status(400).json({ error: 'checkinId is required' });
     }
 
-    // Get the check-in details
     const [checkin] = await db
       .select()
       .from(checkins)
@@ -188,7 +169,6 @@ router.post('/follow-up', async (req, res) => {
       return res.status(404).json({ error: 'Check-in not found' });
     }
 
-    // Get user's Ximi preferences
     const [profile] = await db
       .select()
       .from(profiles)
@@ -201,14 +181,10 @@ router.post('/follow-up', async (req, res) => {
       });
     }
 
-    const mode: XimiMode = (profile.ximiMode as XimiMode) || 'sibling';
-
-    // Generate follow-up prompt
     const prompt = await generateFollowUpPrompt(
       checkin.moodType as MoodKey,
       checkin.wellnessDimensions || [],
-      checkin.note,
-      mode
+      checkin.note
     );
 
     res.json({
@@ -222,32 +198,6 @@ router.post('/follow-up', async (req, res) => {
   }
 });
 
-// Toggle Ximi mode (Little Sibling ↔ Peer Guide)
-router.post('/toggle-mode', async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const { mode } = req.body;
-
-    if (!mode || !['sibling', 'peer'].includes(mode)) {
-      return res.status(400).json({ error: 'Invalid mode. Must be "sibling" or "peer"' });
-    }
-
-    await db
-      .update(profiles)
-      .set({ ximiMode: mode })
-      .where(eq(profiles.userId, req.session.userId));
-
-    res.json({ mode, message: `Ximi mode changed to ${mode === 'sibling' ? 'Little Sibling' : 'Peer Guide'}` });
-  } catch (error) {
-    console.error('Toggle mode error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Grant/revoke Ximi consent
 router.post('/consent', async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -274,7 +224,6 @@ router.post('/consent', async (req, res) => {
       });
     }
 
-    // Use UPSERT to create profile if it doesn't exist
     await db
       .insert(profiles)
       .values({
@@ -304,7 +253,6 @@ router.post('/consent', async (req, res) => {
   }
 });
 
-// Get user's mood trends
 router.get('/trends', async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -321,10 +269,8 @@ router.get('/trends', async (req, res) => {
       console.log(`[Ximi AI] Fetching ${windowType} trends for user ${req.session.userId}`);
     }
 
-    // Try to get latest trend from database
     let trend = await getLatestMoodTrend(req.session.userId, windowType as 'week' | 'month' | 'quarter');
 
-    // If no trend exists or it's stale, compute new trend
     if (!trend) {
       if (process.env.NODE_ENV !== 'production') {
         console.log('[Ximi AI] No existing trend found, computing new trend...');
@@ -351,7 +297,6 @@ router.get('/trends', async (req, res) => {
   }
 });
 
-// Get personalized program recommendations
 router.post('/recommendations', async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -367,13 +312,11 @@ router.post('/recommendations', async (req, res) => {
       });
     }
 
-    // Get mood trend if requested
     let moodTrend: any = null;
     if (includetrends !== false) {
       moodTrend = await getLatestMoodTrend(req.session.userId, 'week');
     }
 
-    // Generate recommendations
     const recommendations = await getRecommendationsWithContext(
       req.session.userId,
       currentMood as MoodKey,
