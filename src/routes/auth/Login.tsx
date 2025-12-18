@@ -87,19 +87,6 @@ export default function Login() {
 
   return (
     <div className="min-h-dvh bg-cream">
-      {/* Donate Button - Fixed Position */}
-      <motion.a
-        href="https://www.zeffy.com/en-CA/donation-form/build-the-room-xi-youth-hub-in-edmonton"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed top-4 right-4 z-50 px-4 py-2 bg-gold text-deepSage font-medium rounded-full hover:bg-gold/80 transition-all flex items-center gap-2 shadow-lg"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <Heart className="w-4 h-4" />
-        <span>Donate</span>
-      </motion.a>
-
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-deepSage/5 via-teal/5 to-cosmic/10 py-16 px-6">
         <motion.div
@@ -123,7 +110,7 @@ export default function Login() {
             <img
               src="/roomxi-logo.png"
               alt="Room XI Connect"
-              className="h-20 md:h-28 w-auto object-contain"
+              className="h-32 md:h-44 w-auto object-contain"
             />
           </motion.div>
 
@@ -158,6 +145,19 @@ export default function Login() {
               <ArrowRight className="w-5 h-5" />
             </motion.a>
           </div>
+
+          {/* Donate Button */}
+          <motion.a
+            href="https://www.zeffy.com/en-CA/donation-form/build-the-room-xi-youth-hub-in-edmonton"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-coral/10 text-coral font-medium rounded-full hover:bg-coral/20 transition-all"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Heart className="w-4 h-4" />
+            <span>Support Our Mission</span>
+          </motion.a>
         </motion.div>
       </div>
 
