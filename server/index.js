@@ -179,7 +179,7 @@ async function createServer() {
     }));
     
     // SPA fallback - serve index.html for all non-API routes with no caching
-    app.get('*', (_req, res) => {
+    app.get('/{*splat}', (_req, res) => {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
