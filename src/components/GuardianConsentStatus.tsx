@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, RefreshCw, Check, Clock, AlertTriangle, Copy, Share2 } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface GuardianStatus {
   required: boolean;
@@ -29,23 +30,15 @@ export default function GuardianConsentStatus() {
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/consent/guardian-status', {
-        credentials: 'include',
-      });
+      const result = await api.consent.guardianStatus();
       
-      if (response.status === 401) {
+      if (result.error) {
+        console.error('Guardian status check failed:', result.error);
         setStatus(null);
         return;
       }
       
-      if (!response.ok) {
-        console.error('Guardian status check failed:', response.status);
-        setStatus(null);
-        return;
-      }
-      
-      const data = await response.json();
-      setStatus(data);
+      setStatus(result.data);
     } catch (error) {
       console.error('Failed to fetch guardian status:', error);
       setStatus(null);
@@ -59,19 +52,14 @@ export default function GuardianConsentStatus() {
       setResending(true);
       setMessage(null);
       
-      const response = await fetch('/api/consent/resend-guardian', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const result = await api.consent.resendGuardian();
       
-      const data = await response.json();
-      
-      if (response.ok) {
-        setMessage('Consent request sent successfully!');
-        setConsentLink(data.consentLink);
-        await fetchStatus();
+      if (result.error) {
+        setMessage(result.error || 'Failed to resend. Please try again.');
       } else {
-        setMessage(data.error || 'Failed to resend. Please try again.');
+        setMessage('Consent request sent successfully!');
+        setConsentLink(result.data?.consentLink);
+        await fetchStatus();
       }
     } catch (error) {
       console.error('Failed to resend consent:', error);

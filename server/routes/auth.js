@@ -10,6 +10,7 @@ import { validateBody } from '../middleware/validate.ts';
 import { registerSchema, loginSchema, deleteAccountSchema } from '../schemas/auth.ts';
 import { lookupCommunity, normalizePostalCode } from '../services/communityLookup.ts';
 import { authLimiter } from '../middleware/rateLimit.ts';
+import { getPublicUrl } from '../utils/publicUrl.ts';
 
 const router = express.Router();
 
@@ -162,9 +163,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       // Send initial consent email with link to view full consent notice
       try {
         const { sendInitialConsentEmail } = await import('../services/email.js');
-        const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-          ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-          : 'http://localhost:5000';
+        const baseUrl = getPublicUrl();
         
         await sendInitialConsentEmail({
           guardianEmail: guardianEmail,

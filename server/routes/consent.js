@@ -14,6 +14,7 @@ import {
 } from '../services/consent.js';
 import { sendGuardianVerificationEmail, sendInitialConsentEmail, sendConfirmationEmail, sendConsentCompleteEmail, sendConsentWithdrawalStaffNotification } from '../services/email.js';
 import { consentNoticeV1, CONSENT_NOTICE_VERSION, confirmationSuccessPage, pendingConfirmationPage, expiredLinkPage } from '../services/consentNotices.js';
+import { getPublicUrl } from '../utils/publicUrl.ts';
 
 const router = express.Router();
 
@@ -125,7 +126,7 @@ router.post('/agree/:token', async (req, res) => {
     .limit(1);
 
     const youthName = profile?.firstName || 'Your child';
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = getPublicUrl(req);
     const confirmationLink = `${baseUrl}/api/consent/confirm/${confirmationToken}`;
 
     await sendConfirmationEmail({
@@ -333,9 +334,7 @@ router.post('/resend-guardian', async (req, res) => {
     .limit(1);
 
     const youthName = profile?.firstName || 'Your child';
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const host = req.headers['host'] || req.headers['x-forwarded-host'];
-    const baseUrl = host ? `${protocol}://${host}` : 'https://localhost:5000';
+    const baseUrl = getPublicUrl(req);
     const consentViewUrl = `${baseUrl}/api/consent/view/${newToken}`;
 
     try {
@@ -559,7 +558,7 @@ router.post('/guardian/request-verification', async (req, res) => {
       guardianContactValue,
     });
     
-    const verificationLink = `${req.protocol}://${req.get('host')}/guardian/verify/${token}`;
+    const verificationLink = `${getPublicUrl(req)}/guardian/verify/${token}`;
     
     // Send verification email to guardian
     await sendGuardianVerificationEmail({

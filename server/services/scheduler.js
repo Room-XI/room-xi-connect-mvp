@@ -8,6 +8,7 @@ import { db } from '../db.js';
 import { privacyConsents, checkins, profiles, ximiConversations, guardianVerifications } from '../schema.js';
 import { eq, and, lt, sql } from 'drizzle-orm';
 import { sendGuardianVerificationEmail } from './email.js';
+import { getPublicUrl } from '../utils/publicUrl.ts';
 
 // Store the interval ID for the scheduler
 let schedulerInterval = null;
@@ -348,7 +349,7 @@ async function sendGuardianReminders() {
         await sendGuardianVerificationEmail({
           guardianEmail: row.guardian_contact_value,
           youthName: 'your child',
-          verificationLink: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/guardian/verify/${row.verification_token}`,
+          verificationLink: `${getPublicUrl()}/guardian/verify/${row.verification_token}`,
         });
         
         // Mark reminder as sent

@@ -113,19 +113,31 @@ async function fetchApi<T = any>(
       ...options,
     });
 
-    const data = await response.json();
+    // Handle 204 No Content or empty responses
+    let data: any = null;
+    const contentType = response.headers.get('content-type');
+    if (response.status !== 204 && contentType?.includes('application/json')) {
+      const text = await response.text();
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = null;
+        }
+      }
+    }
 
     if (!response.ok) {
       // Handle invalid CSRF token with retry
-      if (response.status === 403 && data.error === 'Invalid CSRF token' && !isRetry) {
+      if (response.status === 403 && data?.error === 'Invalid CSRF token' && !isRetry) {
         csrfToken = null;
         // Retry once with fresh token
         return fetchApi<T>(endpoint, options, true);
       }
       
-      console.error(`API ${options?.method || 'GET'} ${endpoint} failed:`, response.status, data.error || data.message);
+      console.error(`API ${options?.method || 'GET'} ${endpoint} failed:`, response.status, data?.error || data?.message);
       
-      return { error: data.error || data.message || 'An error occurred' };
+      return { error: data?.error || data?.message || 'An error occurred' };
     }
 
     return { data };
@@ -292,7 +304,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ pin, guardianName }),
       }),
-    guardianStatus: () => fetchApi('/consent/guardian/status'),
+    guardianStatus: () => fetchApi('/consent/guardian-status'),
+    resendGuardian: () => fetchApi('/consent/resend-guardian', { method: 'POST' }),
     auditTrail: () => fetchApi('/consent/audit-trail'),
     exportData: () => fetchApi('/consent/export-data'),
     deleteAccount: (confirmation: string) =>
