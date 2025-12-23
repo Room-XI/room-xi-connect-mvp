@@ -95,7 +95,7 @@ export default function SavedPrograms() {
               Create an account to bookmark your favorite programs and access them anytime.
             </p>
           </div>
-          <Link to="/signin" className="inline-block cosmic-button">
+          <Link to="/auth/login" className="inline-block cosmic-button">
             Sign In
           </Link>
         </motion.div>
