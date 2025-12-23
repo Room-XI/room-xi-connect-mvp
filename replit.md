@@ -116,6 +116,31 @@ if (!consent.reflections) return res.status(403).json({ code: 'CONSENT_REQUIRED'
 - `server/routes/outcomes.ts` - Reflections consent enforcement
 - `server/services/peerInsights.ts` - Research consent filtering (already implemented)
 
+### URL Generation for Consent Emails (Updated Dec 2025)
+A centralized utility `server/utils/publicUrl.ts` handles URL generation for all consent emails to ensure links work correctly in production:
+
+**Resolution Order**:
+1. `PUBLIC_URL` environment variable (required for production deployment)
+2. `REPLIT_DEPLOYMENT_URL` (automatic for Replit deployments)
+3. `REPLIT_APP_URL` (automatic for Replit apps)
+4. Request headers (`x-forwarded-host`, `host`)
+5. Fallback to `http://localhost:5000` for local development
+
+**Usage**:
+```typescript
+import { getPublicUrl } from '../utils/publicUrl.ts';
+const baseUrl = getPublicUrl(req); // Pass request for header detection
+const link = `${baseUrl}/api/consent/view/${token}`;
+```
+
+**Key Files**:
+- `server/utils/publicUrl.ts` - URL resolution utility
+- `server/routes/consent.js` - Consent email links
+- `server/routes/auth.js` - Registration consent links
+- `server/services/scheduler.js` - Guardian reminder emails
+
+**Production Setup**: Set `PUBLIC_URL=https://your-domain.com` in production environment
+
 ## External Dependencies
 - **Neon PostgreSQL:** Primary database backend.
 - **Replit AI (OpenAI-compatible API):** Powers the Ximi AI companion (gpt-4o-mini).
