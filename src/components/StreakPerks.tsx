@@ -13,7 +13,6 @@ import {
   Award,
   TrendingUp,
   Star,
-  Gift,
   Unlock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

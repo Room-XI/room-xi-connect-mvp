@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Shield, Users, Activity, TrendingUp, Heart, AlertTriangle, BarChart, FileText } from 'lucide-react';
+import { Download, Shield, Users, Activity, TrendingUp, Heart, AlertTriangle, FileText } from 'lucide-react';
 
 interface TransparencyStats {
   activeUsers: number;

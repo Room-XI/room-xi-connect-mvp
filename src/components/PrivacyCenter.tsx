@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -95,6 +96,7 @@ const CONSENT_INFO = {
 };
 
 function PrivacyCenter() {
+  const navigate = useNavigate();
   const [consents, setConsents] = useState<ConsentState>({
     location: false,
     orb: false,
@@ -124,6 +126,16 @@ function PrivacyCenter() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
+  // Helper to handle 401 errors - redirect to login
+  function handleAuthError(err: any) {
+    const errorMessage = err?.message || '';
+    if (errorMessage.includes('Not authenticated') || errorMessage.includes('401')) {
+      navigate('/auth/login', { state: { from: '/privacy-center', message: 'Please sign in to manage privacy settings.' } });
+      return true;
+    }
+    return false;
+  }
+
   // Load current consent settings
   useEffect(() => {
     loadConsents();
@@ -137,9 +149,11 @@ function PrivacyCenter() {
       setConsents(response.consents);
       setReminder(response.reminder);
       setLastUpdated(response.lastUpdated);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load privacy settings:', err);
-      setError('Unable to load privacy settings. Please try again.');
+      if (!handleAuthError(err)) {
+        setError('Unable to load privacy settings. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -170,10 +184,12 @@ function PrivacyCenter() {
       
       // Show success feedback
       setTimeout(() => setSaving(false), 500);
-    } catch (err) {
+    } catch (err: any) {
       // Revert on error
       setConsents(prev => ({ ...prev, [type]: previousValue }));
-      setError('Failed to update privacy setting. Please try again.');
+      if (!handleAuthError(err)) {
+        setError('Failed to update privacy setting. Please try again.');
+      }
       setSaving(false);
     }
   }
@@ -501,10 +517,10 @@ function PrivacyCenter() {
             setExporting(true);
             setError(null);
             
-            const response = await api.get('/api/privacy/export');
+            const exportData = await api.privacy.exportData();
             
             // Create blob and download
-            const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], {
               type: 'application/json'
             });
             const url = window.URL.createObjectURL(blob);

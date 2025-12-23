@@ -11,7 +11,6 @@ import {
   Save,
   X
 } from 'lucide-react';
-import { useSession } from '@/lib/session';
 import api from '@/lib/api';
 
 interface Program {

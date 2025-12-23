@@ -72,6 +72,20 @@ The FSA-to-ward mapping is approximate and uses a local lookup table (`server/se
 ### Edmonton Youth Programs Database
 The database contains over 75 comprehensive Edmonton youth resources across categories such as Mental Health, LGBTQ+ & 2Spirit, Indigenous, Arts & Creative, Sports & Recreation, Employment & Career, and Crisis Support.
 
+### Testing Infrastructure (Added Dec 2025)
+The project includes comprehensive testing infrastructure:
+- **Unit Tests (Vitest)**: Run with `npm test` - 12 passing tests, 3 expected failures for browser-specific APIs (crypto, IndexedDB)
+- **E2E Tests (Playwright)**: Run with `npm run test:e2e` - API smoke tests work; browser tests require additional system dependencies
+- **Privacy Smoke Tests**: Run with `npm run smoke:privacy` - Tests authentication requirements on privacy endpoints
+- **Route Crawl Tests**: Run with `npm run test:e2e:routes` - Tests public and auth-required routes
+
+Key test files:
+- `tests/e2e/routes.spec.ts` - Public and auth-required route testing
+- `tests/e2e/smoke-privacy.spec.ts` - Privacy API authentication checks
+- `playwright.config.ts` - Playwright configuration
+
+Note: Browser-based E2E tests require Chromium system dependencies. API-only tests (14 tests) pass in Replit environment.
+
 ## External Dependencies
 - **Neon PostgreSQL:** Primary database backend.
 - **Replit AI (OpenAI-compatible API):** Powers the Ximi AI companion (gpt-4o-mini).

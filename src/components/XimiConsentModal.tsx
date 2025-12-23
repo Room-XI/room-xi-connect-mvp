@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Shield, Eye, Brain } from 'lucide-react';
 import api from '@/lib/api';

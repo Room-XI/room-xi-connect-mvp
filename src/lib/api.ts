@@ -402,75 +402,60 @@ export const api = {
   
   privacy: {
     getConsents: async () => {
-      const response = await fetch('/api/privacy/consents', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch privacy consents');
+      const result = await fetchApi('/privacy/consents');
+      if (result.error) {
+        throw new Error(result.error);
       }
-      
-      return response.json();
+      return result.data;
     },
     
     updateConsents: async (data: { 
       consents: Record<string, boolean>; 
       reminderEnabled?: boolean;
     }) => {
-      const response = await fetch('/api/privacy/consents', {
+      const result = await fetchApi('/privacy/consents', {
         method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update privacy consents');
+      if (result.error) {
+        throw new Error(result.error);
       }
-      
-      return response.json();
+      return result.data;
     },
     
     getAuditLog: async () => {
-      const response = await fetch('/api/privacy/audit-log', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch audit log');
+      const result = await fetchApi('/privacy/audit-log');
+      if (result.error) {
+        throw new Error(result.error);
       }
-      
-      return response.json();
+      return result.data;
     },
     
     recordReminderResponse: async (action: 'viewed' | 'updated' | 'dismissed') => {
-      const response = await fetch('/api/privacy/reminder-response', {
+      const result = await fetchApi('/privacy/reminder-response', {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to record reminder response');
+      if (result.error) {
+        throw new Error(result.error);
       }
-      
-      return response.json();
+      return result.data;
     },
     
     getAggregateStats: async () => {
-      const response = await fetch('/api/privacy/aggregate-stats', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch aggregate stats');
+      const result = await fetchApi('/privacy/aggregate-stats');
+      if (result.error) {
+        throw new Error(result.error);
       }
-      
-      return response.json();
+      return result.data;
+    },
+    
+    exportData: async () => {
+      const result = await fetchApi('/privacy/export');
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      return result.data;
     },
 
     getYouthSettings: () => fetchApi('/privacy/youth-settings'),
@@ -482,6 +467,30 @@ export const api = {
       parentCanSeeXimiChats?: boolean;
       hiddenProgramIds?: string[];
     }) => fetchApi('/privacy/youth-settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  },
+
+  // Outcomes - program feedback and reflections
+  outcomes: {
+    create: (data: {
+      programId: string;
+      recommendationEventId?: string | null;
+      attended: boolean;
+      attendanceDate: string;
+      helpfulnessRating: number;
+      wouldRecommend?: boolean | null;
+      reflectionText?: string | null;
+      moodBefore?: string | null;
+      moodAfter?: string | null;
+      barriersEncountered?: string[];
+      barriersResolved?: boolean;
+    }) => fetchApi('/outcomes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    update: (id: string, data: Record<string, any>) => fetchApi(`/outcomes/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),

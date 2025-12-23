@@ -4,7 +4,7 @@
  * Displays celebratory animation and achievement
  */
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Star, Sparkles } from 'lucide-react';
 
@@ -32,7 +32,7 @@ export default function MilestoneOrb({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d')!;
     if (!ctx) return;
 
     // Set canvas size for retina displays

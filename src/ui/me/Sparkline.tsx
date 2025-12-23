@@ -1,4 +1,3 @@
-import React from 'react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface CheckIn {
@@ -30,7 +29,7 @@ export default function Sparkline({ data }: SparklineProps) {
       note: checkIn.note,
     }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label: _label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (

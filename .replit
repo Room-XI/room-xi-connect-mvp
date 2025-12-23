@@ -5,7 +5,7 @@ integrations = ["github:1.0.0", "javascript_database:1.0.0", "javascript_openai_
 
 [nix]
 channel = "stable-25_05"
-packages = ["unzip"]
+packages = ["unzip", "glib"]
 
 [workflows]
 runButton = "Project"
@@ -50,3 +50,4 @@ build = ["npm", "run", "build"]
 VAPID_PUBLIC_KEY = "BOPkGXynIkGtz0-rHcUgCdsagv2sAIsytNJeB0iuhWYuIKSzmYaJY-3SEc713eslnVTmWp0mtPsOX1WRtRnE5Wk"
 VAPID_PRIVATE_KEY = "7LFv_85sf97PWv4g_it8nV3R1HirYMfE_w5hgp1r9PE"
 VAPID_EMAIL = "mailto:admin@roomxi.org"
+EMAIL_PROVIDER = "gmail"

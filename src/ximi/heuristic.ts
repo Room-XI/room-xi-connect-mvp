@@ -128,7 +128,7 @@ export function analyzeMessage(message: string): MessageAnalysis {
 /**
  * Generate a contextual response based on message analysis
  */
-export function generateResponse(analysis: MessageAnalysis, userMessage: string): string {
+export function generateResponse(analysis: MessageAnalysis, _userMessage: string): string {
   if (analysis.isCrisis) {
     return "I'm concerned about what you've shared. Let me connect you with immediate support resources that can help.";
   }

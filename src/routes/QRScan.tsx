@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, CameraOff, Type, CheckCircle, AlertCircle } from 'lucide-react';
-import { BrowserCodeReader } from '@zxing/browser';
+import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { parseProgramId } from '@/lib/qr';
 import api from '@/lib/api';
 
@@ -14,7 +14,8 @@ export default function QRScan() {
   const [isProcessing, setIsProcessing] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  const codeReaderRef = useRef<BrowserCodeReader | null>(null);
+  const codeReaderRef = useRef<BrowserQRCodeReader | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
 
   useEffect(() => {
     return () => {
@@ -52,16 +53,16 @@ export default function QRScan() {
       setResult(null);
       
       if (!codeReaderRef.current) {
-        codeReaderRef.current = new BrowserCodeReader();
+        codeReaderRef.current = new BrowserQRCodeReader();
       }
 
       const videoElement = videoRef.current;
       if (!videoElement) return;
 
-      await codeReaderRef.current.decodeFromVideoDevice(
+      controlsRef.current = await codeReaderRef.current.decodeFromVideoDevice(
         undefined, // Use default camera
         videoElement,
-        (result, error) => {
+        (result, _error) => {
           if (result) {
             handleScanResult(result.getText());
           }
@@ -79,8 +80,9 @@ export default function QRScan() {
   };
 
   const stopScanning = () => {
-    if (codeReaderRef.current) {
-      codeReaderRef.current.reset();
+    if (controlsRef.current) {
+      controlsRef.current.stop();
+      controlsRef.current = null;
     }
     setIsScanning(false);
   };

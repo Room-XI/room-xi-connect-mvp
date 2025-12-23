@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { addToQueue, getQueueCount, clearQueue } from '../queue';
+import { addToQueue, getQueueCount } from '../queue';
 
 // Mock IndexedDB
 beforeEach(() => {

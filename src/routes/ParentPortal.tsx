@@ -10,7 +10,6 @@ import {
   Calendar, 
   MapPin,
   TrendingUp,
-  AlertCircle,
   Info,
   ChevronDown,
   ChevronUp

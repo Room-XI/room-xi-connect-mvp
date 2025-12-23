@@ -69,7 +69,7 @@ export default function OutcomeReflectionForm({
     setSubmitting(true);
 
     try {
-      await api.post('/api/outcomes', {
+      await api.outcomes.create({
         programId,
         recommendationEventId: recommendationEventId || null,
         attended: true,

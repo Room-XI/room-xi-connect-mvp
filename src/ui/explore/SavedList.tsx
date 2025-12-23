@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bookmark, Heart, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -6,24 +6,31 @@ import ProgramCard from './ProgramCard';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 
+interface GroupedProgram {
+  programId: string;
+  programTitle: string;
+  programDescription: string | null;
+  programTags: string[];
+  organizer: string | null;
+  locationName: string | null;
+  address: string | null;
+  ageMin: number | null;
+  ageMax: number | null;
+  costCents: number;
+  isDropIn: boolean;
+  weeklySchedule: Array<{
+    days: string[];
+    startTime: string;
+    endTime: string;
+    location: string | null;
+  }>;
+  scheduleSummary: string;
+}
+
 interface SavedProgram {
   program_id: string;
   created_at: string;
-  programs: {
-    id: string;
-    title: string;
-    description: string | null;
-    tags: string[];
-    free: boolean;
-    indoor: boolean | null;
-    outdoor: boolean | null;
-    cost_cents: number | null;
-    location_name: string | null;
-    organizer: string | null;
-    accessibility_notes: string | null;
-    next_start: string | null;
-    next_end: string | null;
-  };
+  programs: GroupedProgram;
 }
 
 export default function SavedList() {
@@ -50,11 +57,25 @@ export default function SavedList() {
         return;
       }
 
-      // Transform API response to match component expectations
+      // Transform API response to match component expectations (GroupedProgram interface)
       const savedPrograms = (data || []).map((program: any) => ({
-        program_id: program.id,
+        program_id: program.id || program.programId,
         created_at: program.createdAt || new Date().toISOString(),
-        programs: program
+        programs: {
+          programId: program.id || program.programId,
+          programTitle: program.title || program.programTitle || '',
+          programDescription: program.description || program.programDescription || null,
+          programTags: program.tags || program.programTags || [],
+          organizer: program.organizer || null,
+          locationName: program.location_name || program.locationName || null,
+          address: program.address || null,
+          ageMin: program.age_min || program.ageMin || null,
+          ageMax: program.age_max || program.ageMax || null,
+          costCents: program.cost_cents || program.costCents || 0,
+          isDropIn: program.is_drop_in || program.isDropIn || false,
+          weeklySchedule: program.weeklySchedule || [],
+          scheduleSummary: program.scheduleSummary || ''
+        } as GroupedProgram
       }));
       
       setSavedPrograms(savedPrograms);

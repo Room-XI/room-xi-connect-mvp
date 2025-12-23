@@ -61,7 +61,7 @@ export default function Register() {
     setError(null);
 
     try {
-      const { data, error } = await api.auth.register(email.trim(), password, { postalCode: postalCode.trim() });
+      const { error } = await api.auth.register(email.trim(), password, { postalCode: postalCode.trim() });
 
       if (error) {
         setError(error);
