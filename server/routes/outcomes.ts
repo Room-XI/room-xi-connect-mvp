@@ -12,6 +12,7 @@ import {
   type OutcomeEventData,
 } from '../services/outcomes.js';
 import { getProgramPeerInsights } from '../services/peerInsights.js';
+import { checkPrivacyConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -19,6 +20,17 @@ router.post('/', async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Check reflections consent for sharing program feedback
+    const consent = await checkPrivacyConsent(req.session.userId, 'reflections');
+    if (!consent.reflections) {
+      return res.status(403).json({ 
+        error: 'Consent required',
+        code: 'CONSENT_REQUIRED',
+        missingConsents: ['reflections'],
+        message: 'Please enable reflection sharing in Privacy Center to submit program feedback'
+      });
     }
 
     const {
@@ -77,6 +89,17 @@ router.put('/:id', async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Check reflections consent for updating program feedback
+    const consent = await checkPrivacyConsent(req.session.userId, 'reflections');
+    if (!consent.reflections) {
+      return res.status(403).json({ 
+        error: 'Consent required',
+        code: 'CONSENT_REQUIRED',
+        missingConsents: ['reflections'],
+        message: 'Please enable reflection sharing in Privacy Center to update program feedback'
+      });
     }
 
     const { id } = req.params;

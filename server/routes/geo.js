@@ -10,6 +10,7 @@ import { db } from '../db.js';
 import { checkins, profiles } from '../schema.js';
 import { eq, gte, and } from 'drizzle-orm';
 import { applyDPToMoodDistribution, addLaplaceNoise } from '../lib/differentialPrivacy.js';
+import { checkPrivacyConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -20,11 +21,23 @@ const MIN_USERS_PER_HEX = 7; // k-anonymity threshold
  * Get aggregated mood data by geographic hex
  * POST /api/geo/aggregate
  * Body: { timeRange?: '7d' | '30d' | 'all' }
+ * Requires location consent
  */
 router.post('/aggregate', async (req, res) => {
   // Require authentication
   if (!req.session?.userId) {
     return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  // Check location consent
+  const consent = await checkPrivacyConsent(req.session.userId, 'location');
+  if (!consent.location) {
+    return res.status(403).json({ 
+      error: 'Consent required',
+      code: 'CONSENT_REQUIRED',
+      missingConsents: ['location'],
+      message: 'Please enable location sharing in Privacy Center to view geographic data'
+    });
   }
   try {
     const { timeRange = '7d' } = req.body;
@@ -182,11 +195,23 @@ router.post('/aggregate', async (req, res) => {
  * Get hex info for a specific location (for displaying current user's hex)
  * POST /api/geo/hex-for-location
  * Body: { lat: number, lng: number }
+ * Requires location consent
  */
 router.post('/hex-for-location', async (req, res) => {
   // Require authentication
   if (!req.session?.userId) {
     return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  // Check location consent
+  const consent = await checkPrivacyConsent(req.session.userId, 'location');
+  if (!consent.location) {
+    return res.status(403).json({ 
+      error: 'Consent required',
+      code: 'CONSENT_REQUIRED',
+      missingConsents: ['location'],
+      message: 'Please enable location sharing in Privacy Center to use this feature'
+    });
   }
   try {
     const { lat, lng } = req.body;

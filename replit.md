@@ -78,13 +78,43 @@ The project includes comprehensive testing infrastructure:
 - **E2E Tests (Playwright)**: Run with `npm run test:e2e` - API smoke tests work; browser tests require additional system dependencies
 - **Privacy Smoke Tests**: Run with `npm run smoke:privacy` - Tests authentication requirements on privacy endpoints
 - **Route Crawl Tests**: Run with `npm run test:e2e:routes` - Tests public and auth-required routes
+- **Consent Enforcement Tests**: Run with `npm run smoke:consent` - Tests consent/CSRF enforcement on protected endpoints
 
 Key test files:
 - `tests/e2e/routes.spec.ts` - Public and auth-required route testing
 - `tests/e2e/smoke-privacy.spec.ts` - Privacy API authentication checks
+- `tests/e2e/consent-enforcement.spec.ts` - Consent and CSRF enforcement checks
 - `playwright.config.ts` - Playwright configuration
 
-Note: Browser-based E2E tests require Chromium system dependencies. API-only tests (14 tests) pass in Replit environment.
+Note: Browser-based E2E tests require Chromium system dependencies. API-only tests (24+ tests) pass in Replit environment.
+
+### Consent Enforcement (Added Dec 2025)
+Server-side enforcement of privacy consent toggles is implemented in `server/middleware/consent.ts`:
+
+**Privacy Consent Types** (from `privacy_consents` table):
+- `location` - Required for `/api/geo/*` endpoints
+- `reflections` - Required for `/api/outcomes` POST/PUT endpoints
+- `research` - Checked when aggregating user data in peerInsights service
+- `orb` - Available for future orb sharing features
+- `notifications` - Checked by notification scheduler
+
+**Implementation Pattern**:
+```typescript
+import { checkPrivacyConsent, requirePrivacyConsent } from '../middleware/consent.ts';
+
+// Middleware approach (block route)
+router.post('/share', requirePrivacyConsent('location'), handler);
+
+// Inline check approach (custom handling)
+const consent = await checkPrivacyConsent(userId, 'reflections');
+if (!consent.reflections) return res.status(403).json({ code: 'CONSENT_REQUIRED' });
+```
+
+**Key Files**:
+- `server/middleware/consent.ts` - Consent check helpers and middleware
+- `server/routes/geo.js` - Location consent enforcement
+- `server/routes/outcomes.ts` - Reflections consent enforcement
+- `server/services/peerInsights.ts` - Research consent filtering (already implemented)
 
 ## External Dependencies
 - **Neon PostgreSQL:** Primary database backend.
