@@ -3,8 +3,9 @@
  * Implements CSP, COEP, COOP, and other security headers
  */
 
+/// <reference path="../types/session.d.ts" />
+
 import { Request, Response, NextFunction } from 'express';
-import '../types/session'; // Import session type augmentation
 
 /**
  * Apply security headers to all responses

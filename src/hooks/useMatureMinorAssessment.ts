@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { useSession } from '@/lib/session';
 
 interface MatureMinorStatus {
   assessmentRequired: boolean;
@@ -31,6 +32,7 @@ interface SubmitResult {
 }
 
 export function useMatureMinorAssessment() {
+  const { isAuthenticated, loading: sessionLoading } = useSession();
   const [status, setStatus] = useState<MatureMinorStatus | null>(null);
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,11 @@ export function useMatureMinorAssessment() {
   const [error, setError] = useState<string | null>(null);
 
   const checkStatus = useCallback(async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       const response = await api.consent.matureMinor.getStatus();
@@ -50,7 +57,7 @@ export function useMatureMinorAssessment() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const fetchQuestions = useCallback(async () => {
     try {
@@ -91,8 +98,11 @@ export function useMatureMinorAssessment() {
   }, []);
 
   useEffect(() => {
-    checkStatus();
-  }, [checkStatus]);
+    // Only call checkStatus once session loading is complete
+    if (!sessionLoading) {
+      checkStatus();
+    }
+  }, [sessionLoading, checkStatus]);
 
   useEffect(() => {
     if (status?.assessmentRequired) {

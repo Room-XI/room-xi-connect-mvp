@@ -36,6 +36,14 @@ function hasSessionCookie(): boolean {
   return document.cookie.includes('connect.sid');
 }
 
+/**
+ * Clear session cookie when it's expired/invalid
+ * This prevents infinite retry loops when session is expired but cookie exists
+ */
+function clearSessionCookie(): void {
+  document.cookie = 'connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,10 +61,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (!error && data?.user) {
         setUser(data.user);
       } else {
+        // Session expired or invalid - clear cookie to prevent retry loops
+        clearSessionCookie();
         setUser(null);
       }
     } catch (error) {
       console.error('Error fetching user:', error);
+      // Clear cookie on error to prevent retry loops
+      clearSessionCookie();
       setUser(null);
     } finally {
       setLoading(false);
