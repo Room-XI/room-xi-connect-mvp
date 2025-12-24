@@ -4,6 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import '../types/session'; // Import session type augmentation
 
 /**
  * Apply security headers to all responses

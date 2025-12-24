@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import App from './shell/App';
 import ErrorBoundary from './ui/ErrorBoundary';
+import RequireAuth from './components/RequireAuth';
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -55,6 +56,17 @@ const withSuspense = (Component: React.LazyExoticComponent<any>) => {
   );
 };
 
+// Wrapper for protected routes that require authentication
+const withProtectedSuspense = (Component: React.LazyExoticComponent<any>) => {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <RequireAuth>
+        <Component />
+      </RequireAuth>
+    </Suspense>
+  );
+};
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -67,29 +79,29 @@ export const router = createBrowserRouter([
       { path: 'explore/:view', element: withSuspense(Explore) },
       { path: 'events', element: withSuspense(Events) },
       { path: 'program/:id', element: withSuspense(ProgramDetail) },
-      { path: 'qr', element: withSuspense(QRScan) },
-      { path: 'me', element: withSuspense(Me) },
-      { path: 'safety-profile', element: withSuspense(SafetyProfile) },
+      { path: 'qr', element: withProtectedSuspense(QRScan) },
+      { path: 'me', element: withProtectedSuspense(Me) },
+      { path: 'safety-profile', element: withProtectedSuspense(SafetyProfile) },
       { path: 'safety-resources', element: withSuspense(SafetyResources) },
-      { path: 'settings', element: withSuspense(Settings) },
-      { path: 'admin', element: withSuspense(Admin) },
-      { path: 'control/entrance', element: withSuspense(AdminPortal) },
+      { path: 'settings', element: withProtectedSuspense(Settings) },
+      { path: 'admin', element: withProtectedSuspense(Admin) },
+      { path: 'control/entrance', element: withProtectedSuspense(AdminPortal) },
       { path: 'about', element: withSuspense(About) },
       { path: 'terms-of-service', element: withSuspense(TermsOfService) },
       { path: 'privacy-policy', element: withSuspense(PrivacyPolicy) },
-      { path: 'check-in-history', element: withSuspense(CheckInHistory) },
-      { path: 'saved-programs', element: withSuspense(SavedPrograms) },
+      { path: 'check-in-history', element: withProtectedSuspense(CheckInHistory) },
+      { path: 'saved-programs', element: withProtectedSuspense(SavedPrograms) },
       { path: 'verify-consent/:token', element: withSuspense(VerifyConsent) },
       { path: 'guardian/verify/:token', element: withSuspense(GuardianVerify) },
       { path: 'parent', element: withSuspense(ParentPortal) },
       { path: 'parent/accept/:token', element: withSuspense(ParentPortal) },
-      { path: 'org/dashboard', element: withSuspense(OrgDashboard) },
-      { path: 'org/programs', element: withSuspense(ProgramManagement) },
-      { path: 'kpi-dashboard', element: withSuspense(KPIDashboard) },
-      { path: 'transparency', element: withSuspense(TransparencyDashboard) },
-      { path: 'privacy-center', element: withSuspense(PrivacyCenter) },
-      { path: 'achievements', element: withSuspense(Achievements) },
-      { path: 'orb-timelapse', element: withSuspense(OrbTimelapse) },
+      { path: 'org/dashboard', element: withProtectedSuspense(OrgDashboard) },
+      { path: 'org/programs', element: withProtectedSuspense(ProgramManagement) },
+      { path: 'kpi-dashboard', element: withProtectedSuspense(KPIDashboard) },
+      { path: 'transparency', element: withProtectedSuspense(TransparencyDashboard) },
+      { path: 'privacy-center', element: withProtectedSuspense(PrivacyCenter) },
+      { path: 'achievements', element: withProtectedSuspense(Achievements) },
+      { path: 'orb-timelapse', element: withProtectedSuspense(OrbTimelapse) },
       { path: 'auth/login', element: withSuspense(Login) },
       { path: 'auth/register', element: withSuspense(Register) },
       { path: 'auth/signup', element: withSuspense(Signup) },

@@ -16,6 +16,7 @@ interface SessionContextType {
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   needsGuardianVerification: boolean;
+  isAuthenticated: boolean;
 }
 
 const SessionContext = createContext<SessionContextType>({
@@ -24,13 +25,29 @@ const SessionContext = createContext<SessionContextType>({
   signOut: async () => {},
   refreshSession: async () => {},
   needsGuardianVerification: false,
+  isAuthenticated: false,
 });
+
+/**
+ * Check if session cookie exists (doesn't validate it, just checks presence)
+ * This prevents unnecessary 401 API calls when user is clearly not logged in
+ */
+function hasSessionCookie(): boolean {
+  return document.cookie.includes('connect.sid');
+}
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUser = async () => {
+    // Skip API call if no session cookie exists (reduces 401 console noise)
+    if (!hasSessionCookie()) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data, error } = await api.auth.getUser();
       if (!error && data?.user) {
@@ -65,8 +82,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     user?.requiresGuardianVerification && !user?.guardianVerifiedAt
   );
 
+  const isAuthenticated = user !== null;
+
   return (
-    <SessionContext.Provider value={{ user, loading, signOut, refreshSession, needsGuardianVerification }}>
+    <SessionContext.Provider value={{ user, loading, signOut, refreshSession, needsGuardianVerification, isAuthenticated }}>
       {children}
     </SessionContext.Provider>
   );
