@@ -38,6 +38,7 @@ async function createServer() {
   applySecurity(app);
   
   app.use(express.json({ limit: '200kb' }));
+  app.use(express.urlencoded({ extended: true })); // For form submissions (consent forms)
   app.use(cookieParser());
   app.use(session({
     store: new PgStore({
@@ -119,11 +120,14 @@ async function createServer() {
   app.use('/api/crisis', crisisRoutes);
   app.use('/api/transparency', transparencyRoutes);
   
+  // Consent routes - no CSRF needed, uses token-based security via email links
+  // Parents access these via unique consent tokens, not from the React app
+  app.use('/api/consent', writeLimiter, consentRoutes);
+  
   // Protected routes requiring CSRF token with rate limiting
   app.use('/api/checkins', validateCsrfToken, requireGuardianVerification, writeLimiter, checkinRoutes);
   app.use('/api/profile', validateCsrfToken, writeLimiter, profileRoutes);
   app.use('/api/xid', validateCsrfToken, requireGuardianVerification, writeLimiter, xidRoutes);
-  app.use('/api/consent', validateCsrfToken, writeLimiter, consentRoutes);
   app.use('/api/ximi', validateCsrfToken, requireGuardianVerification, writeLimiter, ximiRoutes);
   app.use('/api/admin', validateCsrfToken, writeLimiter, adminRoutes);
   app.use('/api/org', validateCsrfToken, writeLimiter, orgRoutes);

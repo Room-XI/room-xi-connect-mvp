@@ -56,6 +56,12 @@ router.get('/view/:token', async (req, res) => {
       return res.status(410).send(expiredLinkPage());
     }
 
+    // Generate a one-time form nonce for CSRF protection
+    const formNonce = crypto.randomBytes(32).toString('hex');
+    await db.update(guardianVerifications)
+      .set({ formNonce })
+      .where(eq(guardianVerifications.id, verification.id));
+
     const [profile] = await db.select({
       firstName: profiles.firstName,
     })
@@ -65,7 +71,7 @@ router.get('/view/:token', async (req, res) => {
 
     const youthName = profile?.firstName || 'Your child';
     
-    res.send(consentNoticeV1(youthName, token));
+    res.send(consentNoticeV1(youthName, token, formNonce));
   } catch (error) {
     console.error('Consent view error:', error);
     res.status(500).send('<html><body><h1>Error</h1><p>Something went wrong. Please try again.</p></body></html>');
@@ -80,6 +86,7 @@ router.get('/view/:token', async (req, res) => {
 router.post('/agree/:token', async (req, res) => {
   try {
     const { token } = req.params;
+    const { _nonce } = req.body;
     const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
 
@@ -90,6 +97,17 @@ router.post('/agree/:token', async (req, res) => {
 
     if (!verification) {
       return res.status(404).send(expiredLinkPage());
+    }
+
+    // Validate one-time form nonce (CSRF protection)
+    if (!_nonce || !verification.formNonce || _nonce !== verification.formNonce) {
+      return res.status(403).send(`
+        <html><body style="font-family: sans-serif; padding: 40px; text-align: center;">
+        <h1>Form Expired</h1>
+        <p>This form has expired or was already submitted. Please reload the consent page and try again.</p>
+        <a href="/api/consent/view/${token}" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px;">Reload Consent Page</a>
+        </body></html>
+      `);
     }
 
     if (verification.status !== 'pending_initial_consent') {
@@ -107,9 +125,11 @@ router.post('/agree/:token', async (req, res) => {
 
     const confirmationToken = crypto.randomBytes(32).toString('hex');
 
+    // Clear the form nonce after use (one-time token) and update status
     await db.update(guardianVerifications)
       .set({
         status: 'pending_confirmation',
+        formNonce: null, // Clear nonce after use
         initialConsentAt: new Date(),
         initialConsentIp: ipAddress,
         initialConsentUserAgent: userAgent,

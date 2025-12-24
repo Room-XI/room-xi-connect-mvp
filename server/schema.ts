@@ -202,6 +202,7 @@ export const guardianVerifications = pgTable("guardian_verifications", {
   
   // Step 1: Initial Consent (Parent views page and clicks "I Agree")
   initialConsentToken: text("initial_consent_token").unique(),
+  formNonce: text("form_nonce"), // One-time CSRF token for form submission
   initialConsentAt: timestamp("initial_consent_at", { withTimezone: true }),
   initialConsentIp: text("initial_consent_ip"),
   initialConsentUserAgent: text("initial_consent_user_agent"),

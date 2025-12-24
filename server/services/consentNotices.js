@@ -16,9 +16,10 @@ export const CONSENT_NOTICE_VERSION = 'v2.0-2025-01-17';
  * 
  * @param {string} youthName - The youth's first name
  * @param {string} token - The initial consent token for form submission
+ * @param {string} formNonce - One-time CSRF nonce for form security
  * @returns {string} - Full HTML page
  */
-export function consentNoticeV1(youthName, token) {
+export function consentNoticeV1(youthName, token, formNonce = '') {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -313,6 +314,7 @@ export function consentNoticeV1(youthName, token) {
       </div>
 
       <form class="consent-form" action="/api/consent/agree/${token}" method="POST">
+        <input type="hidden" name="_nonce" value="${formNonce}">
         <h2>Provide Your Consent</h2>
         <p>By checking the boxes below and clicking "I Agree," you confirm that:</p>
         
