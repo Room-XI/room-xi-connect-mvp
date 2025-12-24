@@ -27,7 +27,7 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx server/seed.js",
-    "start": "NODE_ENV=production tsx server/index.js",
+    "start": "NODE_ENV=production node --import tsx server/index.js",
     "setup:mobile": "npx cap add ios && npx cap add android && npm run build:mobile && npm run cap:sync",
     "setup:mobile:ios": "npx cap add ios && npm run build:mobile && npm run cap:sync:ios",
     "setup:mobile:android": "npx cap add android && npm run build:mobile && npm run cap:sync:android",
