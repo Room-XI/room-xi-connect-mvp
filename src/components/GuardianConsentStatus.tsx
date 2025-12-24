@@ -56,9 +56,14 @@ export default function GuardianConsentStatus() {
       
       if (result.error) {
         setMessage(result.error || 'Failed to resend. Please try again.');
-      } else {
-        setMessage('Consent request sent successfully!');
-        setConsentLink(result.data?.consentLink);
+      } else if (result.data) {
+        setMessage(result.data.message || 'Consent request sent!');
+        setConsentLink(result.data.consentLink);
+        
+        if (!result.data.emailSent) {
+          setMessage('Email could not be sent. Please share the link below with your parent/guardian.');
+        }
+        
         await fetchStatus();
       }
     } catch (error) {
@@ -196,8 +201,10 @@ export default function GuardianConsentStatus() {
 
       {message && (
         <div className={`text-sm p-3 rounded-lg ${
-          message.includes('success') 
+          message.includes('success') || message.includes('sent')
             ? 'bg-green-50 text-green-700' 
+            : message.includes('share the link')
+            ? 'bg-amber-50 text-amber-700'
             : 'bg-red-50 text-red-700'
         }`}>
           {message === 'ERR_INTERNAL' || message === 'An unexpected error occurred' 

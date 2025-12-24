@@ -135,6 +135,11 @@ async function fetchApi<T = any>(
         return fetchApi<T>(endpoint, options, true);
       }
       
+      // Handle 207 Multi-Status (partial success, e.g., email failed but link generated)
+      if (response.status === 207 && data) {
+        return { data };
+      }
+      
       console.error(`API ${options?.method || 'GET'} ${endpoint} failed:`, response.status, data?.error || data?.message);
       
       return { error: data?.error || data?.message || 'An error occurred' };

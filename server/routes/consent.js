@@ -356,17 +356,26 @@ router.post('/resend-guardian', async (req, res) => {
         consentLink: consentViewUrl,
       });
       console.log('[Resend Guardian] Email sent successfully');
+      
+      res.json({ 
+        success: true, 
+        message: 'Consent request sent successfully!',
+        emailSent: true,
+        expiresAt: newExpiry.toISOString(),
+        consentLink: consentViewUrl,
+      });
     } catch (emailError) {
       console.error('[Resend Guardian] Email send failed:', emailError.message || emailError);
-      return res.status(500).json({ error: 'Failed to send email. Please try again.' });
+      
+      res.status(207).json({ 
+        success: false, 
+        message: 'Email could not be sent. Please share the link directly with your parent/guardian.',
+        emailSent: false,
+        emailError: emailError.message || 'Email delivery failed',
+        expiresAt: newExpiry.toISOString(),
+        consentLink: consentViewUrl,
+      });
     }
-
-    res.json({ 
-      success: true, 
-      message: 'Consent request resent successfully',
-      expiresAt: newExpiry.toISOString(),
-      consentLink: consentViewUrl,
-    });
   } catch (error) {
     console.error('[Resend Guardian] Unexpected error:', error.message || error, error.stack);
     res.status(500).json({ error: 'Failed to resend consent. Please try again.' });
