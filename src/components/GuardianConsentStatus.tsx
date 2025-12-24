@@ -200,7 +200,9 @@ export default function GuardianConsentStatus() {
             ? 'bg-green-50 text-green-700' 
             : 'bg-red-50 text-red-700'
         }`}>
-          {message}
+          {message === 'ERR_INTERNAL' || message === 'An unexpected error occurred' 
+            ? 'Something went wrong. Please try again later.' 
+            : message}
         </div>
       )}
 

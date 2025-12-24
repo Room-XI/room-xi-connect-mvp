@@ -296,14 +296,19 @@ router.post('/resend-guardian', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
+    console.log('[Resend Guardian] Starting for userId:', req.session.userId);
+
     const [verification] = await db.select()
       .from(guardianVerifications)
       .where(eq(guardianVerifications.userId, req.session.userId))
       .limit(1);
 
     if (!verification) {
+      console.log('[Resend Guardian] No verification found for userId:', req.session.userId);
       return res.status(404).json({ error: 'No guardian verification found' });
     }
+
+    console.log('[Resend Guardian] Found verification:', verification.id, 'status:', verification.status);
 
     if (verification.status === 'confirmed') {
       return res.status(400).json({ error: 'Guardian has already verified consent' });
@@ -311,6 +316,8 @@ router.post('/resend-guardian', async (req, res) => {
 
     const newToken = crypto.randomBytes(32).toString('hex');
     const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    console.log('[Resend Guardian] Updating verification with new token, expiry:', newExpiry.toISOString());
 
     await db.update(guardianVerifications)
       .set({
@@ -326,6 +333,8 @@ router.post('/resend-guardian', async (req, res) => {
       })
       .where(eq(guardianVerifications.id, verification.id));
 
+    console.log('[Resend Guardian] Database updated successfully');
+
     const [profile] = await db.select({
       firstName: profiles.firstName,
     })
@@ -337,16 +346,18 @@ router.post('/resend-guardian', async (req, res) => {
     const baseUrl = getPublicUrl(req);
     const consentViewUrl = `${baseUrl}/api/consent/view/${newToken}`;
 
+    console.log('[Resend Guardian] Sending email to:', verification.guardianContactValue, 'link:', consentViewUrl);
+
     try {
       await sendInitialConsentEmail({
         guardianEmail: verification.guardianContactValue,
         guardianName: verification.guardianName || 'Guardian',
         youthName,
         consentLink: consentViewUrl,
-        expiresIn: '24 hours',
       });
+      console.log('[Resend Guardian] Email sent successfully');
     } catch (emailError) {
-      console.error('Failed to resend consent email:', emailError);
+      console.error('[Resend Guardian] Email send failed:', emailError.message || emailError);
       return res.status(500).json({ error: 'Failed to send email. Please try again.' });
     }
 
@@ -357,8 +368,8 @@ router.post('/resend-guardian', async (req, res) => {
       consentLink: consentViewUrl,
     });
   } catch (error) {
-    console.error('Resend guardian consent error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('[Resend Guardian] Unexpected error:', error.message || error, error.stack);
+    res.status(500).json({ error: 'Failed to resend consent. Please try again.' });
   }
 });
 
