@@ -1,0 +1,151 @@
+TL;DR: That red banner is coming from your “Resend Consent Request” call failing. The client calls POST /api/consent/resend-guardian → the server tries to send the guardian email and returns 500 when email delivery fails. On Replit this is almost always email provider misconfig (or SMTP blocked), not a routing/CSRF issue.
+
+Here’s exactly what’s happening and how to fix it now:
+
+⸻
+
+Why you see “Something went wrong”
+	•	Component: src/components/GuardianConsentStatus.tsx
+→ handleResend() calls api.consent.resendGuardian()
+→ shows the generic error if result.error is returned.
+	•	Client API: src/lib/api.ts
+
+resendGuardian: () => fetchApi('/consent/resend-guardian', { method: 'POST' })
+
+(uses fetchApi, so CSRF is fine.)
+
+	•	Server route: server/routes/consent.js
+
+router.post('/resend-guardian', async (req, res) => {
+  ...
+  try {
+    await sendGuardianVerificationEmail({ guardianEmail, youthName, verifyUrl });
+    ...
+  } catch (emailError) {
+    return res.status(500).json({ error: 'Failed to send email. Please try again.' });
+  }
+});
+
+When sending fails, the route returns 500 → UI shows “Something went wrong. Please try again later.”
+
+Root cause on Replit: Email sender not configured / not permitted:
+	•	EMAIL_PROVIDER defaults to gmail.
+	•	Gmail path uses SMTP (GMAIL_USER, GMAIL_APP_PASSWORD) → commonly blocked or fails auth on Replit.
+	•	If you want reliable delivery on Replit, switch to SendGrid (HTTP API).
+
+⸻
+
+Fix it (do all of these)
+	1.	Pick one provider & set env vars
+	•	SendGrid (recommended on Replit):
+
+EMAIL_PROVIDER=sendgrid
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxx
+EMAIL_FROM=no-reply@yourdomain.com
+EMAIL_FROM_NAME="Room XI"
+
+
+	•	Gmail (if you insist):
+
+EMAIL_PROVIDER=gmail
+GMAIL_USER=your@gmail.com
+GMAIL_APP_PASSWORD=app-password-from-Google
+EMAIL_FROM=your@gmail.com
+EMAIL_FROM_NAME="Room XI"
+
+
+Why: Without these, sendGuardianVerificationEmail throws and your route returns 500.
+
+	2.	Ensure the consent link’s base URL is correct
+The resend route builds the link with getPublicUrl() (server/utils/publicUrl.ts).
+Set one of:
+
+PUBLIC_URL=https://<your-replit-subdomain>.replit.app
+# or (Replit’s envs that code already reads)
+REPLIT_DEPLOYMENT_URL=<your-replit-subdomain>.replit.app
+REPLIT_APP_URL=https://<your-replit-subdomain>.replit.app
+
+If unset, it falls back to headers; this usually works, but being explicit avoids broken links.
+
+	3.	CORS allowlist (prevents silent preflight failures)
+
+ALLOWED_ORIGINS=https://<your-replit-subdomain>.replit.app,capacitor://localhost,http://localhost:5173
+
+
+	4.	Sessions & DB basics (or you’ll see 401/500 intermittently)
+
+DATABASE_URL=postgres://...
+SESSION_SECRET=<32+ random chars>
+
+Run migrations once: npm run db:migrate
+
+	5.	Re-run and watch logs while clicking “Resend Consent Request”
+	•	You should see either:
+	•	[Resend Guardian] Email sent successfully  ✅
+	•	or a clear send failure message in server logs if still misconfigured.
+
+⸻
+
+Quick self-check (curl)
+
+# 1) Get CSRF
+curl -i -c cookies.txt https://<your-replit>.replit.app/api/auth/csrf-token
+
+# Copy the csrfToken value from JSON
+# 2) Resend guardian
+curl -i -b cookies.txt -H "X-CSRF-Token: <csrfToken>" -H "Content-Type: application/json" \
+  -X POST https://<your-replit>.replit.app/api/consent/resend-guardian
+
+	•	200 with message: "Consent request resent successfully" → fixed
+	•	500 with error: "Failed to send email..." → provider/env still wrong
+
+⸻
+
+Sanity recap of the rest
+	•	Routing: OK. /settings renders GuardianConsentStatus; lazy imports resolve.
+	•	CSRF: Client uses fetchApi for consent routes; middleware enforced server-side → OK.
+	•	Guardian status: /api/consent/guardian-status works; pending shows correct “Pending / canResend” state.
+	•	Privacy Center: In this build, privacy endpoints already use fetchApi (CSRF) → OK.
+
+⸻
+
+Hardening (optional, but helpful)
+	•	Add a health endpoint that returns email provider status (wraps verifyEmailConfig()), so you see the real cause in the UI instead of the generic banner.
+	•	If push/notifications are off, hide or gate that toggle to avoid confusion.
+
+⸻
+
+Minimal test script (Node) to confirm email config
+
+// scripts/check-email-config.ts
+import fetch from 'node-fetch';
+
+const base = process.env.BASE || 'https://<your-replit>.replit.app/api';
+
+async function main() {
+  const jar: any = {};
+  const resCsrf = await fetch(`${base}/auth/csrf-token`, { credentials: 'include' });
+  const { csrfToken } = await resCsrf.json();
+
+  const res = await fetch(`${base}/consent/resend-guardian`, {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
+    credentials: 'include',
+  });
+
+  const text = await res.text();
+  console.log(res.status, text);
+}
+main().catch(console.error);
+
+Run:
+
+BASE=https://<your-replit>.replit.app/api node scripts/check-email-config.ts
+
+
+⸻
+
+Bottom line: Set email provider env (use SendGrid on Replit), set PUBLIC_URL, ALLOWED_ORIGINS, DATABASE_URL, SESSION_SECRET, run migrations, and the “Resend Consent Request” button will stop throwing the generic error.
+
+a. Want me to switch the app to SendGrid by default (safer on Replit) and add a simple /api/health/email check?
+b. Want a one-click Replit “preflight” script that verifies envs, CSRF, consent resend, and logs a clear pass/fail?
