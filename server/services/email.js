@@ -1,6 +1,19 @@
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
-// Gmail SMTP transporter configuration
+// Email provider configuration
+const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
+const USE_SENDGRID = EMAIL_PROVIDER === 'sendgrid';
+
+// Configure SendGrid if using it
+if (USE_SENDGRID && process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('[Email] Using SendGrid provider');
+} else {
+  console.log('[Email] Using Gmail SMTP provider');
+}
+
+// Gmail SMTP transporter configuration (used as fallback)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -8,6 +21,34 @@ const transporter = nodemailer.createTransport({
     pass: process.env.GMAIL_APP_PASSWORD,
   },
 });
+
+/**
+ * Send email using the configured provider (SendGrid or Gmail)
+ */
+async function sendEmail({ to, subject, html }) {
+  const fromEmail = process.env.EMAIL_FROM || process.env.GMAIL_USER;
+  const fromName = process.env.EMAIL_FROM_NAME || 'Room XI Connect';
+  
+  if (USE_SENDGRID && process.env.SENDGRID_API_KEY) {
+    const msg = {
+      to,
+      from: { email: fromEmail, name: fromName },
+      subject,
+      html,
+    };
+    await sgMail.send(msg);
+    console.log(`[Email] Sent via SendGrid to: ${to}`);
+  } else {
+    const mailOptions = {
+      from: { name: fromName, address: fromEmail },
+      to,
+      subject,
+      html,
+    };
+    await transporter.sendMail(mailOptions);
+    console.log(`[Email] Sent via Gmail to: ${to}`);
+  }
+}
 
 /**
  * Send guardian verification email
@@ -207,9 +248,13 @@ For support, contact: ${process.env.GMAIL_USER}
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Guardian verification email sent:', info.messageId);
-    return info;
+    await sendEmail({
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+    });
+    console.log('Guardian verification email sent to:', guardianEmail);
+    return { messageId: 'sent' };
   } catch (error) {
     console.error('Failed to send guardian verification email:', error);
     throw new Error('Failed to send verification email');
@@ -375,9 +420,13 @@ Room XI Connect Team
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Initial consent email sent:', info.messageId);
-    return info;
+    await sendEmail({
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+    });
+    console.log('Initial consent email sent to:', guardianEmail);
+    return { messageId: 'sent' };
   } catch (error) {
     console.error('Failed to send initial consent email:', error);
     throw new Error('Failed to send consent email');
@@ -524,9 +573,13 @@ Room XI Connect Team
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Confirmation email sent:', info.messageId);
-    return info;
+    await sendEmail({
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+    });
+    console.log('Confirmation email sent to:', guardianEmail);
+    return { messageId: 'sent' };
   } catch (error) {
     console.error('Failed to send confirmation email:', error);
     throw new Error('Failed to send confirmation email');
@@ -678,9 +731,13 @@ For support: ${process.env.GMAIL_USER}
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Consent complete email sent:', info.messageId);
-    return info;
+    await sendEmail({
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+    });
+    console.log('Consent complete email sent to:', guardianEmail);
+    return { messageId: 'sent' };
   } catch (error) {
     console.error('Failed to send consent complete email:', error);
     throw new Error('Failed to send consent complete email');
@@ -873,9 +930,13 @@ This email contains confidential information. Handle according to privacy polici
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Staff notification email sent:', info.messageId);
-    return info;
+    await sendEmail({
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+    });
+    console.log('Staff notification email sent to:', staffEmail);
+    return { messageId: 'sent' };
   } catch (error) {
     console.error('Failed to send staff notification email:', error);
     throw new Error('Failed to send staff notification email');
@@ -887,6 +948,18 @@ This email contains confidential information. Handle according to privacy polici
  * @returns {Promise<boolean>}
  */
 export async function verifyEmailConfig() {
+  if (USE_SENDGRID) {
+    if (!process.env.SENDGRID_API_KEY) {
+      console.error('❌ SENDGRID_API_KEY is not configured');
+      return false;
+    }
+    if (!process.env.EMAIL_FROM) {
+      console.warn('⚠️ EMAIL_FROM not set, emails may fail without a verified sender');
+    }
+    console.log('✅ Email service ready (SendGrid)');
+    return true;
+  }
+  
   try {
     await transporter.verify();
     console.log('✅ Email service ready (Gmail SMTP)');
