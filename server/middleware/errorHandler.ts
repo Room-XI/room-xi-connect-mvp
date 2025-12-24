@@ -49,8 +49,8 @@ export function errorHandler(
   }
   
   return res.status(status).json({
-    error: 'ERR_INTERNAL',
-    message: 'An unexpected error occurred',
+    error: 'Something went wrong. Please try again later.',
+    message: 'Something went wrong. Please try again later.',
   });
 }
 
