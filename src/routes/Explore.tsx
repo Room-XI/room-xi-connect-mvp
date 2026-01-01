@@ -33,19 +33,8 @@ export default function Explore() {
     return saved ? parseInt(saved, 10) : 2;
   });
 
-  // 8am Gate Enforcement: Redirect to check-in if gate not passed
-  useEffect(() => {
-    // Only enforce for authenticated users
-    if (!user || isLoading) return;
-    
-    // Allow bypass with ?skip_gate=true query param (for testing/emergency)
-    if (searchParams.get('skip_gate') === 'true') return;
-
-    // If user needs to do check-in to access Explore
-    if (needsCheckIn && !isGateOpen) {
-      navigate('/check-in?gate=explore', { replace: true });
-    }
-  }, [user, isGateOpen, needsCheckIn, isLoading, navigate, searchParams]);
+  // 8am Gate Check - we now show a banner instead of redirecting
+  const showCheckInPrompt = user && !isLoading && needsCheckIn && !isGateOpen && searchParams.get('skip_gate') !== 'true';
 
   // Persist locationEnabled changes to localStorage
   useEffect(() => {
@@ -155,6 +144,37 @@ export default function Explore() {
           </p>
         </div>
 
+        {/* Check-in Required Gate - blocks content for authenticated users who haven't checked in */}
+        {showCheckInPrompt && (
+          <motion.div
+            className="cosmic-card p-6 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="w-16 h-16 mx-auto mb-4 bg-amber-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-amber-800 mb-2">
+              Complete a quick check-in to unlock Explore
+            </h2>
+            <p className="text-sm text-amber-700 mb-4 max-w-md mx-auto">
+              Take a moment to share how you're feeling today. It only takes a few seconds and helps us support you better!
+            </p>
+            <button
+              onClick={() => navigate('/home')}
+              className="inline-flex items-center px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors shadow-sm"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Do my check-in
+            </button>
+          </motion.div>
+        )}
+
         {/* Guest Notice Banner */}
         {!user && (
           <motion.div
@@ -181,51 +201,56 @@ export default function Explore() {
           </motion.div>
         )}
 
-        {/* Location Toggle */}
-        <LocationToggle
-          enabled={locationEnabled}
-          onToggle={handleLocationToggle}
-          radiusKm={radiusKm}
-          onRadiusChange={setRadiusKm}
-          permissionState={locationPermission}
-          onRetryPermission={handleRetryLocation}
-        />
+        {/* Only show Explore content if gate is open or user is not required to check in */}
+        {!showCheckInPrompt && (
+          <>
+            {/* Location Toggle */}
+            <LocationToggle
+              enabled={locationEnabled}
+              onToggle={handleLocationToggle}
+              radiusKm={radiusKm}
+              onRadiusChange={setRadiusKm}
+              permissionState={locationPermission}
+              onRetryPermission={handleRetryLocation}
+            />
 
-        {/* Segmented Control */}
-        <ExploreTabs current={currentView} />
-        
-        {/* Content based on current view */}
-        <motion.div
-          key={currentView}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          {currentView === 'today' && (
-            <TodayList
-              userLocation={userLocation}
-              locationPermission={locationPermission}
-              locationEnabled={locationEnabled}
-              radiusKm={radiusKm}
-            />
-          )}
-          {currentView === 'programs' && (
-            <ProgramList
-              userLocation={userLocation}
-              locationPermission={locationPermission}
-              locationEnabled={locationEnabled}
-              radiusKm={radiusKm}
-            />
-          )}
-          {currentView === 'map' && (
-            <ProgramMap
-              userLocation={userLocation}
-              locationEnabled={locationEnabled}
-              radiusKm={radiusKm}
-            />
-          )}
-          {currentView === 'saved' && <SavedList />}
-        </motion.div>
+            {/* Segmented Control */}
+            <ExploreTabs current={currentView} />
+            
+            {/* Content based on current view */}
+            <motion.div
+              key={currentView}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              {currentView === 'today' && (
+                <TodayList
+                  userLocation={userLocation}
+                  locationPermission={locationPermission}
+                  locationEnabled={locationEnabled}
+                  radiusKm={radiusKm}
+                />
+              )}
+              {currentView === 'programs' && (
+                <ProgramList
+                  userLocation={userLocation}
+                  locationPermission={locationPermission}
+                  locationEnabled={locationEnabled}
+                  radiusKm={radiusKm}
+                />
+              )}
+              {currentView === 'map' && (
+                <ProgramMap
+                  userLocation={userLocation}
+                  locationEnabled={locationEnabled}
+                  radiusKm={radiusKm}
+                />
+              )}
+              {currentView === 'saved' && <SavedList />}
+            </motion.div>
+          </>
+        )}
 
         {/* Footer Links Section */}
         <div className="mt-12 pt-8 border-t border-gray-200">

@@ -53,6 +53,7 @@ VAPID_EMAIL = "mailto:admin@roomxi.org"
 EMAIL_PROVIDER = "sendgrid"
 EMAIL_FROM_NAME = "Room XI Connect"
 EMAIL_FROM = "roomxi.ent@gmail.com"
+ADMIN_USERNAME = "Admin11"
 
 [userenv.production]
 PUBLIC_URL = "https://ct-mvp--erickrushxi.replit.app"
