@@ -119,9 +119,12 @@ export default function FilterBar({
         }`}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
+        aria-expanded={isExpanded}
+        aria-controls="filter-panel"
+        aria-label={`Filter programs. ${hasActiveFilters ? `${countActiveFilters()} active filters.` : 'No active filters.'} ${isExpanded ? 'Close' : 'Open'} filter panel.`}
       >
         <div className="flex items-center space-x-2">
-          <Filter className="w-4 h-4" />
+          <Filter className="w-4 h-4" aria-hidden="true" />
           <span className="font-medium">
             Filters {hasActiveFilters && `(${countActiveFilters()})`}
           </span>
@@ -130,7 +133,7 @@ export default function FilterBar({
           animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown className="w-4 h-4" />
+          <ChevronDown className="w-4 h-4" aria-hidden="true" />
         </motion.div>
       </motion.button>
 
@@ -150,9 +153,10 @@ export default function FilterBar({
                 className="cosmic-chip selected flex items-center space-x-1"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label={`Remove ${tag} filter`}
               >
                 <span>{tag}</span>
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </motion.button>
             ))}
             
@@ -162,9 +166,10 @@ export default function FilterBar({
                 className="cosmic-chip selected flex items-center space-x-1"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label="Remove Free filter"
               >
                 <span>Free</span>
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </motion.button>
             )}
             
@@ -174,9 +179,10 @@ export default function FilterBar({
                 className="cosmic-chip selected flex items-center space-x-1"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label="Remove Indoor filter"
               >
                 <span>Indoor</span>
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </motion.button>
             )}
             
@@ -186,9 +192,10 @@ export default function FilterBar({
                 className="cosmic-chip selected flex items-center space-x-1"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label="Remove Outdoor filter"
               >
                 <span>Outdoor</span>
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </motion.button>
             )}
 
@@ -198,9 +205,10 @@ export default function FilterBar({
                 className="cosmic-chip selected flex items-center space-x-1"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label="Remove Drop-in filter"
               >
                 <span>Drop-in</span>
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </motion.button>
             )}
 
@@ -211,9 +219,10 @@ export default function FilterBar({
                 className="cosmic-chip selected flex items-center space-x-1"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label={`Remove ${time} filter`}
               >
                 <span className="capitalize">{time}</span>
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </motion.button>
             ))}
 
@@ -223,9 +232,10 @@ export default function FilterBar({
                 className="cosmic-chip selected flex items-center space-x-1"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                aria-label={`Remove within ${filters.maxDistance}km distance filter`}
               >
                 <span>Within {filters.maxDistance}km</span>
-                <X className="w-3 h-3" />
+                <X className="w-3 h-3" aria-hidden="true" />
               </motion.button>
             )}
             
@@ -245,10 +255,13 @@ export default function FilterBar({
       <AnimatePresence>
         {isExpanded && (
           <motion.div
+            id="filter-panel"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="cosmic-card p-4 space-y-4"
+            role="region"
+            aria-label="Filter options"
           >
             {/* Quick Filters */}
             <div className="space-y-3">
@@ -259,6 +272,7 @@ export default function FilterBar({
                   className={`cosmic-chip ${filters.free ? 'selected' : ''}`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  aria-pressed={filters.free}
                 >
                   Free
                 </motion.button>
@@ -269,6 +283,7 @@ export default function FilterBar({
                     className={`cosmic-chip ${filters.indoor ? 'selected' : ''}`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    aria-pressed={filters.indoor}
                   >
                     Indoor
                   </motion.button>
@@ -280,6 +295,7 @@ export default function FilterBar({
                     className={`cosmic-chip ${filters.outdoor ? 'selected' : ''}`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    aria-pressed={filters.outdoor}
                   >
                     Outdoor
                   </motion.button>
@@ -291,6 +307,7 @@ export default function FilterBar({
                     className={`cosmic-chip ${filters.dropIn ? 'selected' : ''}`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    aria-pressed={filters.dropIn}
                   >
                     Drop-in
                   </motion.button>
@@ -310,6 +327,7 @@ export default function FilterBar({
                       className={`cosmic-chip ${filters.timeOfDay?.includes(option.value) ? 'selected' : ''}`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
+                      aria-pressed={filters.timeOfDay?.includes(option.value)}
                     >
                       {option.label}
                     </motion.button>
@@ -331,6 +349,11 @@ export default function FilterBar({
                     value={filters.maxDistance || 0}
                     onChange={(e) => handleDistanceChange(parseInt(e.target.value))}
                     className="w-full h-2 bg-sage/20 rounded-lg appearance-none cursor-pointer accent-teal"
+                    aria-label="Maximum distance in kilometers"
+                    aria-valuemin={0}
+                    aria-valuemax={50}
+                    aria-valuenow={filters.maxDistance || 0}
+                    aria-valuetext={filters.maxDistance && filters.maxDistance > 0 ? `Within ${filters.maxDistance} kilometers` : 'No distance limit'}
                   />
                   <div className="flex items-center justify-between text-sm text-textSecondaryLight">
                     <span>Any distance</span>
@@ -354,6 +377,7 @@ export default function FilterBar({
                       className={`cosmic-chip ${filters.tags.includes(tag) ? 'selected' : ''}`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
+                      aria-pressed={filters.tags.includes(tag)}
                     >
                       {tag}
                     </motion.button>

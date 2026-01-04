@@ -157,11 +157,36 @@
           font-size: 16px;
         }
       }
+      
+      /* Skip to Content Link */
+      .skip-to-content {
+        position: absolute;
+        top: -40px;
+        left: 0;
+        background: #2EC489;
+        color: white;
+        padding: 8px 16px;
+        z-index: 100000;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        border-radius: 0 0 8px 0;
+        transition: top 0.2s ease;
+      }
+      
+      .skip-to-content:focus {
+        top: 0;
+        outline: 3px solid #2D3748;
+        outline-offset: 2px;
+      }
     </style>
   </head>
   <body>
+    <!-- Skip to Content Link for Keyboard Navigation -->
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
+    
     <!-- Loading Screen -->
-    <div class="loading-container">
+    <div class="loading-container" aria-hidden="true">
       <div style="text-align: center;">
         <div class="loading-spinner"></div>
         <div class="loading-text">Loading Room XI Connect...</div>

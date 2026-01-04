@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { addToQueue } from '@/lib/queue';
@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { MOODS, type MoodKey } from '@/lib/moodConfig';
 import { WELLNESS_DIMENSIONS, type WellnessDimensionKey } from '@/lib/wellnessConfig';
+import useFocusTrap from '@/hooks/useFocusTrap';
 
 interface CheckInFormProps {
   isOpen: boolean;
@@ -27,6 +28,24 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
   const [selectedAffects, setSelectedAffects] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const focusTrapRef = useFocusTrap(isOpen);
+
+  const handleEscapeKey = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape' && isOpen) {
+      handleClose();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, handleEscapeKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,6 +149,10 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
         
         {/* Sheet */}
         <motion.div
+          ref={focusTrapRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="checkin-form-title"
           className="cosmic-sheet max-h-[90vh] flex flex-col"
           initial={{ transform: 'translateY(100%)' }}
           animate={{ transform: 'translateY(0)' }}
@@ -168,16 +191,16 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                     className="p-2 rounded-lg hover:bg-sage/10 transition-colors"
                     aria-label="Go back"
                   >
-                    <ChevronLeft className="w-5 h-5 text-textSecondaryLight" />
+                    <ChevronLeft className="w-5 h-5 text-textSecondaryLight" aria-hidden="true" />
                   </button>
                 )}
                 <div>
-                  <h2 className="text-xl font-display font-semibold text-deepSage">
+                  <h2 id="checkin-form-title" className="text-xl font-display font-semibold text-deepSage">
                     {step === 1 && "How are you feeling?"}
                     {step === 2 && "What's affected?"}
                     {step === 3 && "Anything to add?"}
                   </h2>
-                  <p className="text-sm text-textSecondaryLight">
+                  <p className="text-sm text-textSecondaryLight" aria-live="polite">
                     Step {step} of 3
                   </p>
                 </div>
@@ -187,7 +210,7 @@ export default function CheckInForm({ isOpen, onClose, onSuccess }: CheckInFormP
                 className="p-2 rounded-lg hover:bg-sage/10 transition-colors"
                 aria-label="Close check-in form"
               >
-                <X className="w-5 h-5 text-textSecondaryLight" />
+                <X className="w-5 h-5 text-textSecondaryLight" aria-hidden="true" />
               </button>
             </div>
             

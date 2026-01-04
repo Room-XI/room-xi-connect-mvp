@@ -585,6 +585,31 @@ export const api = {
       const query = params.toString();
       return fetchApi(`/events/later${query ? `?${query}` : ''}`);
     },
+    recommendations: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.set('userLat', userLat.toString());
+      if (userLng !== undefined) params.set('userLng', userLng.toString());
+      const query = params.toString();
+      return fetchApi<{
+        recommendations: Array<{
+          eventId: string;
+          programId: string;
+          title: string;
+          programTitle: string;
+          matchScore: number;
+          triggerReason: string;
+          tags: string[];
+          locationName: string | null;
+          free: boolean;
+          cost: string;
+          dayOfWeek: string | null;
+          startTime: string;
+          endTime: string;
+        }>;
+        count: number;
+        message?: string;
+      }>(`/events/recommendations${query ? `?${query}` : ''}`);
+    },
   },
 
   // Parent Auth

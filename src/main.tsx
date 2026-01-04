@@ -7,6 +7,12 @@ import './i18n/config';
 import './styles.css';
 import { isNativePlatform } from './lib/capacitor';
 
+if (import.meta.env.DEV) {
+  import('@axe-core/react').then(({ default: axe }) => {
+    axe(React, ReactDOM, 1000).catch(() => {});
+  });
+}
+
 if (isNativePlatform()) {
   import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
     StatusBar.setStyle({ style: Style.Dark }).catch(() => {});

@@ -1,8 +1,9 @@
 import express from 'express';
 import { db } from '../db.js';
-import { programEvents, programs } from '../schema.js';
-import { eq, and, or, sql, inArray, isNull, lte, gte } from 'drizzle-orm';
+import { programEvents, programs, checkins } from '../schema.js';
+import { eq, and, or, sql, inArray, isNull, lte, gte, desc } from 'drizzle-orm';
 import { DateTime } from 'luxon';
+import { getRecommendationsWithContext } from '../services/recommendations.ts';
 
 const router = express.Router();
 
@@ -826,6 +827,78 @@ router.get('/program-occurrences', async (req, res) => {
     res.json(sortedEvents);
   } catch (error) {
     console.error('[program-occurrences] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// GET /api/events/recommendations
+// Returns personalized program recommendations based on user's mood and check-in history
+router.get('/recommendations', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const userId = req.session.userId;
+    const userLat = req.query.userLat ? parseFloat(req.query.userLat) : undefined;
+    const userLng = req.query.userLng ? parseFloat(req.query.userLng) : undefined;
+
+    // Get user's latest check-in for current mood
+    const [latestCheckin] = await db
+      .select({
+        moodType: checkins.moodType,
+        wellnessDimensions: checkins.wellnessDimensions,
+      })
+      .from(checkins)
+      .where(eq(checkins.userId, userId))
+      .orderBy(desc(checkins.timestamp))
+      .limit(1);
+
+    if (!latestCheckin) {
+      return res.json({
+        recommendations: [],
+        count: 0,
+        message: 'Complete a check-in to get personalized recommendations'
+      });
+    }
+
+    const currentMood = latestCheckin.moodType || undefined;
+    const wellnessDimensions = latestCheckin.wellnessDimensions || undefined;
+
+    // Get recommendations using the existing service
+    const recommendations = await getRecommendationsWithContext(
+      userId,
+      currentMood,
+      wellnessDimensions,
+      null, // moodTrend - we skip for simplicity
+      userLat,
+      userLng,
+      userLat !== undefined && userLng !== undefined
+    );
+
+    // Return top 3 recommendations with essential fields
+    const topRecommendations = recommendations.slice(0, 3).map(rec => ({
+      eventId: rec.eventId,
+      programId: rec.programId,
+      title: rec.eventName || rec.programTitle,
+      programTitle: rec.programTitle,
+      matchScore: rec.matchScore,
+      triggerReason: rec.triggerReason,
+      tags: rec.tags || [],
+      locationName: rec.locationName,
+      free: rec.free,
+      cost: rec.cost,
+      dayOfWeek: rec.dayOfWeek,
+      startTime: rec.startTime,
+      endTime: rec.endTime,
+    }));
+
+    res.json({
+      recommendations: topRecommendations,
+      count: topRecommendations.length,
+    });
+  } catch (error) {
+    console.error('[recommendations] Error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });

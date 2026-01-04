@@ -160,8 +160,10 @@ export default function Register() {
             className="cosmic-card p-4 bg-coral/10 border-coral/20 flex items-center space-x-3"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
+            role="alert"
+            aria-live="assertive"
           >
-            <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" aria-hidden="true" />
             <p className="text-sm text-coral">{error}</p>
           </motion.div>
         )}
@@ -216,11 +218,13 @@ export default function Register() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-textSecondaryLight hover:text-deepSage transition-colors"
                 disabled={loading}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
               >
                 {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
+                  <EyeOff className="w-5 h-5" aria-hidden="true" />
                 ) : (
-                  <Eye className="w-5 h-5" />
+                  <Eye className="w-5 h-5" aria-hidden="true" />
                 )}
               </button>
             </div>
@@ -278,11 +282,13 @@ export default function Register() {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-textSecondaryLight hover:text-deepSage transition-colors"
                 disabled={loading}
+                aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                aria-pressed={showConfirmPassword}
               >
                 {showConfirmPassword ? (
-                  <EyeOff className="w-5 h-5" />
+                  <EyeOff className="w-5 h-5" aria-hidden="true" />
                 ) : (
-                  <Eye className="w-5 h-5" />
+                  <Eye className="w-5 h-5" aria-hidden="true" />
                 )}
               </button>
             </div>

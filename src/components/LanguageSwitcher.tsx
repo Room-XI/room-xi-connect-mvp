@@ -15,9 +15,9 @@ export function LanguageSwitcher() {
       <button
         onClick={() => changeLanguage(i18n.language === 'en' ? 'fr' : 'en')}
         className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-        aria-label="Switch language"
+        aria-label={i18n.language === 'en' ? 'Switch to French' : 'Switch to English'}
       >
-        <Globe className="w-4 h-4" />
+        <Globe className="w-4 h-4" aria-hidden="true" />
         <span className="text-sm font-medium">
           {i18n.language === 'en' ? 'FR' : 'EN'}
         </span>

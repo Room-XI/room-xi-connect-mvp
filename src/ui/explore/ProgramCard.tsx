@@ -247,11 +247,11 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
           aria-label={isSaved ? 'Remove from saved' : 'Save program'}
         >
           {isToggling ? (
-            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
           ) : isSaved ? (
-            <BookmarkCheck className="w-5 h-5" />
+            <BookmarkCheck className="w-5 h-5" aria-hidden="true" />
           ) : (
-            <Bookmark className="w-5 h-5" />
+            <Bookmark className="w-5 h-5" aria-hidden="true" />
           )}
         </motion.button>
 
@@ -283,7 +283,7 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
               <div className="space-y-1.5">
                 {program.weeklySchedule.map((schedule, idx) => (
                   <div key={idx} className="flex items-center space-x-1 text-sm">
-                    <Calendar className="w-4 h-4 text-textSecondaryLight flex-shrink-0" />
+                    <Calendar className="w-4 h-4 text-textSecondaryLight flex-shrink-0" aria-hidden="true" />
                     <span className="font-medium text-deepSage">
                       {formatScheduleDays(schedule.days)} {formatEventTime(schedule.startTime, schedule.endTime)}
                     </span>
@@ -293,7 +293,7 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
             ) : event ? (
               <div className="flex flex-wrap items-center gap-4 text-sm text-textSecondaryLight">
                 <div className="flex items-center space-x-1">
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-4 h-4" aria-hidden="true" />
                   <span className="font-medium text-deepSage">
                     {event.dayOfWeek} {formatEventTime(event.startTime, event.endTime)}
                   </span>
@@ -301,14 +301,14 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
               </div>
             ) : program?.scheduleSummary && (
               <div className="flex items-center space-x-1 text-sm">
-                <Clock className="w-4 h-4 text-textSecondaryLight" />
+                <Clock className="w-4 h-4 text-textSecondaryLight" aria-hidden="true" />
                 <span className="font-medium text-deepSage">{program.scheduleSummary}</span>
               </div>
             )}
 
             {locationName && (
               <div className="flex items-center space-x-1 text-sm text-textSecondaryLight">
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-4 h-4" aria-hidden="true" />
                 <span>{locationName}</span>
               </div>
             )}
@@ -317,7 +317,7 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
               <div className={`flex items-center space-x-1 ${
                 isFree ? 'text-teal' : 'text-textSecondaryLight'
               }`}>
-                <DollarSign className="w-4 h-4" />
+                <DollarSign className="w-4 h-4" aria-hidden="true" />
                 <span className="font-medium">
                   {formatCost(costCents, isFree)}
                 </span>
@@ -325,14 +325,14 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
 
               {ageRange && (
                 <div className="flex items-center space-x-1 text-textSecondaryLight">
-                  <Users className="w-4 h-4" />
+                  <Users className="w-4 h-4" aria-hidden="true" />
                   <span>Ages {ageRange}</span>
                 </div>
               )}
 
               {distance !== undefined && distance !== null && (
                 <div className="flex items-center space-x-1 text-textSecondaryLight">
-                  <MapPin className="w-4 h-4" />
+                  <MapPin className="w-4 h-4" aria-hidden="true" />
                   <span>{distance}km away</span>
                 </div>
               )}

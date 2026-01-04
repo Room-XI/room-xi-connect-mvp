@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, MessageSquare, MapPin, ExternalLink } from 'lucide-react';
 import api from '@/lib/api';
+import useFocusTrap from '@/hooks/useFocusTrap';
 
 interface CrisisSheetProps {
   open: boolean;
@@ -24,12 +25,25 @@ interface CrisisSupport {
 export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
   const [supports, setSupports] = useState<CrisisSupport[]>([]);
   const [loading, setLoading] = useState(true);
+  const focusTrapRef = useFocusTrap(open);
+
+  const handleEscapeKey = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape' && open) {
+      onClose();
+    }
+  }, [open, onClose]);
 
   useEffect(() => {
     if (open) {
       loadCrisisSupports();
+      document.addEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'hidden';
     }
-  }, [open]);
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = '';
+    };
+  }, [open, handleEscapeKey]);
 
   const loadCrisisSupports = async () => {
     try {
@@ -89,6 +103,7 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
         
         {/* Sheet */}
         <motion.div
+          ref={focusTrapRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="crisis-sheet-title"

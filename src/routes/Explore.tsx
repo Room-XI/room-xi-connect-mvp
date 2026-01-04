@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Sparkles, MapPin, ArrowRight } from 'lucide-react';
 import ExploreTabs from '@/ui/explore/ExploreTabs';
 import TodayList from '@/ui/explore/TodayList';
 import ProgramList from '@/ui/explore/ProgramList';
@@ -11,6 +12,7 @@ import LocationToggle from '@/ui/explore/LocationToggle';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
 import { useSession } from '@/lib/session';
 import { useExploreGate } from '@/hooks/useExploreGate';
+import api from '@/lib/api';
 
 export default function Explore() {
   const { view } = useParams();
@@ -32,6 +34,25 @@ export default function Explore() {
     const saved = localStorage.getItem('locationRadiusKm');
     return saved ? parseInt(saved, 10) : 2;
   });
+
+  // Recommendations state
+  const [recommendations, setRecommendations] = useState<Array<{
+    eventId: string;
+    programId: string;
+    title: string;
+    programTitle: string;
+    matchScore: number;
+    triggerReason: string;
+    tags: string[];
+    locationName: string | null;
+    free: boolean;
+    cost: string;
+    dayOfWeek: string | null;
+    startTime: string;
+    endTime: string;
+  }>>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [hasCheckedIn, setHasCheckedIn] = useState<boolean | null>(null);
 
   // 8am Gate Check - we now show a banner instead of redirecting
   const showCheckInPrompt = user && !isLoading && needsCheckIn && !isGateOpen && searchParams.get('skip_gate') !== 'true';
@@ -72,6 +93,44 @@ export default function Explore() {
       requestUserLocation();
     }
   }, [locationEnabled]);
+
+  // Fetch recommendations for authenticated users with check-ins
+  useEffect(() => {
+    if (!user) {
+      setRecommendations([]);
+      setHasCheckedIn(false);
+      return;
+    }
+
+    const fetchRecommendations = async () => {
+      setRecommendationsLoading(true);
+      try {
+        const lat = locationEnabled && userLocation ? userLocation.lat : undefined;
+        const lng = locationEnabled && userLocation ? userLocation.lng : undefined;
+        const { data, error } = await api.events.recommendations(lat, lng);
+        
+        if (error) {
+          console.error('Failed to fetch recommendations:', error);
+          setHasCheckedIn(false);
+          setRecommendations([]);
+          return;
+        }
+
+        if (data) {
+          setRecommendations(data.recommendations || []);
+          setHasCheckedIn(data.recommendations.length > 0 || !data.message);
+        }
+      } catch (err) {
+        console.error('Error fetching recommendations:', err);
+        setHasCheckedIn(false);
+        setRecommendations([]);
+      } finally {
+        setRecommendationsLoading(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [user, userLocation, locationEnabled]);
 
   const requestUserLocation = () => {
     const cachedLocation = sessionStorage.getItem('userLocation');
@@ -198,6 +257,78 @@ export default function Explore() {
                 </p>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* Recommended for You Section - Only for authenticated users with check-ins */}
+        {user && hasCheckedIn && !showCheckInPrompt && (
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-teal" />
+              <h2 className="text-lg font-semibold text-deepSage">Recommended for You</h2>
+            </div>
+
+            {recommendationsLoading ? (
+              <div className="grid gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="cosmic-card p-4 animate-pulse">
+                    <div className="space-y-3">
+                      <div className="h-5 bg-gray-200 rounded w-3/4" />
+                      <div className="h-4 bg-gray-200 rounded w-full" />
+                      <div className="flex gap-2">
+                        <div className="h-6 bg-gray-200 rounded-full w-16" />
+                        <div className="h-6 bg-gray-200 rounded-full w-12" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recommendations.length > 0 ? (
+              <div className="grid gap-3">
+                {recommendations.map((rec) => (
+                  <motion.div
+                    key={rec.eventId}
+                    className="cosmic-card p-4 hover:shadow-md transition-shadow"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-deepSage">{rec.programTitle}</h3>
+                        <p className="text-sm text-textSecondaryLight mt-1 line-clamp-2">
+                          {rec.triggerReason}
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        {rec.locationName && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-sage/10 text-sage rounded-full">
+                            <MapPin className="w-3 h-3" />
+                            {rec.locationName}
+                          </span>
+                        )}
+                        <span className={`px-2 py-1 rounded-full ${rec.free ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {rec.free ? 'Free' : rec.cost}
+                        </span>
+                      </div>
+
+                      <Link
+                        to={`/program/${rec.programId}`}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-teal hover:text-teal/80 transition-colors"
+                      >
+                        View Program
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : null}
           </motion.div>
         )}
 

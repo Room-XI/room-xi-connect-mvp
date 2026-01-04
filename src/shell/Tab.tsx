@@ -20,6 +20,8 @@ export default function Tab({ to, icon, label, showDot = false }: TabProps) {
       to={to}
       className="relative flex flex-col items-center justify-center py-3 px-2 transition-colors duration-200"
       aria-label={label}
+      aria-current={isActive ? 'page' : undefined}
+      role="menuitem"
     >
       <div className="relative">
         {/* Icon */}

@@ -8,9 +8,13 @@ import {
   guardianVerifications,
   attendance,
   xids,
+  consentEvents,
+  users,
+  consents,
 } from '../schema.js';
 import { parentLinks, youthDemographics } from '../schema.extras.js';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
+import { Parser } from '@json2csv/plainjs';
 
 const router = express.Router();
 
@@ -357,6 +361,248 @@ router.get('/privacy-summary/:youthId', requireParent, async (req, res) => {
   } catch (error) {
     console.error('Error fetching privacy summary:', error);
     res.status(500).json({ error: 'Failed to fetch privacy summary' });
+  }
+});
+
+router.post('/consent/withdraw/:youthId', requireParent, async (req, res) => {
+  try {
+    const { youthId } = req.params;
+    const { reason } = req.body;
+    const parentId = req.session.parentId;
+
+    const link = await verifyParentYouthLink(parentId, youthId);
+    if (!link) {
+      return res.status(403).json({ error: 'Not authorized to manage this youth\'s consent' });
+    }
+
+    if (!link.verifiedAt) {
+      return res.status(403).json({ error: 'Your link has not been verified' });
+    }
+
+    const [verification] = await db
+      .select()
+      .from(guardianVerifications)
+      .where(eq(guardianVerifications.userId, youthId))
+      .limit(1);
+
+    if (!verification) {
+      return res.status(404).json({ error: 'No consent record found for this youth' });
+    }
+
+    await db
+      .update(guardianVerifications)
+      .set({
+        withdrawnAt: new Date(),
+        withdrawnBy: parentId,
+        withdrawReason: reason || 'Parent requested withdrawal',
+      })
+      .where(eq(guardianVerifications.userId, youthId));
+
+    await db.insert(consentEvents).values({
+      userId: youthId,
+      eventType: 'consent_withdrawn',
+      eventData: {
+        withdrawnBy: parentId,
+        reason: reason || 'Parent requested withdrawal',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+      occurredAt: new Date(),
+    });
+
+    console.log(`[Parent Portal] Consent withdrawn for youth ${youthId} by parent ${parentId}`);
+
+    res.json({
+      success: true,
+      message: 'Consent has been withdrawn. The youth\'s account access will be restricted, but their data remains safe. You can re-grant consent at any time.',
+    });
+  } catch (error) {
+    console.error('Error withdrawing consent:', error);
+    res.status(500).json({ error: 'Failed to withdraw consent' });
+  }
+});
+
+router.get('/data/export/:youthId', requireParent, async (req, res) => {
+  try {
+    const { youthId } = req.params;
+    const parentId = req.session.parentId;
+
+    const link = await verifyParentYouthLink(parentId, youthId);
+    if (!link) {
+      return res.status(403).json({ error: 'Not authorized to export this youth\'s data' });
+    }
+
+    if (!link.verifiedAt) {
+      return res.status(403).json({ error: 'Your link has not been verified' });
+    }
+
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, youthId))
+      .limit(1);
+
+    const userCheckins = await db
+      .select({
+        date: checkins.checkinDate,
+        moodLevel: checkins.moodLevel16,
+        moodType: checkins.moodType,
+        dimension: checkins.dimension,
+        timestamp: checkins.timestamp,
+      })
+      .from(checkins)
+      .where(eq(checkins.userId, youthId))
+      .orderBy(desc(checkins.timestamp));
+
+    const [userXid] = await db
+      .select({ id: xids.id })
+      .from(xids)
+      .where(
+        and(
+          eq(xids.userId, youthId),
+          sql`${xids.tombstonedAt} IS NULL`
+        )
+      )
+      .limit(1);
+
+    let attendanceRecords = [];
+    if (userXid) {
+      attendanceRecords = await db
+        .select({
+          programTitle: programs.title,
+          organizer: programs.organizer,
+          timestamp: attendance.timestamp,
+          method: attendance.method,
+        })
+        .from(attendance)
+        .leftJoin(programs, eq(attendance.programId, programs.id))
+        .where(eq(attendance.xidId, userXid.id))
+        .orderBy(desc(attendance.timestamp));
+    }
+
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      profile: profile ? {
+        firstName: profile.firstName,
+        preferredName: profile.preferredName,
+        age: profile.age,
+        city: profile.city,
+        streakCount: profile.streakCount,
+        createdAt: profile.createdAt,
+      } : null,
+      checkIns: userCheckins,
+      attendance: attendanceRecords,
+    };
+
+    const checkinsParser = new Parser({
+      fields: ['date', 'moodLevel', 'moodType', 'dimension', 'timestamp'],
+    });
+
+    const attendanceParser = new Parser({
+      fields: ['programTitle', 'organizer', 'timestamp', 'method'],
+    });
+
+    let csvContent = `Room XI Connect - Data Export for ${profile?.preferredName || profile?.firstName || 'Youth'}\n`;
+    csvContent += `Export Date: ${exportData.exportDate}\n\n`;
+    
+    csvContent += `=== PROFILE ===\n`;
+    if (exportData.profile) {
+      csvContent += `First Name: ${exportData.profile.firstName || 'N/A'}\n`;
+      csvContent += `Preferred Name: ${exportData.profile.preferredName || 'N/A'}\n`;
+      csvContent += `Age: ${exportData.profile.age || 'N/A'}\n`;
+      csvContent += `City: ${exportData.profile.city || 'N/A'}\n`;
+      csvContent += `Streak Count: ${exportData.profile.streakCount || 0}\n`;
+      csvContent += `Account Created: ${exportData.profile.createdAt || 'N/A'}\n`;
+    }
+    
+    csvContent += `\n=== CHECK-INS (${userCheckins.length} total) ===\n`;
+    if (userCheckins.length > 0) {
+      csvContent += checkinsParser.parse(userCheckins) + '\n';
+    } else {
+      csvContent += 'No check-ins recorded.\n';
+    }
+
+    csvContent += `\n=== PROGRAM ATTENDANCE (${attendanceRecords.length} total) ===\n`;
+    if (attendanceRecords.length > 0) {
+      csvContent += attendanceParser.parse(attendanceRecords) + '\n';
+    } else {
+      csvContent += 'No attendance records.\n';
+    }
+
+    await db.insert(consentEvents).values({
+      userId: youthId,
+      eventType: 'data_exported',
+      eventData: {
+        exportedBy: parentId,
+        recordCount: {
+          checkins: userCheckins.length,
+          attendance: attendanceRecords.length,
+        },
+        ipAddress: req.ip,
+      },
+      occurredAt: new Date(),
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="room-xi-data-export-${youthId.slice(0, 8)}-${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(csvContent);
+
+  } catch (error) {
+    console.error('Error exporting youth data:', error);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+router.post('/data/delete/:youthId', requireParent, async (req, res) => {
+  try {
+    const { youthId } = req.params;
+    const { reason } = req.body;
+    const parentId = req.session.parentId;
+
+    const link = await verifyParentYouthLink(parentId, youthId);
+    if (!link) {
+      return res.status(403).json({ error: 'Not authorized to request deletion for this youth' });
+    }
+
+    if (!link.verifiedAt) {
+      return res.status(403).json({ error: 'Your link has not been verified' });
+    }
+
+    const [profile] = await db
+      .select({
+        firstName: profiles.firstName,
+        preferredName: profiles.preferredName,
+      })
+      .from(profiles)
+      .where(eq(profiles.userId, youthId))
+      .limit(1);
+
+    await db.insert(consentEvents).values({
+      userId: youthId,
+      eventType: 'deletion_requested',
+      eventData: {
+        requestedBy: parentId,
+        reason: reason || 'Parent requested permanent deletion',
+        youthName: profile?.preferredName || profile?.firstName || 'Unknown',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        status: 'pending_admin_review',
+      },
+      occurredAt: new Date(),
+    });
+
+    console.log(`[Parent Portal] DATA DELETION REQUEST: Youth ${youthId} (${profile?.preferredName || profile?.firstName}) - Requested by parent ${parentId}`);
+    console.log(`[Parent Portal] Reason: ${reason || 'No reason provided'}`);
+    console.log(`[Parent Portal] ** ADMIN ACTION REQUIRED ** - Review and process deletion request`);
+
+    res.json({
+      success: true,
+      message: 'Your deletion request has been submitted. An administrator will review and process your request within 30 days, as required by privacy law. You will be notified when the deletion is complete.',
+      requestId: `DEL-${Date.now()}`,
+    });
+  } catch (error) {
+    console.error('Error requesting data deletion:', error);
+    res.status(500).json({ error: 'Failed to submit deletion request' });
   }
 });
 

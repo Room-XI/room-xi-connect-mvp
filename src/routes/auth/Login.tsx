@@ -224,14 +224,17 @@ export default function Login() {
               className="cosmic-card p-4 bg-coral/10 border-coral/20 flex items-center space-x-3"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
+              role="alert"
+              aria-live="assertive"
+              id="login-error"
             >
-              <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" aria-hidden="true" />
               <p className="text-sm text-coral">{error}</p>
             </motion.div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="cosmic-card p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="cosmic-card p-6 space-y-6" aria-describedby={error ? 'login-error' : undefined}>
             {/* Email Field */}
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-deepSage">
@@ -274,11 +277,13 @@ export default function Login() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-textSecondaryLight hover:text-deepSage transition-colors"
                   disabled={loading}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
+                    <EyeOff className="w-5 h-5" aria-hidden="true" />
                   ) : (
-                    <Eye className="w-5 h-5" />
+                    <Eye className="w-5 h-5" aria-hidden="true" />
                   )}
                 </button>
               </div>

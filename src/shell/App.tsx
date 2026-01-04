@@ -59,25 +59,30 @@ export default function App() {
       {!isAuthRoute && <Header />}
       
       <main 
-        id="main" 
+        id="main-content" 
         className={`flex-1 px-4 max-w-xl mx-auto w-full ${
           isAuthRoute ? 'py-8' : 'pb-24'
         }`}
+        tabIndex={-1}
       >
         <Outlet />
       </main>
       
       {!isAuthRoute && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-borderMutedLight/60 safe-area-bottom">
+        <nav 
+          className="fixed bottom-0 left-0 right-0 bg-surface border-t border-borderMutedLight/60 safe-area-bottom"
+          role="navigation"
+          aria-label="Main navigation"
+        >
           {user ? (
-            <div className="max-w-xl mx-auto grid grid-cols-4">
+            <div className="max-w-xl mx-auto grid grid-cols-4" role="menubar">
               <Tab to="/home" icon={<Home />} label="Home" />
               <Tab to="/explore" icon={<Compass />} label="Explore" />
               <Tab to="/qr" icon={<QrCode />} label="QR" />
               <Tab to="/me" icon={<User />} label="Me" showDot={itemCount > 0} />
             </div>
           ) : (
-            <div className="max-w-xl mx-auto grid grid-cols-2">
+            <div className="max-w-xl mx-auto grid grid-cols-2" role="menubar">
               <Tab to="/explore" icon={<Compass />} label="Explore" />
               <Tab to="/auth/login" icon={<User />} label="Sign In" />
             </div>
