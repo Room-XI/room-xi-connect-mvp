@@ -41,6 +41,16 @@ export async function sendGuardianVerificationEmail({ guardianEmail, youthName, 
 }
 
 export async function verifyEmailConfig() {
-  await transporter.verify();
-  return true;
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.warn('[Email] WARNING: Gmail credentials not set - email functionality will be disabled');
+    return false;
+  }
+  try {
+    await transporter.verify();
+    console.log('[Email] Gmail configured successfully');
+    return true;
+  } catch (err) {
+    console.warn('[Email] WARNING: Gmail verification failed -', err.message);
+    return false;
+  }
 }

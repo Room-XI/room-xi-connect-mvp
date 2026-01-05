@@ -30,8 +30,11 @@ async function createServer() {
   // CORS for mobile (Capacitor) and web origins
   app.use(corsMiddleware);
   
-  // Verify email configuration on startup
-  await verifyEmailConfig();
+  // Verify email configuration on startup (graceful failure - server continues without email)
+  const emailConfigured = await verifyEmailConfig();
+  if (!emailConfigured) {
+    logger.warn('[Email] Email provider not configured - some features will be unavailable');
+  }
   
   // Apply security headers
   const { applySecurity } = await import('./middleware/applySecurity.ts');

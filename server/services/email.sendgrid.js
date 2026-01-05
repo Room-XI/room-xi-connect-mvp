@@ -41,7 +41,9 @@ export async function sendGuardianVerificationEmail({ guardianEmail, youthName, 
 
 export async function verifyEmailConfig() {
   if (!process.env.SENDGRID_API_KEY) {
-    throw new Error("SENDGRID_API_KEY is required for SendGrid email provider");
+    console.warn('[Email] WARNING: SENDGRID_API_KEY not set - email functionality will be disabled');
+    return false;
   }
+  console.log('[Email] SendGrid configured successfully');
   return true;
 }
