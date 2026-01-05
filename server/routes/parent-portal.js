@@ -410,7 +410,7 @@ router.post('/consent/withdraw/:youthId', requireParent, async (req, res) => {
       occurredAt: new Date(),
     });
 
-    console.log(`[Parent Portal] Consent withdrawn for youth ${youthId} by parent ${parentId}`);
+    console.info(`[Parent Portal] Consent withdrawn for youth ${youthId} by parent ${parentId}`);
 
     res.json({
       success: true,
@@ -591,9 +591,9 @@ router.post('/data/delete/:youthId', requireParent, async (req, res) => {
       occurredAt: new Date(),
     });
 
-    console.log(`[Parent Portal] DATA DELETION REQUEST: Youth ${youthId} (${profile?.preferredName || profile?.firstName}) - Requested by parent ${parentId}`);
-    console.log(`[Parent Portal] Reason: ${reason || 'No reason provided'}`);
-    console.log(`[Parent Portal] ** ADMIN ACTION REQUIRED ** - Review and process deletion request`);
+    console.info(`[Parent Portal] DATA DELETION REQUEST: Youth ${youthId} (${profile?.preferredName || profile?.firstName}) - Requested by parent ${parentId}`);
+    console.info(`[Parent Portal] Reason: ${reason || 'No reason provided'}`);
+    console.info(`[Parent Portal] ** ADMIN ACTION REQUIRED ** - Review and process deletion request`);
 
     res.json({
       success: true,

@@ -15,6 +15,7 @@ import {
 import { sendGuardianVerificationEmail, sendInitialConsentEmail, sendConfirmationEmail, sendConsentCompleteEmail, sendConsentWithdrawalStaffNotification } from '../services/email.js';
 import { consentNoticeV1, CONSENT_NOTICE_VERSION, confirmationSuccessPage, pendingConfirmationPage, expiredLinkPage } from '../services/consentNotices.js';
 import { getPublicUrl } from '../utils/publicUrl.ts';
+import { debugLog } from '../utils/logger.ts';
 
 const router = express.Router();
 
@@ -316,7 +317,7 @@ router.post('/resend-guardian', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    console.log('[Resend Guardian] Starting for userId:', req.session.userId);
+    debugLog('Resend Guardian', 'Starting for userId:', req.session.userId);
 
     const [verification] = await db.select()
       .from(guardianVerifications)
@@ -324,11 +325,11 @@ router.post('/resend-guardian', async (req, res) => {
       .limit(1);
 
     if (!verification) {
-      console.log('[Resend Guardian] No verification found for userId:', req.session.userId);
+      debugLog('Resend Guardian', 'No verification found for userId:', req.session.userId);
       return res.status(404).json({ error: 'No guardian verification found' });
     }
 
-    console.log('[Resend Guardian] Found verification:', verification.id, 'status:', verification.status);
+    debugLog('Resend Guardian', 'Found verification:', verification.id, 'status:', verification.status);
 
     if (verification.status === 'confirmed') {
       return res.status(400).json({ error: 'Guardian has already verified consent' });
@@ -337,7 +338,7 @@ router.post('/resend-guardian', async (req, res) => {
     const newToken = crypto.randomBytes(32).toString('hex');
     const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    console.log('[Resend Guardian] Updating verification with new token, expiry:', newExpiry.toISOString());
+    debugLog('Resend Guardian', 'Updating verification with new token, expiry:', newExpiry.toISOString());
 
     await db.update(guardianVerifications)
       .set({
@@ -353,7 +354,7 @@ router.post('/resend-guardian', async (req, res) => {
       })
       .where(eq(guardianVerifications.id, verification.id));
 
-    console.log('[Resend Guardian] Database updated successfully');
+    debugLog('Resend Guardian', 'Database updated successfully');
 
     const [profile] = await db.select({
       firstName: profiles.firstName,
@@ -366,7 +367,7 @@ router.post('/resend-guardian', async (req, res) => {
     const baseUrl = getPublicUrl(req);
     const consentViewUrl = `${baseUrl}/api/consent/view/${newToken}`;
 
-    console.log('[Resend Guardian] Sending email to:', verification.guardianContactValue, 'link:', consentViewUrl);
+    debugLog('Resend Guardian', 'Sending email to:', verification.guardianContactValue, 'link:', consentViewUrl);
 
     try {
       await sendInitialConsentEmail({
@@ -375,7 +376,7 @@ router.post('/resend-guardian', async (req, res) => {
         youthName,
         consentLink: consentViewUrl,
       });
-      console.log('[Resend Guardian] Email sent successfully');
+      debugLog('Resend Guardian', 'Email sent successfully');
       
       res.json({ 
         success: true, 

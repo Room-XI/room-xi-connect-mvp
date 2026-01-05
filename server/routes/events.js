@@ -4,6 +4,7 @@ import { programEvents, programs, checkins } from '../schema.js';
 import { eq, and, or, sql, inArray, isNull, lte, gte, desc } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { getRecommendationsWithContext } from '../services/recommendations.ts';
+import { debugLog } from '../utils/logger.ts';
 
 const router = express.Router();
 
@@ -132,7 +133,7 @@ router.get('/happening-now', async (req, res) => {
     const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
     const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
 
-    console.log(`[happening-now] Current time in Edmonton: ${now.toISO()}, Day: ${currentDay}, Time: ${currentTime}, Date: ${currentDate}, Previous day: ${previousDay}, Previous date: ${previousDate}`);
+    debugLog('happening-now', `Current time in Edmonton: ${now.toISO()}, Day: ${currentDay}, Time: ${currentTime}, Date: ${currentDate}, Previous day: ${previousDay}, Previous date: ${previousDate}`);
 
     // Query events that are:
     // 1. Active
@@ -207,7 +208,7 @@ router.get('/happening-now', async (req, res) => {
         )
       );
 
-    console.log(`[happening-now] Found ${activeEvents.length} events`);
+    debugLog('happening-now', `Found ${activeEvents.length} events`);
 
     const formattedEvents = activeEvents.map(row => 
       formatEventWithProgram(row.program_events, row.programs, userLat, userLng)
@@ -238,7 +239,7 @@ router.get('/today', async (req, res) => {
     const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
     const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
 
-    console.log(`[today] Current time in Edmonton: ${now.toISO()}, Day: ${currentDay}, Date: ${currentDate}`);
+    debugLog('today', `Current time in Edmonton: ${now.toISO()}, Day: ${currentDay}, Date: ${currentDate}`);
 
     // Query events that are:
     // 1. Active
@@ -273,7 +274,7 @@ router.get('/today', async (req, res) => {
         )
       );
 
-    console.log(`[today] Found ${todayEvents.length} events`);
+    debugLog('today', `Found ${todayEvents.length} events`);
 
     const formattedEvents = todayEvents.map(row => 
       formatEventWithProgram(row.program_events, row.programs, userLat, userLng)
@@ -311,7 +312,7 @@ router.get('/this-weekend', async (req, res) => {
     const nextSaturday = now.plus({ days: daysUntilSaturday }).toFormat('yyyy-MM-dd');
     const nextSunday = now.plus({ days: daysUntilSunday }).toFormat('yyyy-MM-dd');
 
-    console.log(`[this-weekend] Current date: ${currentDate}, Next Saturday: ${nextSaturday}, Next Sunday: ${nextSunday}`);
+    debugLog('this-weekend', `Current date: ${currentDate}, Next Saturday: ${nextSaturday}, Next Sunday: ${nextSunday}`);
 
     // Query events that are:
     // 1. Active
@@ -345,7 +346,7 @@ router.get('/this-weekend', async (req, res) => {
         )
       );
 
-    console.log(`[this-weekend] Found ${weekendEvents.length} events`);
+    debugLog('this-weekend', `Found ${weekendEvents.length} events`);
 
     const formattedEvents = weekendEvents.map(row => 
       formatEventWithProgram(row.program_events, row.programs, userLat, userLng)
@@ -388,7 +389,7 @@ router.get('/later', async (req, res) => {
       nextSevenDays.push(futureDate.toFormat('EEEE'));
     }
 
-    console.log(`[later] Date range: ${startDate} to ${endDate}, Days: ${nextSevenDays.join(', ')}`);
+    debugLog('later', `Date range: ${startDate} to ${endDate}, Days: ${nextSevenDays.join(', ')}`);
 
     // Query all active events in the next 7 days
     // EITHER:
@@ -424,7 +425,7 @@ router.get('/later', async (req, res) => {
         )
       );
 
-    console.log(`[later] Found ${upcomingEvents.length} events`);
+    debugLog('later', `Found ${upcomingEvents.length} events`);
 
     const formattedEvents = upcomingEvents.map(row => 
       formatEventWithProgram(row.program_events, row.programs, userLat, userLng)

@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { weeklyOrbSnapshots, checkins, profiles } from '../schema.js';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { DateTime } from 'luxon';
+import { debugLog } from '../utils/logger.ts';
 
 const router = express.Router();
 
@@ -90,7 +91,7 @@ export async function captureWeeklySnapshot(userId) {
       .limit(1);
 
     if (existingSnapshot.length > 0) {
-      console.log(`Weekly snapshot already exists for user ${userId} on ${snapshotDate}`);
+      debugLog('orbSnapshots', `Weekly snapshot already exists for user ${userId} on ${snapshotDate}`);
       return existingSnapshot[0];
     }
 
@@ -150,7 +151,7 @@ export async function captureWeeklySnapshot(userId) {
       })
       .returning();
 
-    console.log(`Weekly snapshot captured for user ${userId} on ${snapshotDate}`);
+    debugLog('orbSnapshots', `Weekly snapshot captured for user ${userId} on ${snapshotDate}`);
     return snapshot;
   } catch (error) {
     console.error('Error capturing weekly snapshot:', error);
@@ -169,7 +170,7 @@ export async function captureAllWeeklySnapshots() {
       .from(checkins)
       .where(gte(checkins.checkinDate, thirtyDaysAgo));
 
-    console.log(`Capturing weekly snapshots for ${activeUsers.length} active users`);
+    debugLog('orbSnapshots', `Capturing weekly snapshots for ${activeUsers.length} active users`);
 
     const results = await Promise.allSettled(
       activeUsers.map(({ userId }) => captureWeeklySnapshot(userId))
@@ -178,7 +179,7 @@ export async function captureAllWeeklySnapshots() {
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
-    console.log(`Weekly snapshots: ${successful} successful, ${failed} failed`);
+    debugLog('orbSnapshots', `Weekly snapshots: ${successful} successful, ${failed} failed`);
     
     return { successful, failed };
   } catch (error) {

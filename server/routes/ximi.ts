@@ -11,6 +11,7 @@ import { recordAiMetrics } from '../services/aiTransparency.ts';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 import { validateBody } from '../middleware/validate.ts';
 import { ximiChatSchema, ximiConsentSchema, ximiRecommendationsSchema } from '../schemas/ximi.ts';
+import { debugLog } from '../utils/logger.ts';
 
 const router = express.Router();
 
@@ -69,28 +70,22 @@ router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
       .where(eq(profiles.userId, req.session.userId))
       .limit(1);
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[Ximi AI] Chat request - checking consent:', {
-        userId: req.session.userId,
-        profileExists: !!profile,
-        ximiConsent: profile?.ximiConsent,
-        timestamp: new Date().toISOString(),
-      });
-    }
+    debugLog('Ximi AI', 'Chat request - checking consent:', {
+      userId: req.session.userId,
+      profileExists: !!profile,
+      ximiConsent: profile?.ximiConsent,
+      timestamp: new Date().toISOString(),
+    });
 
     if (!profile?.ximiConsent) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Ximi AI] Chat blocked: consent not granted');
-      }
+      debugLog('Ximi AI', 'Chat blocked: consent not granted');
       return res.status(403).json({ 
         error: 'Ximi consent required',
         message: 'You need to accept Ximi AI terms before chatting.' 
       });
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[Ximi AI] Consent verified, processing chat request');
-    }
+    debugLog('Ximi AI', 'Consent verified, processing chat request');
 
     const moodTrend = await getLatestMoodTrend(req.session.userId, 'week');
 
@@ -201,28 +196,22 @@ router.post('/follow-up', async (req, res) => {
 router.post('/consent', async (req, res) => {
   try {
     if (!req.session.userId) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Ximi AI] Consent update failed: not authenticated');
-      }
+      debugLog('Ximi AI', 'Consent update failed: not authenticated');
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const { consent } = req.body;
 
     if (typeof consent !== 'boolean') {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Ximi AI] Consent update failed: invalid consent type:', typeof consent);
-      }
+      debugLog('Ximi AI', 'Consent update failed: invalid consent type:', typeof consent);
       return res.status(400).json({ error: 'consent must be a boolean' });
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[Ximi AI] Updating consent for user:', {
-        userId: req.session.userId,
-        consent,
-        timestamp: new Date().toISOString(),
-      });
-    }
+    debugLog('Ximi AI', 'Updating consent for user:', {
+      userId: req.session.userId,
+      consent,
+      timestamp: new Date().toISOString(),
+    });
 
     await db
       .insert(profiles)
@@ -235,13 +224,11 @@ router.post('/consent', async (req, res) => {
         set: { ximiConsent: consent }
       });
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[Ximi AI] Consent updated successfully:', {
-        userId: req.session.userId,
-        ximiConsent: consent,
-        timestamp: new Date().toISOString(),
-      });
-    }
+    debugLog('Ximi AI', 'Consent updated successfully:', {
+      userId: req.session.userId,
+      ximiConsent: consent,
+      timestamp: new Date().toISOString(),
+    });
 
     res.json({ 
       ximiConsent: consent, 
@@ -265,16 +252,12 @@ router.get('/trends', async (req, res) => {
       return res.status(400).json({ error: 'Invalid windowType. Must be "week", "month", or "quarter"' });
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Ximi AI] Fetching ${windowType} trends for user ${req.session.userId}`);
-    }
+    debugLog('Ximi AI', `Fetching ${windowType} trends for user ${req.session.userId}`);
 
     let trend = await getLatestMoodTrend(req.session.userId, windowType as 'week' | 'month' | 'quarter');
 
     if (!trend) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Ximi AI] No existing trend found, computing new trend...');
-      }
+      debugLog('Ximi AI', 'No existing trend found, computing new trend...');
       const trendData = await computeMoodTrends(req.session.userId, windowType as 'week' | 'month' | 'quarter');
       
       if (trendData) {
@@ -305,12 +288,10 @@ router.post('/recommendations', async (req, res) => {
 
     const { currentMood, wellnessDimensions, includetrends, userLat, userLng, prioritizeNearby } = req.body;
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[Ximi AI] Generating recommendations for user', req.session.userId, {
-        hasLocation: !!(userLat && userLng),
-        prioritizeNearby: prioritizeNearby || false,
-      });
-    }
+    debugLog('Ximi AI', 'Generating recommendations for user', req.session.userId, {
+      hasLocation: !!(userLat && userLng),
+      prioritizeNearby: prioritizeNearby || false,
+    });
 
     let moodTrend: any = null;
     if (includetrends !== false) {

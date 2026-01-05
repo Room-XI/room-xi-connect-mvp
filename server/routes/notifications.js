@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { profiles, checkins, privacyConsents } from '../schema.js';
 import { eq, and, sql, gte } from 'drizzle-orm';
 import { DateTime } from 'luxon';
+import { debugLog } from '../utils/logger.ts';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ export async function checkMorningNudges() {
       return;
     }
 
-    console.log(`Running morning nudge check at ${now.toISO()}`);
+    debugLog('notifications', `Running morning nudge check at ${now.toISO()}`);
 
     // Get all users who have notifications enabled
     const usersWithNotifications = await db
@@ -70,7 +71,7 @@ async function sendMorningNudge(userId) {
 
     // In a real implementation, this would send an actual notification
     // For now, we'll log it and store it in a notifications table
-    console.log(`Sending morning nudge to user ${userId}`);
+    debugLog('notifications', `Sending morning nudge to user ${userId}`);
     
     // You could integrate with a push notification service here
     // For example: Firebase Cloud Messaging, OneSignal, etc.
