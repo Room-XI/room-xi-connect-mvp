@@ -75,19 +75,32 @@ The database contains over 75 comprehensive Edmonton youth resources across cate
 ### Testing Infrastructure (Updated Jan 2026)
 The project includes comprehensive testing infrastructure:
 - **Unit Tests (Vitest)**: Run with `npm test` - 12 passing tests, 3 expected failures for browser-specific APIs (crypto, IndexedDB)
-- **E2E Tests (Playwright)**: Run with `npm run test:e2e` - API smoke tests work; browser tests require additional system dependencies
+- **E2E Tests (Playwright)**: Run with `npm run test:e2e` - 40 API tests pass, 17 browser tests skip in Replit
 - **Privacy Smoke Tests**: Run with `npm run smoke:privacy` - Tests authentication requirements on privacy endpoints
-- **Route Crawl Tests**: Run with `npm run test:e2e:routes` - Tests public and auth-required routes
+- **Route Crawl Tests**: Run with `npm run test:e2e:routes` - Tests public and auth-required routes (browser-based, auto-skips in Replit)
+- **Portal Tests**: Run with `npx playwright test tests/e2e/portal-tests.spec.ts` - 16 API tests for parent portal, org dashboard, explore gate, admin portal
 - **Consent Enforcement Tests**: Run with `npm run smoke:consent` - Tests consent/CSRF enforcement on protected endpoints
 - **Load Tests**: Run with `npm run test:load` - Tests concurrent user load (100 users, 100% success, 57 req/s, P95: 94ms)
 
 Key test files:
-- `tests/e2e/routes.spec.ts` - Public and auth-required route testing
+- `tests/e2e/routes.spec.ts` - Public and auth-required route testing (auto-skips browser tests in Replit)
+- `tests/e2e/portal-tests.spec.ts` - Parent portal, org dashboard, explore gate, admin portal API tests
 - `tests/e2e/smoke-privacy.spec.ts` - Privacy API authentication checks
 - `tests/e2e/consent-enforcement.spec.ts` - Consent and CSRF enforcement checks
 - `playwright.config.ts` - Playwright configuration
 
-Note: Browser-based E2E tests require Chromium system dependencies. API-only tests (24+ tests) pass in Replit environment.
+Note: Browser-based E2E tests require Chromium system dependencies and auto-skip in Replit. API-only tests (40+ tests) pass in Replit environment.
+
+### Production Logging (Added Jan 2026)
+A debug logging utility (`server/utils/logger.ts`) ensures console.log statements only run in development:
+
+```typescript
+import { debugLog } from '../utils/logger.ts';
+debugLog('prefix', 'message', data); // Only logs when NODE_ENV !== 'production'
+```
+
+Server routes using debugLog: events.js, ximi.ts, consent.js, notifications.js, orbSnapshots.js
+Audit logs in parent-portal.js use console.info intentionally for production audit trail.
 
 ### Consent Enforcement (Added Dec 2025)
 Server-side enforcement of privacy consent toggles is implemented in `server/middleware/consent.ts`:
