@@ -74,7 +74,7 @@ The database contains over 75 comprehensive Edmonton youth resources across cate
 
 ### Testing Infrastructure (Updated Jan 2026)
 The project includes comprehensive testing infrastructure:
-- **Unit Tests (Vitest)**: Run with `npm test` - 12 passing tests, 3 expected failures for browser-specific APIs (crypto, IndexedDB)
+- **Unit Tests (Vitest)**: Run with `npm test` - 10 passing tests, 19 skipped (browser-only tests)
 - **E2E Tests (Playwright)**: Run with `npm run test:e2e` - 40 API tests pass, 17 browser tests skip in Replit
 - **Privacy Smoke Tests**: Run with `npm run smoke:privacy` - Tests authentication requirements on privacy endpoints
 - **Route Crawl Tests**: Run with `npm run test:e2e:routes` - Tests public and auth-required routes (browser-based, auto-skips in Replit)
@@ -87,9 +87,10 @@ Key test files:
 - `tests/e2e/portal-tests.spec.ts` - Parent portal, org dashboard, explore gate, admin portal API tests
 - `tests/e2e/smoke-privacy.spec.ts` - Privacy API authentication checks
 - `tests/e2e/consent-enforcement.spec.ts` - Consent and CSRF enforcement checks
+- `server/__tests__/security.integration.test.ts` - Security integration tests (10 passing)
 - `playwright.config.ts` - Playwright configuration
 
-Note: Browser-based E2E tests require Chromium system dependencies and auto-skip in Replit. API-only tests (40+ tests) pass in Replit environment.
+Note: Browser-based E2E tests require Chromium system dependencies and auto-skip in Replit. API-only tests (40+ tests) pass in Replit environment. Some unit tests are skipped because they require browser APIs (IndexedDB, WebCrypto) not available in Node.js.
 
 ### Production Logging (Added Jan 2026)
 A debug logging utility (`server/utils/logger.ts`) ensures console.log statements only run in development:

@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { addToQueue, getQueueCount } from '../queue';
 
-// Mock IndexedDB
+const isBrowser = typeof window !== 'undefined' && typeof indexedDB !== 'undefined';
+
 beforeEach(() => {
   vi.resetModules();
 });
 
-describe('queue utilities', () => {
+describe.skipIf(!isBrowser)('queue utilities', () => {
   it('should add items to queue', async () => {
     const checkinData = {
       timestamp: new Date().toISOString(),

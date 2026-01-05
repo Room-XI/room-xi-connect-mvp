@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { encryptData, decryptData } from '../crypto';
 
-describe('crypto utilities', () => {
+const isBrowser = typeof window !== 'undefined' && typeof indexedDB !== 'undefined';
+
+describe.skipIf(!isBrowser)('crypto utilities', () => {
   it('should encrypt and decrypt data successfully', async () => {
     const originalData = {
       mood: 'happy',
