@@ -56,6 +56,11 @@ export default function Signup() {
       return;
     }
 
+    if (formData.age > 25) {
+      setError('This platform is designed for youth ages 13-25');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -313,11 +318,22 @@ export default function Signup() {
               />
               <input
                 type="password"
-                placeholder="Password (min 8 characters)"
+                placeholder="Password (min 12 characters)"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+              {formData.password && formData.password.length > 0 && formData.password.length < 12 && (
+                <p className="text-xs text-amber-600">Password must be at least 12 characters</p>
+              )}
+              {formData.password && formData.password.length >= 12 && (
+                <div className="text-xs space-y-1">
+                  {!/[A-Z]/.test(formData.password) && <p className="text-amber-600">Include an uppercase letter</p>}
+                  {!/[a-z]/.test(formData.password) && <p className="text-amber-600">Include a lowercase letter</p>}
+                  {!/[0-9]/.test(formData.password) && <p className="text-amber-600">Include a number</p>}
+                  {!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) && <p className="text-amber-600">Include a special character (!@#$%^&*...)</p>}
+                </div>
+              )}
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
@@ -344,7 +360,7 @@ export default function Signup() {
                     handleSignup();
                   }
                 }}
-                disabled={!formData.email || !formData.password || formData.password.length < 8}
+                disabled={!formData.email || !formData.password || formData.password.length < 12 || !/[A-Z]/.test(formData.password) || !/[a-z]/.test(formData.password) || !/[0-9]/.test(formData.password) || !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password)}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {formData.age && formData.age < 16 ? 'Continue' : 'Create Account'}
