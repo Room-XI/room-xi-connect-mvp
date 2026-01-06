@@ -12,7 +12,7 @@ import {
   type OutcomeEventData,
 } from '../services/outcomes.js';
 import { getProgramPeerInsights } from '../services/peerInsights.js';
-import { checkPrivacyConsent } from '../middleware/consent.ts';
+import { checkPrivacyConsent, requirePrivacyConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -199,7 +199,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.get('/program/:programId', async (req, res) => {
+router.get('/program/:programId', requirePrivacyConsent('research'), async (req, res) => {
   try {
     const { programId } = req.params;
 

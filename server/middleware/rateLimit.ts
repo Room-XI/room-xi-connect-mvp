@@ -1,5 +1,5 @@
 import rateLimit from "express-rate-limit";
-import type { RequestHandler } from "express";
+import type { RequestHandler, Request } from "express";
 
 export const authLimiter: RequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -23,4 +23,19 @@ export const writeLimiter: RequestHandler = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { error: "Too many requests, please slow down" },
+});
+
+export const passwordResetLimiter: RequestHandler = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 5, // 5 requests per hour per email
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many password reset requests, please try again later" },
+  keyGenerator: (req: Request) => {
+    const email = req.body?.email;
+    if (email && typeof email === 'string') {
+      return email.toLowerCase().trim();
+    }
+    return req.ip || 'unknown';
+  },
 });

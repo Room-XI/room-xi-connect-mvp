@@ -4,6 +4,7 @@ import { db } from "../db.js";
 import { youthDemographics, parentDemographics, parentLinks } from "../schema.extras.js";
 import { guardianPerceptions, guardianVerifications } from "../schema.js";
 import { and, eq } from "drizzle-orm";
+import { requireDataConsent } from "../middleware/consent.ts";
 
 const router = express.Router();
 const Schema = z.record(z.any());
@@ -22,7 +23,7 @@ const requireParent = (req, res, next) => {
   next();
 };
 
-router.post("/youth", requireYouth, async (req, res) => {
+router.post("/youth", requireYouth, requireDataConsent(), async (req, res) => {
   try {
     const userId = req.session.userId;
     const parsed = Schema.safeParse(req.body);

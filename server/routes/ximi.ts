@@ -12,6 +12,7 @@ import type { MoodKey } from '../../src/lib/moodConfig.js';
 import { validateBody } from '../middleware/validate.ts';
 import { ximiChatSchema, ximiConsentSchema, ximiRecommendationsSchema } from '../schemas/ximi.ts';
 import { debugLog } from '../utils/logger.ts';
+import { requireDataConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -56,7 +57,7 @@ router.get('/conversations', async (req, res) => {
   }
 });
 
-router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
+router.post('/chat', requireDataConsent(), validateBody(ximiChatSchema), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -142,7 +143,7 @@ router.post('/chat', validateBody(ximiChatSchema), async (req, res) => {
   }
 });
 
-router.post('/follow-up', async (req, res) => {
+router.post('/follow-up', requireDataConsent(), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -280,7 +281,7 @@ router.get('/trends', async (req, res) => {
   }
 });
 
-router.post('/recommendations', async (req, res) => {
+router.post('/recommendations', requireDataConsent(), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });

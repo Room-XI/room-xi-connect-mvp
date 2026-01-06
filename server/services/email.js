@@ -944,6 +944,124 @@ This email contains confidential information. Handle according to privacy polici
 }
 
 /**
+ * Send password reset email
+ * @param {Object} options - Email options
+ * @param {string} options.email - User's email address
+ * @param {string} options.resetLink - Full password reset URL with token
+ * @returns {Promise<Object>} - Send result
+ */
+export async function sendPasswordResetEmail({ email, resetLink }) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 30px;
+          border-radius: 8px 8px 0 0;
+          text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content {
+          background: #ffffff;
+          padding: 30px;
+          border: 1px solid #e0e0e0;
+          border-top: none;
+        }
+        .button {
+          display: inline-block;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 16px 32px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 16px;
+        }
+        .warning {
+          background: #fff3cd;
+          border-left: 4px solid #ffc107;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .footer {
+          background: #f5f7fa;
+          padding: 20px;
+          border-radius: 0 0 8px 8px;
+          border: 1px solid #e0e0e0;
+          border-top: none;
+          text-align: center;
+          font-size: 12px;
+          color: #666;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>🔐 Password Reset Request</h1>
+      </div>
+      
+      <div class="content">
+        <p>Hello,</p>
+        
+        <p>We received a request to reset your password for your <strong>Room XI Connect</strong> account.</p>
+        
+        <p>Click the button below to reset your password:</p>
+        
+        <center>
+          <a href="${resetLink}" class="button">Reset Password</a>
+        </center>
+        
+        <div class="warning">
+          <p><strong>⏱️ This link expires in 24 hours</strong> for security reasons.</p>
+          <p>If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.</p>
+        </div>
+        
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #667eea;">${resetLink}</p>
+        
+        <p style="margin-top: 30px;">
+          Stay safe,<br>
+          <strong>Room XI Connect Team</strong>
+        </p>
+      </div>
+      
+      <div class="footer">
+        <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+        <p>This is an automated message. Please do not reply directly to this email.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendEmail({
+      to: email,
+      subject: 'Password Reset Request - Room XI Connect',
+      html,
+    });
+    console.log('Password reset email sent to:', email);
+    return { messageId: 'sent' };
+  } catch (error) {
+    console.error('Failed to send password reset email:', error);
+    throw new Error('Failed to send password reset email');
+  }
+}
+
+/**
  * Verify email configuration is working
  * @returns {Promise<boolean>}
  */

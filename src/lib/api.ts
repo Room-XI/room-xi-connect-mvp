@@ -185,6 +185,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
+    validateResetToken: (token: string) =>
+      fetchApi(`/auth/reset-password/${token}/validate`),
+    completePasswordReset: (token: string, newPassword: string) =>
+      fetchApi('/auth/update-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, newPassword }),
+      }),
     updatePassword: (newPassword: string) =>
       fetchApi('/auth/update-password', {
         method: 'POST',

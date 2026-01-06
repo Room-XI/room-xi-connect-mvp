@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { pushSubscriptions, profiles } from '../schema.js';
 import { eq, and } from 'drizzle-orm';
 import { pushEnabled } from '../services/pushNotification.ts';
+import { requirePrivacyConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.get('/vapid-public-key', (req, res) => {
   res.json({ publicKey: VAPID_PUBLIC_KEY });
 });
 
-router.post('/subscribe', async (req, res) => {
+router.post('/subscribe', requirePrivacyConsent('notifications'), async (req, res) => {
   try {
     if (!pushEnabled) {
       return res.status(503).json({ 
@@ -72,7 +73,7 @@ router.post('/subscribe', async (req, res) => {
   }
 });
 
-router.delete('/unsubscribe', async (req, res) => {
+router.delete('/unsubscribe', requirePrivacyConsent('notifications'), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -167,7 +168,7 @@ router.post('/send', async (req, res) => {
   }
 });
 
-router.post('/test', async (req, res) => {
+router.post('/test', requirePrivacyConsent('notifications'), async (req, res) => {
   try {
     if (!pushEnabled) {
       return res.status(503).json({ 

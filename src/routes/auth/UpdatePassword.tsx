@@ -1,28 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Lock, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 
 export default function UpdatePassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+  
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [validatingToken, setValidatingToken] = useState(!!token);
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const { user } = useSession();
 
   useEffect(() => {
-    // Check if user is authenticated
-    if (!user) {
+    // If token is provided, validate it
+    if (token) {
+      validateToken();
+    } else if (!user) {
+      // No token and not authenticated - redirect to login
       navigate('/auth/login');
     }
-  }, [user, navigate]);
+  }, [token, user, navigate]);
+
+  const validateToken = async () => {
+    setValidatingToken(true);
+    try {
+      const { data, error } = await api.auth.validateResetToken(token!);
+      if (error) {
+        setTokenError(error);
+        setTokenValid(false);
+      } else if (data?.valid) {
+        setTokenValid(true);
+      } else {
+        setTokenError(data?.error || 'Invalid token');
+        setTokenValid(false);
+      }
+    } catch (err) {
+      setTokenError('Failed to validate reset token');
+      setTokenValid(false);
+    } finally {
+      setValidatingToken(false);
+    }
+  };
 
   const validatePassword = (password: string) => {
     if (password.length < 8) {
@@ -63,7 +93,10 @@ export default function UpdatePassword() {
     setError(null);
 
     try {
-      const { error } = await api.auth.updatePassword(password);
+      // Use token-based flow if token is provided, otherwise use authenticated flow
+      const { error } = token 
+        ? await api.auth.completePasswordReset(token, password)
+        : await api.auth.updatePassword(password);
 
       if (error) {
         setError(error);
@@ -83,6 +116,75 @@ export default function UpdatePassword() {
       setLoading(false);
     }
   };
+
+  // Show loading while validating token
+  if (validatingToken) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-cream p-6">
+        <motion.div
+          className="w-full max-w-md text-center space-y-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="w-20 h-20 mx-auto bg-sage/10 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-deepSage border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-textSecondaryLight">Validating your reset link...</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Show error if token is invalid
+  if (token && tokenValid === false) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-cream p-6">
+        <motion.div
+          className="w-full max-w-md text-center space-y-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="w-20 h-20 mx-auto bg-coral/10 rounded-full flex items-center justify-center">
+            <AlertCircle className="w-10 h-10 text-coral" />
+          </div>
+          
+          <div className="space-y-3">
+            <h1 className="text-2xl font-display font-bold text-deepSage">
+              Invalid Reset Link
+            </h1>
+            <p className="text-textSecondaryLight">
+              {tokenError || 'This password reset link is invalid or has expired.'}
+            </p>
+          </div>
+
+          <div className="cosmic-card p-4 bg-coral/10 border-coral/20">
+            <p className="text-sm text-coral">
+              Password reset links expire after 24 hours and can only be used once.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Link
+              to="/auth/reset"
+              className="w-full cosmic-button block text-center"
+            >
+              Request a New Reset Link
+            </Link>
+            
+            <Link
+              to="/auth/login"
+              className="inline-flex items-center justify-center space-x-2 text-sm font-medium text-teal hover:text-teal/80 transition-colors w-full"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Sign In</span>
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (success) {
     return (

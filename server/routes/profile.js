@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../db.js';
 import { profiles } from '../schema.js';
 import { eq } from 'drizzle-orm';
+import { requireDataConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update profile
-router.put('/', async (req, res) => {
+router.put('/', requireDataConsent(), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });

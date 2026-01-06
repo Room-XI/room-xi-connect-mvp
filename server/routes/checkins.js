@@ -4,6 +4,7 @@ import { checkins, profiles } from '../schema.js';
 import { eq, and, sql } from 'drizzle-orm';
 import { calculateStreak, getLocalDateString } from '../services/streak.ts';
 import { analyzeMoodTrigger } from '../services/moodAnalysis.ts';
+import { requireDataConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -309,7 +310,7 @@ router.get('/last-7-days', async (req, res) => {
 });
 
 // Create or update checkin
-router.post('/', async (req, res) => {
+router.post('/', requireDataConsent(), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
