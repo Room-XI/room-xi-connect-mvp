@@ -48,7 +48,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = async () => {
+  const fetchUser = async (retries = 3) => {
     // Skip API call if no session cookie exists (reduces 401 console noise)
     if (!hasSessionCookie()) {
       setUser(null);
@@ -56,22 +56,35 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    try {
-      const { data, error } = await api.auth.getUser();
-      if (!error && data?.user) {
-        setUser(data.user);
-      } else {
-        // Session expired or invalid - clear cookie to prevent retry loops
-        clearSessionCookie();
-        setUser(null);
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const { data, error } = await api.auth.getUser();
+        if (!error && data?.user) {
+          setUser(data.user);
+          setLoading(false);
+          return;
+        } else {
+          // Session expired or invalid - clear cookie to prevent retry loops
+          clearSessionCookie();
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.warn(`Session fetch attempt ${attempt} failed:`, error);
+        
+        if (attempt < retries) {
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        } else {
+          // All retries exhausted
+          console.error('Failed to fetch user after retries:', error);
+          clearSessionCookie();
+          setUser(null);
+          setLoading(false);
+          return;
+        }
       }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      // Clear cookie on error to prevent retry loops
-      clearSessionCookie();
-      setUser(null);
-    } finally {
-      setLoading(false);
     }
   };
 

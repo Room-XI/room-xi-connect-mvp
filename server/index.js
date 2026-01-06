@@ -43,11 +43,35 @@ async function createServer() {
   app.use(express.json({ limit: '200kb' }));
   app.use(express.urlencoded({ extended: true })); // For form submissions (consent forms)
   app.use(cookieParser());
+  
+  // Initialize session store with error handling
+  const sessionStore = new PgStore({
+    pool,
+    createTableIfMissing: true,
+    tableName: 'session',
+    errorLog: (err) => {
+      logger.error({ err }, 'Session store error');
+    }
+  });
+  
+  // Verify session table exists on startup
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default",
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL,
+        PRIMARY KEY ("sid")
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+    `);
+    logger.info('Session table verified/created successfully');
+  } catch (err) {
+    logger.error({ err }, 'Failed to verify session table');
+  }
+  
   app.use(session({
-    store: new PgStore({
-      pool,
-      createTableIfMissing: true,
-    }),
+    store: sessionStore,
     secret: env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -55,9 +79,30 @@ async function createServer() {
       secure: env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'strict', // CSRF protection
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      maxAge: 1000 * 60 * 60 * 4, // 4 hours (reduced from 7 days for security)
     }
   }));
+  
+  // Session activity tracking middleware
+  app.use((req, res, next) => {
+    if (req.session && req.session.userId) {
+      const now = Date.now();
+      const lastActivity = req.session.lastActivity || now;
+      const inactivityLimit = 30 * 60 * 1000; // 30 minutes
+      
+      if (now - lastActivity > inactivityLimit) {
+        // Session inactive for too long - destroy it
+        return req.session.destroy((err) => {
+          if (err) logger.error({ err }, 'Failed to destroy inactive session');
+          res.clearCookie('connect.sid');
+          return res.status(401).json({ error: 'Session expired due to inactivity' });
+        });
+      }
+      
+      req.session.lastActivity = now;
+    }
+    next();
+  });
 
   // Import security middleware
   const { validateCsrfToken, requireGuardianVerification } = await import('./middleware/security.ts');

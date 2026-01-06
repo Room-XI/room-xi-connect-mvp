@@ -6,7 +6,18 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import globals from "globals";
 
 export default tseslint.config(
-  { ignores: ["dist/**", "node_modules/**"] },
+  { 
+    ignores: [
+      "dist/**", 
+      "node_modules/**",
+      "android/**",
+      "ios/**",
+      ".next/**",
+      ".vercel/**",
+      "build/**",
+      ".git/**"
+    ] 
+  },
   {
     files: ["**/*.{ts,tsx,js,jsx}"],
     languageOptions: {

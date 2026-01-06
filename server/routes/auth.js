@@ -11,6 +11,7 @@ import { registerSchema, loginSchema, deleteAccountSchema } from '../schemas/aut
 import { lookupCommunity, normalizePostalCode } from '../services/communityLookup.ts';
 import { authLimiter } from '../middleware/rateLimit.ts';
 import { getPublicUrl } from '../utils/publicUrl.ts';
+import { checkAccountLockout, recordFailedLogin, clearFailedLogin } from '../middleware/accountLockout.ts';
 
 const router = express.Router();
 
@@ -183,14 +184,22 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
     req.session.requiresGuardianVerification = requiresGuardianVerification;
     req.session.guardianVerifiedAt = requiresGuardianVerification ? null : new Date().toISOString();
 
-    res.status(201).json({
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        age: userAge,
-        requiresGuardianVerification,
-        guardianVerifiedAt: req.session.guardianVerifiedAt,
+    // CRITICAL: Explicitly save session to database to ensure persistence
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error('Failed to save session after signup:', saveErr);
+        // Continue anyway - session may still work via cookie
       }
+      
+      res.status(201).json({
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          age: userAge,
+          requiresGuardianVerification,
+          guardianVerifiedAt: req.session.guardianVerifiedAt,
+        }
+      });
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -199,7 +208,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
 });
 
 // Login
-router.post('/login', authLimiter, validateBody(loginSchema), async (req, res) => {
+router.post('/login', authLimiter, checkAccountLockout, validateBody(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -216,6 +225,7 @@ router.post('/login', authLimiter, validateBody(loginSchema), async (req, res) =
     .limit(1);
     
     if (!user) {
+      recordFailedLogin(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -223,8 +233,12 @@ router.post('/login', authLimiter, validateBody(loginSchema), async (req, res) =
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     
     if (!validPassword) {
+      recordFailedLogin(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+    
+    // Clear failed attempts on successful login
+    clearFailedLogin(email);
 
     // TASK 6: Recalculate age from DOB on login for accurate guardian gating
     let computedAge = user.profile?.age ?? null;

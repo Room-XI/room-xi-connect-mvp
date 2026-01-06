@@ -1,5 +1,6 @@
 import express from 'express';
 import { db } from '../db.js';
+import { pool } from '../db.js';
 import { sql } from 'drizzle-orm';
 
 const router = express.Router();
@@ -27,6 +28,29 @@ router.get('/', async (req, res) => {
       status: 'unhealthy',
       error: error.message
     };
+  }
+
+  try {
+    const sessionTableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'session'
+      );
+    `);
+    const sessionTableExists = sessionTableCheck.rows[0]?.exists || false;
+    checks.checks.sessionStore = {
+      status: sessionTableExists ? 'healthy' : 'unhealthy',
+      tableExists: sessionTableExists
+    };
+    if (!sessionTableExists) {
+      checks.status = 'unhealthy';
+    }
+  } catch (error) {
+    checks.checks.sessionStore = {
+      status: 'unhealthy',
+      error: error.message
+    };
+    checks.status = 'unhealthy';
   }
 
   checks.responseTime = Date.now() - startTime;
