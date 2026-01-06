@@ -174,15 +174,15 @@ async function createServer() {
   
   // Protected routes requiring CSRF token with rate limiting
   app.use('/api/checkins', validateCsrfToken, requireGuardianVerification, writeLimiter, checkinRoutes);
-  app.use('/api/profile', validateCsrfToken, writeLimiter, profileRoutes);
+  app.use('/api/profile', validateCsrfToken, requireGuardianVerification, writeLimiter, profileRoutes);
   app.use('/api/xid', validateCsrfToken, requireGuardianVerification, writeLimiter, xidRoutes);
   app.use('/api/ximi', validateCsrfToken, requireGuardianVerification, writeLimiter, ximiRoutes);
   app.use('/api/admin', validateCsrfToken, writeLimiter, adminRoutes);
   app.use('/api/org', validateCsrfToken, writeLimiter, orgRoutes);
-  app.use('/api/privacy', validateCsrfToken, writeLimiter, privacyRoutes);
+  app.use('/api/privacy', validateCsrfToken, requireGuardianVerification, writeLimiter, privacyRoutes);
   app.use('/api/achievements', validateCsrfToken, writeLimiter, achievementsRoutes);
   app.use('/api/kpi', validateCsrfToken, kpiRoutes);
-  app.use('/api/orb-snapshots', validateCsrfToken, writeLimiter, orbSnapshotsRoutes);
+  app.use('/api/orb-snapshots', validateCsrfToken, requireGuardianVerification, writeLimiter, orbSnapshotsRoutes);
   app.use('/api/quotes', validateCsrfToken, writeLimiter, quotesRoutes);
   app.use('/api/notifications', validateCsrfToken, writeLimiter, notificationsRoutes);
   app.use('/api/push', validateCsrfToken, writeLimiter, pushRoutes);
@@ -194,8 +194,8 @@ async function createServer() {
   app.use('/api/parent-auth', writeLimiter, parentAuthRoutes);
   app.use('/api/parent-portal', validateCsrfToken, writeLimiter, parentPortalRoutes);
   app.use('/api/consent-auto', validateCsrfToken, writeLimiter, consentAutoRoutes);
-  app.use('/api/demographics', validateCsrfToken, writeLimiter, demographicsRoutes);
-  app.use('/api/mood-tasks', validateCsrfToken, writeLimiter, moodTasksRoutes);
+  app.use('/api/demographics', validateCsrfToken, requireGuardianVerification, writeLimiter, demographicsRoutes);
+  app.use('/api/mood-tasks', validateCsrfToken, requireGuardianVerification, writeLimiter, moodTasksRoutes);
   app.use('/api/qr', validateCsrfToken, writeLimiter, qrRoutes);
   app.use('/api/disclosure', validateCsrfToken, writeLimiter, disclosureRoutes);
 
