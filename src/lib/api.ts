@@ -4,10 +4,17 @@ import { getFriendlyErrorMessage } from './errors';
 
 const API_BASE = configApiBase.endsWith('/api') ? configApiBase : `${configApiBase}/api`;
 
+interface ValidationIssue {
+  path: string;
+  message: string;
+}
+
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   friendlyError?: string;
+  message?: string;
+  issues?: ValidationIssue[];
 }
 
 export interface ProgramRecommendation {
@@ -145,9 +152,18 @@ async function fetchApi<T = any>(
       console.error(`API ${options?.method || 'GET'} ${endpoint} failed:`, response.status, data?.error || data?.message);
       
       const error = data?.error || data?.message || 'An error occurred';
+      const issues = data?.issues as ValidationIssue[] | undefined;
+      
+      let friendlyError = getFriendlyErrorMessage(error || response.status);
+      if (error === 'VALIDATION_ERROR' && issues && issues.length > 0) {
+        friendlyError = issues[0].message;
+      }
+      
       return { 
         error,
-        friendlyError: getFriendlyErrorMessage(error || response.status)
+        friendlyError,
+        message: data?.message,
+        issues,
       };
     }
 

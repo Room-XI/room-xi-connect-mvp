@@ -21,10 +21,12 @@ export default function AddGuardianForm({ onGuardianAdded }: { onGuardianAdded?:
     setError(null);
 
     try {
-      const { data, error: apiError } = await api.auth.addGuardian(formData);
+      const { error: apiError, friendlyError } = await api.auth.addGuardian(formData);
       
       if (apiError) {
-        throw new Error(apiError);
+        setError(friendlyError || apiError);
+        setLoading(false);
+        return;
       }
 
       setSuccess(true);

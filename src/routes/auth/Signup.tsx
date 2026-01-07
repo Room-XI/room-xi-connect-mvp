@@ -88,7 +88,7 @@ export default function Signup() {
       }
 
       // Call the Express API register endpoint
-      const { data: authData, error: authError } = await api.auth.register(
+      const { data: authData, error: authError, friendlyError } = await api.auth.register(
         registrationData.email,
         registrationData.password,
         {
@@ -101,7 +101,9 @@ export default function Signup() {
       );
 
       if (authError) {
-        throw new Error(authError);
+        setError(friendlyError || authError);
+        setLoading(false);
+        return;
       }
 
       if (!authData?.user) {

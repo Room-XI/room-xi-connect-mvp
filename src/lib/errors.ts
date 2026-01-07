@@ -28,6 +28,7 @@ const ERROR_MAP: Record<number | string, ErrorCode> = {
   'Invalid CSRF token': ErrorCode.INVALID_CSRF,
   'Missing consent': ErrorCode.CONSENT_REQUIRED,
   'Session expired': ErrorCode.SESSION_EXPIRED,
+  'VALIDATION_ERROR': ErrorCode.VALIDATION_ERROR,
 };
 
 /**
@@ -74,6 +75,8 @@ export function getFriendlyErrorMessage(error: any): string {
         return 'Your session has expired. Please sign in again.';
       case ErrorCode.INVALID_CSRF:
         return 'Security token expired. Please refresh the page.';
+      case ErrorCode.VALIDATION_ERROR:
+        return 'Please check your input and try again.';
       default:
         return 'An unexpected error occurred. Please try again later.';
     }
