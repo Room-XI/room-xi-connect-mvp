@@ -23,7 +23,7 @@ export default defineConfig({
   projects: [
     {
       name: 'api-only',
-      testMatch: /api-health\.spec\.ts/,
+      testMatch: /(api-health|guardian-consent|ximi-chat|research-consent|offline-sync|consent-enforcement|portal-tests)\.spec\.ts/,
       use: {
         baseURL: localUrl,
       },
