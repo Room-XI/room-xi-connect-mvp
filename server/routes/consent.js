@@ -271,35 +271,43 @@ router.get('/guardian-status', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const [verification] = await db.select({
+    const verifications = await db.select({
       id: guardianVerifications.id,
       status: guardianVerifications.status,
       guardianContactValue: guardianVerifications.guardianContactValue,
       guardianName: guardianVerifications.guardianName,
+      guardianRole: guardianVerifications.guardianRole,
       expiresAt: guardianVerifications.expiresAt,
       consentNoticeSentAt: guardianVerifications.consentNoticeSentAt,
       verifiedAt: guardianVerifications.verifiedAt,
     })
     .from(guardianVerifications)
     .where(eq(guardianVerifications.userId, req.session.userId))
-    .limit(1);
+    .orderBy(desc(guardianVerifications.createdAt));
 
-    if (!verification) {
-      return res.json({ required: false, status: null });
+    if (verifications.length === 0) {
+      return res.json({ required: false, guardians: [] });
     }
 
-    const isExpired = new Date() > new Date(verification.expiresAt);
+    const guardians = verifications.map(v => {
+      const isExpired = new Date() > new Date(v.expiresAt);
+      return {
+        id: v.id,
+        status: v.status,
+        guardianEmail: v.guardianContactValue,
+        guardianName: v.guardianName,
+        guardianRole: v.guardianRole,
+        sentAt: v.consentNoticeSentAt,
+        expiresAt: v.expiresAt,
+        verifiedAt: v.verifiedAt,
+        isExpired: isExpired && v.status !== 'confirmed',
+        canResend: isExpired || ['pending_initial_consent', 'pending_confirmation'].includes(v.status),
+      };
+    });
 
     res.json({
       required: true,
-      status: verification.status,
-      guardianEmail: verification.guardianContactValue,
-      guardianName: verification.guardianName,
-      sentAt: verification.consentNoticeSentAt,
-      expiresAt: verification.expiresAt,
-      verifiedAt: verification.verifiedAt,
-      isExpired: isExpired && verification.status !== 'confirmed',
-      canResend: isExpired || ['pending_initial_consent', 'pending_confirmation'].includes(verification.status),
+      guardians
     });
   } catch (error) {
     console.error('Guardian status check error:', error);

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { SessionProvider } from './lib/session';
+import { ToastProvider } from './ui/Toast';
 import './i18n/config';
 import './styles.css';
 import { isNativePlatform } from './lib/capacitor';
@@ -49,7 +50,9 @@ if ('serviceWorker' in navigator) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <SessionProvider>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
     </SessionProvider>
   </React.StrictMode>
 );

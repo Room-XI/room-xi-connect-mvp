@@ -223,6 +223,8 @@ export const guardianVerifications = pgTable("guardian_verifications", {
   // Status: pending_initial_consent -> pending_confirmation -> confirmed -> withdrawn
   status: text("status").default("pending_initial_consent"),
   
+  guardianRole: text("guardian_role").default("primary"), // primary, secondary, emergency
+  
   // ========== END NEW FIELDS ==========
   
   // Existing verification fields (preserved)
@@ -520,6 +522,21 @@ export const programOutcomes = pgTable("program_outcomes", {
   recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   programIdx: index("idx_program_outcomes_program").on(table.programId, table.metric, table.recordedAt.desc()),
+}));
+
+export const emergencyContacts = pgTable("emergency_contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  relationship: text("relationship").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email"),
+  isPrimary: boolean("is_primary").default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("emergency_contacts_user_idx").on(table.userId),
 }));
 
 export const auditTrail = pgTable("audit_trail", {

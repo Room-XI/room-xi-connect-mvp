@@ -21,6 +21,7 @@ import { clearQueue } from '@/lib/queue';
 import NotificationSettings from '@/components/NotificationSettings';
 import GuardianConsentStatus from '@/components/GuardianConsentStatus';
 import YouthPrivacySettings from '@/components/YouthPrivacySettings';
+import AddGuardianForm from '@/components/AddGuardianForm';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -231,7 +232,10 @@ export default function Settings() {
       )}
 
       {/* Guardian Consent Status */}
-      <GuardianConsentStatus />
+      <div className="space-y-4">
+        <GuardianConsentStatus />
+        <AddGuardianForm />
+      </div>
 
       {/* Youth Privacy Settings - Control what parents can see */}
       <motion.div

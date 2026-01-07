@@ -27,3 +27,9 @@ export const deleteAccountSchema = z.object({
     errorMap: () => ({ message: 'Confirmation string must be "DELETE_MY_ACCOUNT"' }),
   }),
 });
+
+export const addGuardianSchema = z.object({
+  guardianEmail: z.string().email('Invalid guardian email').max(255),
+  guardianName: z.string().max(100),
+  guardianRole: z.enum(['primary', 'secondary', 'emergency']).default('secondary'),
+});

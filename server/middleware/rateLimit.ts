@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import type { RequestHandler, Request } from "express";
 
 export const authLimiter: RequestHandler = rateLimit({
@@ -36,6 +36,6 @@ export const passwordResetLimiter: RequestHandler = rateLimit({
     if (email && typeof email === 'string') {
       return email.toLowerCase().trim();
     }
-    return req.ip || 'unknown';
+    return ipKeyGenerator(req.ip || '0.0.0.0');
   },
 });

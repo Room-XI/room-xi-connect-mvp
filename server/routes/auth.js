@@ -9,7 +9,7 @@ import { generateCsrfToken } from '../middleware/security.ts';
 import { sendGuardianVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
 import { sendVerificationEmail, verifyEmail, resendVerificationEmail } from '../services/emailVerification.ts';
 import { validateBody } from '../middleware/validate.ts';
-import { registerSchema, loginSchema, deleteAccountSchema } from '../schemas/auth.ts';
+import { registerSchema, loginSchema, deleteAccountSchema, addGuardianSchema } from '../schemas/auth.ts';
 import { lookupCommunity, normalizePostalCode } from '../services/communityLookup.ts';
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimit.ts';
 import { getPublicUrl } from '../utils/publicUrl.ts';
@@ -360,6 +360,102 @@ router.get('/me', async (req, res) => {
     });
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add additional guardian
+router.post('/add-guardian', authLimiter, validateBody(addGuardianSchema), async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { guardianEmail, guardianName, guardianRole } = req.body;
+    const userId = req.session.userId;
+
+    // Check existing guardians count
+    const existingGuardians = await db.select()
+      .from(guardianVerifications)
+      .where(eq(guardianVerifications.userId, userId));
+
+    if (existingGuardians.length >= 3) {
+      return res.status(400).json({ 
+        error: 'Maximum guardians reached',
+        message: 'You can have a maximum of 3 guardians linked to your account.' 
+      });
+    }
+
+    // Check if this guardian email is already added
+    const alreadyExists = existingGuardians.some(g => 
+      g.guardianContactValue.toLowerCase() === guardianEmail.toLowerCase()
+    );
+
+    if (alreadyExists) {
+      return res.status(400).json({ error: 'This guardian has already been added' });
+    }
+
+    const crypto = await import('crypto');
+    const bcryptLib = await import('bcrypt');
+    
+    // Generate tokens for two-step consent flow
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const initialConsentToken = crypto.randomBytes(32).toString('hex');
+    const contactHash = await bcryptLib.hash(guardianEmail.toLowerCase(), 10);
+    
+    // Set expiration to 24 hours (PIPA/PIPEDA compliant)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+    
+    // Get current consent notice version
+    const { CONSENT_NOTICE_VERSION } = await import('../services/consentNotices.js');
+    
+    // Create guardian verification request
+    await db.insert(guardianVerifications).values({
+      userId: userId,
+      guardianContactType: 'email',
+      guardianContactValue: guardianEmail,
+      guardianContactHash: contactHash,
+      guardianName: guardianName || null,
+      guardianRole: guardianRole || 'secondary',
+      verificationToken: verificationToken,
+      verificationMethod: 'email_plus',
+      initialConsentToken: initialConsentToken,
+      consentNoticeVersion: CONSENT_NOTICE_VERSION,
+      consentNoticeSentAt: new Date(),
+      status: 'pending_initial_consent',
+      expiresAt: expiresAt,
+    });
+
+    // Get youth's name for the email
+    const [profile] = await db.select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+    
+    const youthName = profile?.firstName || 'your child';
+
+    // Send initial consent email
+    try {
+      const { sendInitialConsentEmail } = await import('../services/email.js');
+      const baseUrl = getPublicUrl();
+      
+      await sendInitialConsentEmail({
+        guardianEmail: guardianEmail,
+        guardianName: guardianName || null,
+        youthName: youthName,
+        consentLink: `${baseUrl}/api/consent/view/${initialConsentToken}`
+      });
+    } catch (emailError) {
+      console.error('Failed to send initial consent email:', emailError);
+    }
+
+    res.status(201).json({
+      message: 'Additional guardian added and verification email sent.',
+      status: 'pending_initial_consent'
+    });
+  } catch (error) {
+    console.error('Add guardian error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

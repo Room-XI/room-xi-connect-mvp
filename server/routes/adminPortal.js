@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { db } from '../db.js';
-import { users } from '../schema.js';
-import { eq } from 'drizzle-orm';
+import { users, organizations, orgMembers, profiles, consentEvents } from '../schema.js';
+import { eq, desc, sql, ilike, or } from 'drizzle-orm';
 import crypto from 'crypto';
 
 const router = Router();
@@ -170,6 +170,264 @@ router.post('/logout', (req, res) => {
       success: true 
     });
   });
+});
+
+// Middleware to require admin session
+const requireAdminSession = (req, res, next) => {
+  if (!req.session.isAdminSession) {
+    return res.status(401).json({ message: 'Admin session required' });
+  }
+  const csrfToken = req.headers['x-csrf-token'];
+  if (!csrfToken || csrfToken !== req.session.adminCsrfToken) {
+    return res.status(403).json({ message: 'Invalid CSRF token' });
+  }
+  next();
+};
+
+// ==================== ORGANIZATION MANAGEMENT ====================
+
+// List all organizations
+router.get('/organizations', requireAdminSession, async (req, res) => {
+  try {
+    const orgs = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        description: organizations.description,
+        contactEmail: organizations.contactEmail,
+        website: organizations.website,
+        createdAt: organizations.createdAt,
+        memberCount: sql`(SELECT COUNT(*) FROM org_members WHERE org_id = ${organizations.id})::int`,
+      })
+      .from(organizations)
+      .orderBy(desc(organizations.createdAt));
+
+    res.json({ organizations: orgs });
+  } catch (error) {
+    console.error('List organizations error:', error);
+    res.status(500).json({ message: 'Failed to list organizations' });
+  }
+});
+
+// Create organization
+router.post('/organizations', requireAdminSession, async (req, res) => {
+  try {
+    const { name, description, contactEmail, website } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: 'Organization name is required' });
+    }
+
+    const [org] = await db
+      .insert(organizations)
+      .values({ name, description, contactEmail, website })
+      .returning();
+
+    res.status(201).json({ organization: org });
+  } catch (error) {
+    console.error('Create organization error:', error);
+    res.status(500).json({ message: 'Failed to create organization' });
+  }
+});
+
+// Update organization
+router.put('/organizations/:id', requireAdminSession, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, contactEmail, website } = req.body;
+
+    const [org] = await db
+      .update(organizations)
+      .set({ name, description, contactEmail, website, updatedAt: new Date() })
+      .where(eq(organizations.id, id))
+      .returning();
+
+    if (!org) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    res.json({ organization: org });
+  } catch (error) {
+    console.error('Update organization error:', error);
+    res.status(500).json({ message: 'Failed to update organization' });
+  }
+});
+
+// ==================== USER MANAGEMENT ====================
+
+// List users with pagination and search
+router.get('/users', requireAdminSession, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+
+    let query = db
+      .select({
+        id: users.id,
+        email: users.email,
+        emailVerified: users.emailVerified,
+        createdAt: users.createdAt,
+        firstName: profiles.firstName,
+        preferredName: profiles.preferredName,
+        age: profiles.age,
+        isAdmin: profiles.isAdmin,
+      })
+      .from(users)
+      .leftJoin(profiles, eq(users.id, profiles.userId));
+
+    if (search) {
+      query = query.where(
+        or(
+          ilike(users.email, `%${search}%`),
+          ilike(profiles.firstName, `%${search}%`),
+          ilike(profiles.preferredName, `%${search}%`)
+        )
+      );
+    }
+
+    const userList = await query
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(users);
+
+    res.json({
+      users: userList,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        pages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error) {
+    console.error('List users error:', error);
+    res.status(500).json({ message: 'Failed to list users' });
+  }
+});
+
+// Get single user details
+router.get('/users/:id', requireAdminSession, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        emailVerified: users.emailVerified,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        firstName: profiles.firstName,
+        preferredName: profiles.preferredName,
+        age: profiles.age,
+        city: profiles.city,
+        isAdmin: profiles.isAdmin,
+        streakCount: profiles.streakCount,
+        lastCheckinDate: profiles.lastCheckinDate,
+      })
+      .from(users)
+      .leftJoin(profiles, eq(users.id, profiles.userId))
+      .where(eq(users.id, id))
+      .limit(1);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ message: 'Failed to get user' });
+  }
+});
+
+// Update user role
+router.put('/users/:id/role', requireAdminSession, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAdmin } = req.body;
+
+    if (typeof isAdmin !== 'boolean') {
+      return res.status(400).json({ message: 'isAdmin must be a boolean' });
+    }
+
+    const [profile] = await db
+      .update(profiles)
+      .set({ isAdmin, updatedAt: new Date() })
+      .where(eq(profiles.userId, id))
+      .returning();
+
+    if (!profile) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    res.json({ success: true, isAdmin: profile.isAdmin });
+  } catch (error) {
+    console.error('Update user role error:', error);
+    res.status(500).json({ message: 'Failed to update user role' });
+  }
+});
+
+// ==================== AUDIT LOG VIEWER ====================
+
+// Get audit logs (consent events and other audit trail)
+router.get('/audit-logs', requireAdminSession, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = (page - 1) * limit;
+    const actionType = req.query.actionType || null;
+
+    let query = db
+      .select({
+        id: consentEvents.id,
+        userId: consentEvents.userId,
+        action: consentEvents.action,
+        consentType: consentEvents.consentType,
+        timestamp: consentEvents.timestamp,
+        ipAddress: consentEvents.ipAddress,
+        userAgent: consentEvents.userAgent,
+      })
+      .from(consentEvents);
+
+    if (actionType) {
+      query = query.where(eq(consentEvents.action, actionType));
+    }
+
+    const logs = await query
+      .orderBy(desc(consentEvents.timestamp))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(consentEvents);
+
+    res.json({
+      logs: logs.map(log => ({
+        id: log.id,
+        userId: log.userId,
+        actionType: log.action,
+        description: `${log.action} - ${log.consentType || 'N/A'}`,
+        timestamp: log.timestamp,
+        metadata: { ipAddress: log.ipAddress, userAgent: log.userAgent },
+      })),
+      pagination: {
+        page,
+        limit,
+        total: count,
+        pages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Get audit logs error:', error);
+    res.status(500).json({ message: 'Failed to get audit logs' });
+  }
 });
 
 export default router;

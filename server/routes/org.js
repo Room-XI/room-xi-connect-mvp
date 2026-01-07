@@ -1,70 +1,95 @@
 import express from 'express';
 import { db, pool } from '../db.js';
-import { attendance, programs, profiles, checkins, orgMembers, xids, users, programEvents } from '../schema.js';
+import { attendance, programs, profiles, checkins, orgMembers, xids, users, programEvents, outcomeEvents, peerSuccessInsights } from '../schema.js';
 import { eq, sql, desc, and, gte, lte, count, countDistinct } from 'drizzle-orm';
 import { Parser } from '@json2csv/plainjs';
 import { DateTime } from 'luxon';
 
 const router = express.Router();
 
-router.get('/dashboard/stats', async (req, res) => {
+// Middleware to verify organization membership and role (admin or facilitator)
+const verifyOrgAccess = async (req, res, next) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, req.session.userId))
-      .limit(1);
+    const userOrgs = await db
+      .select({ 
+        orgId: orgMembers.orgId,
+        role: orgMembers.role 
+      })
+      .from(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, req.session.userId),
+        eq(orgMembers.active, true)
+      ));
 
-    if (!profile || !profile.isAdmin) {
-      return res.status(403).json({ error: 'Organization admin access required' });
+    if (userOrgs.length === 0) {
+      // Fallback check for global admin if not in orgMembers
+      const [profile] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.userId, req.session.userId))
+        .limit(1);
+      
+      if (profile?.isAdmin) {
+        req.userOrgIds = []; // Global admin sees all or needs special handling
+        req.isGlobalAdmin = true;
+        return next();
+      }
+      return res.status(403).json({ error: 'Organization access required' });
     }
 
+    req.userOrgIds = userOrgs.map(o => o.orgId);
+    req.userRoles = userOrgs.map(o => o.role);
+    next();
+  } catch (error) {
+    console.error('Org access verification error:', error);
+    res.status(500).json({ error: 'Internal server error during authorization' });
+  }
+};
+
+router.get('/dashboard/stats', verifyOrgAccess, async (req, res) => {
+  try {
     const edmontonNow = DateTime.now().setZone('America/Edmonton');
     const thirtyDaysAgo = edmontonNow.minus({ days: 30 }).startOf('day').toJSDate();
 
+    // Filter by organization if not global admin
+    const orgFilter = req.isGlobalAdmin ? null : sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`;
+
     const [
-      totalUsersResult,
-      activeUsersResult,
-      totalCheckinsResult,
-      avgMoodResult,
       programsCountResult,
-      thisMonthAttendanceResult
+      thisMonthAttendanceResult,
+      uniqueParticipantsResult
     ] = await Promise.all([
-      db.select({ count: count() }).from(users),
-      
-      db.select({ count: sql`COUNT(DISTINCT ${checkins.userId})` })
-        .from(checkins)
-        .where(gte(checkins.timestamp, thirtyDaysAgo)),
-      
-      db.select({ count: count() }).from(checkins),
-      
-      db.select({ avgMood: sql`ROUND(AVG(${checkins.moodLevel16})::numeric, 2)` })
-        .from(checkins)
-        .where(gte(checkins.timestamp, thirtyDaysAgo)),
-      
-      db.select({ count: count() }).from(programs),
+      db.select({ count: count() })
+        .from(programs)
+        .where(orgFilter ? orgFilter : undefined),
       
       db.select({ count: count() })
         .from(attendance)
-        .where(gte(attendance.timestamp, thirtyDaysAgo))
+        .innerJoin(programs, eq(attendance.programId, programs.id))
+        .where(and(
+          gte(attendance.timestamp, thirtyDaysAgo),
+          orgFilter ? orgFilter : undefined
+        )),
+      
+      db.select({ count: countDistinct(attendance.xidId) })
+        .from(attendance)
+        .innerJoin(programs, eq(attendance.programId, programs.id))
+        .where(orgFilter ? orgFilter : undefined)
     ]);
 
-    const totalUsers = Number(totalUsersResult[0]?.count || 0);
-    const activeUsers = Number(activeUsersResult[0]?.count || 0);
-    const totalCheckins = Number(totalCheckinsResult[0]?.count || 0);
-    const avgMood = Number(avgMoodResult[0]?.avgMood || 0);
     const programsCount = Number(programsCountResult[0]?.count || 0);
     const thisMonthAttendance = Number(thisMonthAttendanceResult[0]?.count || 0);
+    const totalParticipants = Number(uniqueParticipantsResult[0]?.count || 0);
 
     res.json({
-      totalUsers,
-      activeUsers,
-      totalCheckins,
-      avgMood,
+      totalUsers: totalParticipants, // Scoped to org
+      activeUsers: totalParticipants, // Simplified for org view
+      totalCheckins: 0, // Org dashboard might not need global checkin counts
+      avgMood: 0,
       programsCount,
       thisMonthAttendance
     });
@@ -74,27 +99,37 @@ router.get('/dashboard/stats', async (req, res) => {
   }
 });
 
-router.get('/dashboard', async (req, res) => {
+router.get('/dashboard', verifyOrgAccess, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
+    const orgFilter = req.isGlobalAdmin ? null : sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`;
 
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, req.session.userId))
-      .limit(1);
+    const recentAttendance = await db
+      .select({
+        id: attendance.id,
+        timestamp: attendance.timestamp,
+        programTitle: programs.title,
+        method: attendance.method
+      })
+      .from(attendance)
+      .innerJoin(programs, eq(attendance.programId, programs.id))
+      .where(orgFilter ? orgFilter : undefined)
+      .orderBy(desc(attendance.timestamp))
+      .limit(10);
 
-    if (!profile || !profile.isAdmin) {
-      return res.status(403).json({ error: 'Organization admin access required' });
-    }
+    const [attendanceStats] = await db
+      .select({
+        totalAttendance: count(attendance.id),
+        uniqueParticipants: countDistinct(attendance.xidId)
+      })
+      .from(attendance)
+      .innerJoin(programs, eq(attendance.programId, programs.id))
+      .where(orgFilter ? orgFilter : undefined);
 
     res.json({
-      totalAttendance: 0,
-      uniqueParticipants: 0,
+      totalAttendance: Number(attendanceStats?.totalAttendance || 0),
+      uniqueParticipants: Number(attendanceStats?.uniqueParticipants || 0),
       programs: [],
-      recentActivity: [],
+      recentActivity: recentAttendance,
     });
   } catch (error) {
     console.error('Error fetching org dashboard:', error);
@@ -102,35 +137,9 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-router.get('/export', async (req, res) => {
+router.get('/attendance/export', verifyOrgAccess, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, req.session.userId))
-      .limit(1);
-
-    if (!profile) {
-      return res.status(403).json({ error: 'Profile not found' });
-    }
-
-    const userOrgs = await db
-      .select({ orgId: orgMembers.orgId })
-      .from(orgMembers)
-      .where(and(
-        eq(orgMembers.userId, req.session.userId),
-        eq(orgMembers.active, true)
-      ));
-
-    if (userOrgs.length === 0) {
-      return res.status(403).json({ error: 'No organization membership found' });
-    }
-
-    const orgIds = userOrgs.map(o => o.orgId);
+    const orgFilter = req.isGlobalAdmin ? null : sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`;
 
     const timeRange = req.query.timeRange || '30days';
     const edmontonNow = DateTime.now().setZone('America/Edmonton');
@@ -157,7 +166,7 @@ router.get('/export', async (req, res) => {
       .leftJoin(xids, eq(attendance.xidId, xids.id))
       .where(and(
         gte(attendance.createdAt, startDate),
-        sql`${programs.orgId} = ANY(${orgIds}::uuid[])`
+        orgFilter ? orgFilter : undefined
       ))
       .orderBy(desc(attendance.createdAt));
 
@@ -210,31 +219,22 @@ router.get('/export', async (req, res) => {
   }
 });
 
-router.get('/programs', async (req, res) => {
+router.get('/programs', verifyOrgAccess, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, req.session.userId))
-      .limit(1);
-
-    if (!profile || !profile.isAdmin) {
-      return res.status(403).json({ error: 'Organization admin access required' });
-    }
-
-    const programList = await db
+    let query = db
       .select({
         id: programs.id,
         title: programs.title,
         organizer: programs.organizer,
+        orgId: programs.orgId,
       })
-      .from(programs)
-      .orderBy(programs.title);
+      .from(programs);
 
+    if (!req.isGlobalAdmin) {
+      query = query.where(sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`);
+    }
+
+    const programList = await query.orderBy(programs.title);
     res.json(programList);
   } catch (error) {
     console.error('Error fetching programs:', error);
@@ -242,185 +242,145 @@ router.get('/programs', async (req, res) => {
   }
 });
 
-router.get('/outcomes/:programId', async (req, res) => {
+router.get('/programs/:id/attendance', verifyOrgAccess, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
+    const { id: programId } = req.params;
+
+    // Verify program belongs to user's organization
+    if (!req.isGlobalAdmin) {
+      const [program] = await db
+        .select()
+        .from(programs)
+        .where(and(
+          eq(programs.id, programId),
+          sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`
+        ))
+        .limit(1);
+
+      if (!program) {
+        return res.status(403).json({ error: 'Program not found or access denied' });
+      }
     }
-
-    const [profile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, req.session.userId))
-      .limit(1);
-
-    if (!profile || !profile.isAdmin) {
-      return res.status(403).json({ error: 'Organization admin access required' });
-    }
-
-    const { programId } = req.params;
-    const edmontonNow = DateTime.now().setZone('America/Edmonton');
-    const threeMonthsAgo = edmontonNow.minus({ months: 3 }).startOf('day').toJSDate();
-
-    const [uniqueParticipantsResult] = await db
-      .select({ count: countDistinct(attendance.xidId) })
-      .from(attendance)
-      .where(eq(attendance.programId, programId));
-    const uniqueParticipants = Number(uniqueParticipantsResult?.count || 0);
-
-    const [totalSessionsResult] = await db
-      .select({ count: count() })
-      .from(programEvents)
-      .where(eq(programEvents.programId, programId));
-    const totalSessions = Number(totalSessionsResult?.count || 0);
-
-    const [totalAttendanceResult] = await db
-      .select({ count: count() })
-      .from(attendance)
-      .where(eq(attendance.programId, programId));
-    const totalAttendance = Number(totalAttendanceResult?.count || 0);
-
-    const attendanceRate = totalSessions > 0 && uniqueParticipants > 0
-      ? Math.min(100, Math.round((totalAttendance / (totalSessions * uniqueParticipants)) * 100))
-      : 0;
 
     const attendanceRecords = await db
       .select({
+        id: attendance.id,
         xidId: attendance.xidId,
         timestamp: attendance.timestamp,
+        method: attendance.method,
+        site: attendance.site
       })
       .from(attendance)
-      .where(eq(attendance.programId, programId));
+      .where(eq(attendance.programId, programId))
+      .orderBy(desc(attendance.timestamp));
 
-    const xidIds = [...new Set(attendanceRecords.map(a => a.xidId))];
+    res.json(attendanceRecords);
+  } catch (error) {
+    console.error('Error fetching program attendance:', error);
+    res.status(500).json({ error: 'Failed to fetch program attendance' });
+  }
+});
 
-    let avgMoodBefore = null;
-    let avgMoodAfter = null;
+router.post('/programs/:id/attendance', verifyOrgAccess, async (req, res) => {
+  try {
+    const { id: programId } = req.params;
+    const { xidId, method, site, timestamp } = req.body;
 
-    if (xidIds.length > 0) {
-      const xidRecords = await db
-        .select({ id: xids.id, userId: xids.userId })
-        .from(xids)
-        .where(sql`${xids.id} = ANY(${xidIds}::uuid[])`);
+    if (!xidId || !method) {
+      return res.status(400).json({ error: 'xidId and method are required' });
+    }
 
-      const userIdToXidTimestamps = new Map();
-      for (const record of attendanceRecords) {
-        const xidRecord = xidRecords.find(x => x.id === record.xidId);
-        if (xidRecord) {
-          if (!userIdToXidTimestamps.has(xidRecord.userId)) {
-            userIdToXidTimestamps.set(xidRecord.userId, []);
-          }
-          userIdToXidTimestamps.set(xidRecord.userId, [...userIdToXidTimestamps.get(xidRecord.userId), record.timestamp]);
-        }
-      }
+    // Verify program belongs to user's organization
+    if (!req.isGlobalAdmin) {
+      const [program] = await db
+        .select()
+        .from(programs)
+        .where(and(
+          eq(programs.id, programId),
+          sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`
+        ))
+        .limit(1);
 
-      const userIds = [...userIdToXidTimestamps.keys()];
-
-      if (userIds.length > 0) {
-        const allCheckins = await db
-          .select({
-            userId: checkins.userId,
-            timestamp: checkins.timestamp,
-            moodLevel: checkins.moodLevel16,
-          })
-          .from(checkins)
-          .where(sql`${checkins.userId} = ANY(${userIds}::uuid[])`);
-
-        let beforeMoods = [];
-        let afterMoods = [];
-
-        for (const [userId, attendanceTimes] of userIdToXidTimestamps.entries()) {
-          const userCheckins = allCheckins.filter(c => c.userId === userId);
-
-          for (const attendanceTime of attendanceTimes) {
-            const attendanceDate = new Date(attendanceTime);
-            const dayBefore = new Date(attendanceDate);
-            dayBefore.setDate(dayBefore.getDate() - 1);
-            const dayAfter = new Date(attendanceDate);
-            dayAfter.setDate(dayAfter.getDate() + 1);
-
-            const beforeCheckin = userCheckins.find(c => {
-              const checkinDate = new Date(c.timestamp);
-              return checkinDate >= dayBefore && checkinDate < attendanceDate;
-            });
-
-            const afterCheckin = userCheckins.find(c => {
-              const checkinDate = new Date(c.timestamp);
-              return checkinDate > attendanceDate && checkinDate <= dayAfter;
-            });
-
-            if (beforeCheckin) beforeMoods.push(beforeCheckin.moodLevel);
-            if (afterCheckin) afterMoods.push(afterCheckin.moodLevel);
-          }
-        }
-
-        if (beforeMoods.length > 0) {
-          avgMoodBefore = Math.round((beforeMoods.reduce((a, b) => a + b, 0) / beforeMoods.length) * 10) / 10;
-        }
-        if (afterMoods.length > 0) {
-          avgMoodAfter = Math.round((afterMoods.reduce((a, b) => a + b, 0) / afterMoods.length) * 10) / 10;
-        }
+      if (!program) {
+        return res.status(403).json({ error: 'Program not found or access denied' });
       }
     }
 
-    const moodImprovement = avgMoodBefore !== null && avgMoodAfter !== null
-      ? Math.round((avgMoodAfter - avgMoodBefore) * 10) / 10
-      : null;
+    const [record] = await db
+      .insert(attendance)
+      .values({
+        programId,
+        xidId,
+        method,
+        site,
+        timestamp: timestamp ? new Date(timestamp) : new Date()
+      })
+      .returning();
 
-    const attendanceCounts = {};
-    for (const record of attendanceRecords) {
-      attendanceCounts[record.xidId] = (attendanceCounts[record.xidId] || 0) + 1;
+    res.json(record);
+  } catch (error) {
+    console.error('Error recording attendance:', error);
+    res.status(500).json({ error: 'Failed to record attendance' });
+  }
+});
+
+router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
+  try {
+    const { id: programId } = req.params;
+
+    // Verify program belongs to user's organization
+    if (!req.isGlobalAdmin) {
+      const [program] = await db
+        .select()
+        .from(programs)
+        .where(and(
+          eq(programs.id, programId),
+          sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`
+        ))
+        .limit(1);
+
+      if (!program) {
+        return res.status(403).json({ error: 'Program not found or access denied' });
+      }
     }
-    const repeatAttendees = Object.values(attendanceCounts).filter(c => c > 1).length;
-    const retentionRate = uniqueParticipants > 0
-      ? Math.round((repeatAttendees / uniqueParticipants) * 100)
+
+    const K_ANONYMITY = 5;
+
+    // Get aggregated outcome data
+    const [stats] = await db
+      .select({
+        totalResponses: count(outcomeEvents.id),
+        avgHelpfulness: sql`AVG(${outcomeEvents.helpfulnessRating})`,
+        recommendCount: sql`COUNT(*) FILTER (WHERE ${outcomeEvents.wouldRecommend} = true)`
+      })
+      .from(outcomeEvents)
+      .where(and(
+        eq(outcomeEvents.programId, programId),
+        eq(outcomeEvents.attended, true)
+      ));
+
+    const totalResponses = Number(stats?.totalResponses || 0);
+
+    if (totalResponses < K_ANONYMITY) {
+      return res.json({
+        totalResponses,
+        anonymized: true,
+        message: `Privacy protection: Data suppressed until at least ${K_ANONYMITY} responses are collected.`,
+        averageHelpfulness: null,
+        wouldRecommendPercentage: null
+      });
+    }
+
+    const averageHelpfulness = stats.avgHelpfulness ? Math.round(Number(stats.avgHelpfulness) * 10) / 10 : null;
+    const wouldRecommendPercentage = totalResponses > 0 
+      ? Math.round((Number(stats.recommendCount) / totalResponses) * 100) 
       : 0;
 
-    const attendanceOverTime = await db
-      .select({
-        date: sql`DATE(${attendance.timestamp})`,
-        count: count(),
-      })
-      .from(attendance)
-      .where(and(
-        eq(attendance.programId, programId),
-        gte(attendance.timestamp, threeMonthsAgo)
-      ))
-      .groupBy(sql`DATE(${attendance.timestamp})`)
-      .orderBy(sql`DATE(${attendance.timestamp})`);
-
-    const attendanceTimeline = attendanceOverTime.map(row => ({
-      date: row.date,
-      attendees: Number(row.count),
-    }));
-
-    const sessionsPerWeek = await db
-      .select({
-        week: sql`TO_CHAR(DATE_TRUNC('week', ${attendance.timestamp}), 'YYYY-"W"IW')`,
-        count: count(),
-      })
-      .from(attendance)
-      .where(and(
-        eq(attendance.programId, programId),
-        gte(attendance.timestamp, threeMonthsAgo)
-      ))
-      .groupBy(sql`DATE_TRUNC('week', ${attendance.timestamp})`)
-      .orderBy(sql`DATE_TRUNC('week', ${attendance.timestamp})`);
-
-    const sessionsTimeline = sessionsPerWeek.map(row => ({
-      week: row.week,
-      sessions: Number(row.count),
-    }));
-
     res.json({
-      uniqueParticipants,
-      attendanceRate,
-      avgMoodBefore,
-      avgMoodAfter,
-      moodImprovement,
-      retentionRate,
-      attendanceTimeline,
-      sessionsTimeline,
+      totalResponses,
+      anonymized: false,
+      averageHelpfulness,
+      wouldRecommendPercentage
     });
   } catch (error) {
     console.error('Error fetching program outcomes:', error);

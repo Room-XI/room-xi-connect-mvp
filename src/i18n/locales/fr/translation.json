@@ -157,5 +157,17 @@
     "orbInfo": "Information sur l'orbe",
     "colorKey": "Couleurs d'humeur",
     "ratioExplanation": "Basé sur tes {{days}} derniers jours de check-ins"
+  },
+  "errors": {
+    "unauthorized": "Veuillez vous connecter pour continuer.",
+    "forbidden": "Vous n'avez pas l'autorisation d'effectuer cette action.",
+    "not_found": "La ressource demandée est introuvable.",
+    "rate_limited": "Trop de requêtes. Veuillez réessayer plus tard.",
+    "server_error": "Une erreur inattendue s'est produite. Veuillez réessayer plus tard.",
+    "network_error": "Erreur réseau. Veuillez vérifier votre connexion internet.",
+    "validation_error": "Veuillez vérifier vos informations et réessayer.",
+    "consent_required": "Votre consentement est requis pour accéder à cette fonctionnalité.",
+    "session_expired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "invalid_csrf": "Le jeton de sécurité a expiré. Veuillez rafraîchir la page."
   }
 }

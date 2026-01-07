@@ -1,11 +1,13 @@
 // API client to replace Supabase client
 import { API_BASE as configApiBase } from './config';
+import { getFriendlyErrorMessage } from './errors';
 
 const API_BASE = configApiBase.endsWith('/api') ? configApiBase : `${configApiBase}/api`;
 
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
+  friendlyError?: string;
 }
 
 export interface ProgramRecommendation {
@@ -142,14 +144,22 @@ async function fetchApi<T = any>(
       
       console.error(`API ${options?.method || 'GET'} ${endpoint} failed:`, response.status, data?.error || data?.message);
       
-      return { error: data?.error || data?.message || 'An error occurred' };
+      const error = data?.error || data?.message || 'An error occurred';
+      return { 
+        error,
+        friendlyError: getFriendlyErrorMessage(error || response.status)
+      };
     }
 
     return { data };
   } catch (error) {
     console.error(`API ${options?.method || 'GET'} ${endpoint} exception:`, error);
     
-    return { error: error instanceof Error ? error.message : 'Network error' };
+    const errorMessage = error instanceof Error ? error.message : 'Network error';
+    return { 
+      error: errorMessage,
+      friendlyError: getFriendlyErrorMessage(errorMessage)
+    };
   }
 }
 
@@ -201,6 +211,11 @@ export const api = {
       fetchApi('/auth/account', {
         method: 'DELETE',
         body: JSON.stringify({ confirm }),
+      }),
+    addGuardian: (data: { guardianEmail: string; guardianName: string; guardianRole: 'primary' | 'secondary' | 'emergency' }) =>
+      fetchApi('/auth/add-guardian', {
+        method: 'POST',
+        body: JSON.stringify(data),
       }),
   },
 

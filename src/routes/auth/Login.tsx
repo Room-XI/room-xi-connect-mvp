@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink, UserCog, X } from 'lucide-react';
 import api from '@/lib/api';
+import { useToast } from '@/ui/Toast';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,10 +32,11 @@ export default function Login() {
     setError(null);
 
     try {
-      const { data, error } = await api.auth.login(email.trim(), password);
+      const { data, error, friendlyError } = await api.auth.login(email.trim(), password);
 
       if (error) {
-        setError(error);
+        setError(friendlyError || error);
+        showToast(friendlyError || error, 'error');
         setLoading(false);
         return;
       }
@@ -64,10 +67,11 @@ export default function Login() {
     setAdminError(null);
 
     try {
-      const { data, error } = await api.admin.login(adminUsername, adminPassword);
+      const { data, error, friendlyError } = await api.admin.login(adminUsername, adminPassword);
 
       if (error) {
-        setAdminError(error);
+        setAdminError(friendlyError || error);
+        showToast(friendlyError || error, 'error');
         setAdminLoading(false);
         return;
       }

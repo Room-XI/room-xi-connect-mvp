@@ -11,8 +11,9 @@ import {
   consentEvents,
   users,
   consents,
+  emergencyContacts,
 } from '../schema.js';
-import { parentLinks, youthDemographics } from '../schema.extras.js';
+import { parentLinks, youthDemographics, parents } from '../schema.extras.js';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { Parser } from '@json2csv/plainjs';
 
@@ -71,6 +72,37 @@ async function getFilteredYouthData(youthId, parentId) {
   
   const hiddenCategories = [];
   
+  // Get co-guardians (other than the current parent)
+  // We look for confirmed guardian verifications for this youth
+  const allGuardians = await db
+    .select({
+      name: guardianVerifications.guardianName,
+      role: guardianVerifications.guardianRole,
+      email: guardianVerifications.guardianContactValue,
+    })
+    .from(guardianVerifications)
+    .where(
+      and(
+        eq(guardianVerifications.userId, youthId),
+        eq(guardianVerifications.status, 'confirmed')
+      )
+    );
+
+  // We need to identify which one is the "current" parent to exclude them from "co-guardians"
+  // The parent session has parentId, but guardianVerifications uses email/hash
+  const [currentParent] = await db
+    .select({ email: parents.email })
+    .from(parents)
+    .where(eq(parents.id, parentId))
+    .limit(1);
+
+  const coGuardians = allGuardians
+    .filter(g => g.email.toLowerCase() !== currentParent?.email?.toLowerCase())
+    .map(g => ({
+      name: g.name || 'Anonymous Guardian',
+      role: g.role || 'secondary'
+    }));
+
   const [profile] = await db
     .select({
       firstName: profiles.firstName,
@@ -223,6 +255,7 @@ async function getFilteredYouthData(youthId, parentId) {
     attendanceData,
     demographicsData,
     hiddenCategories,
+    coGuardians,
   };
 }
 
@@ -550,6 +583,239 @@ router.get('/data/export/:youthId', requireParent, async (req, res) => {
   } catch (error) {
     console.error('Error exporting youth data:', error);
     res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
+router.get('/emergency-contacts/:youthId', requireParent, async (req, res) => {
+  try {
+    const { youthId } = req.params;
+    const parentId = req.session.parentId;
+
+    const link = await verifyParentYouthLink(parentId, youthId);
+    if (!link || !link.verifiedAt) {
+      return res.status(403).json({ error: 'Not authorized or link not verified' });
+    }
+
+    const contacts = await db
+      .select()
+      .from(emergencyContacts)
+      .where(eq(emergencyContacts.userId, youthId))
+      .orderBy(desc(emergencyContacts.isPrimary), emergencyContacts.name);
+
+    res.json({ success: true, contacts });
+  } catch (error) {
+    console.error('Error fetching emergency contacts:', error);
+    res.status(500).json({ error: 'Failed to fetch emergency contacts' });
+  }
+});
+
+router.post('/emergency-contacts/:youthId', requireParent, async (req, res) => {
+  try {
+    const { youthId } = req.params;
+    const { name, relationship, phone, email, isPrimary, notes } = req.body;
+    const parentId = req.session.parentId;
+
+    const link = await verifyParentYouthLink(parentId, youthId);
+    if (!link || !link.verifiedAt) {
+      return res.status(403).json({ error: 'Not authorized or link not verified' });
+    }
+
+    if (!name || !relationship || !phone) {
+      return res.status(400).json({ error: 'Name, relationship, and phone are required' });
+    }
+
+    if (isPrimary) {
+      await db
+        .update(emergencyContacts)
+        .set({ isPrimary: false })
+        .where(eq(emergencyContacts.userId, youthId));
+    }
+
+    const [newContact] = await db
+      .insert(emergencyContacts)
+      .values({
+        userId: youthId,
+        name,
+        relationship,
+        phone,
+        email,
+        isPrimary: !!isPrimary,
+        notes,
+      })
+      .returning();
+
+    res.json({ success: true, contact: newContact });
+  } catch (error) {
+    console.error('Error adding emergency contact:', error);
+    res.status(500).json({ error: 'Failed to add emergency contact' });
+  }
+});
+
+router.put('/emergency-contacts/:id', requireParent, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, relationship, phone, email, isPrimary, notes } = req.body;
+    const parentId = req.session.parentId;
+
+    const [contact] = await db
+      .select()
+      .from(emergencyContacts)
+      .where(eq(emergencyContacts.id, id))
+      .limit(1);
+
+    if (!contact) {
+      return res.status(404).json({ error: 'Emergency contact not found' });
+    }
+
+    const link = await verifyParentYouthLink(parentId, contact.userId);
+    if (!link || !link.verifiedAt) {
+      return res.status(403).json({ error: 'Not authorized or link not verified' });
+    }
+
+    if (isPrimary) {
+      await db
+        .update(emergencyContacts)
+        .set({ isPrimary: false })
+        .where(eq(emergencyContacts.userId, contact.userId));
+    }
+
+    const [updatedContact] = await db
+      .update(emergencyContacts)
+      .set({
+        name,
+        relationship,
+        phone,
+        email,
+        isPrimary: !!isPrimary,
+        notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(emergencyContacts.id, id))
+      .returning();
+
+    res.json({ success: true, contact: updatedContact });
+  } catch (error) {
+    console.error('Error updating emergency contact:', error);
+    res.status(500).json({ error: 'Failed to update emergency contact' });
+  }
+});
+
+router.delete('/emergency-contacts/:id', requireParent, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const parentId = req.session.parentId;
+
+    const [contact] = await db
+      .select()
+      .from(emergencyContacts)
+      .where(eq(emergencyContacts.id, id))
+      .limit(1);
+
+    if (!contact) {
+      return res.status(404).json({ error: 'Emergency contact not found' });
+    }
+
+    const link = await verifyParentYouthLink(parentId, contact.userId);
+    if (!link || !link.verifiedAt) {
+      return res.status(403).json({ error: 'Not authorized or link not verified' });
+    }
+
+    await db.delete(emergencyContacts).where(eq(emergencyContacts.id, id));
+
+    res.json({ success: true, message: 'Emergency contact removed' });
+  } catch (error) {
+    console.error('Error deleting emergency contact:', error);
+    res.status(500).json({ error: 'Failed to delete emergency contact' });
+  }
+});
+
+router.get('/consent-history/:youthId', requireParent, async (req, res) => {
+  try {
+    const { youthId } = req.params;
+    const parentId = req.session.parentId;
+
+    const link = await verifyParentYouthLink(parentId, youthId);
+    if (!link || !link.verifiedAt) {
+      return res.status(403).json({ error: 'Not authorized or link not verified' });
+    }
+
+    const history = await db
+      .select()
+      .from(consentEvents)
+      .where(eq(consentEvents.userId, youthId))
+      .orderBy(desc(consentEvents.occurredAt));
+
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Error fetching consent history:', error);
+    res.status(500).json({ error: 'Failed to fetch consent history' });
+  }
+});
+
+router.get('/activity-summary/:youthId', requireParent, async (req, res) => {
+  try {
+    const { youthId } = req.params;
+    const parentId = req.session.parentId;
+
+    const link = await verifyParentYouthLink(parentId, youthId);
+    if (!link || !link.verifiedAt) {
+      return res.status(403).json({ error: 'Not authorized or link not verified' });
+    }
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const checkinSummary = await db
+      .select({
+        count: sql`count(*)::int`,
+        avgMood: sql`avg(${checkins.moodLevel16})::float`,
+      })
+      .from(checkins)
+      .where(
+        and(
+          eq(checkins.userId, youthId),
+          sql`${checkins.timestamp} >= ${thirtyDaysAgo}`
+        )
+      );
+
+    const [userXid] = await db
+      .select({ id: xids.id })
+      .from(xids)
+      .where(
+        and(
+          eq(xids.userId, youthId),
+          sql`${xids.tombstonedAt} IS NULL`
+        )
+      )
+      .limit(1);
+
+    let attendanceCount = 0;
+    if (userXid) {
+      const result = await db
+        .select({ count: sql`count(*)::int` })
+        .from(attendance)
+        .where(
+          and(
+            eq(attendance.xidId, userXid.id),
+            sql`${attendance.timestamp} >= ${thirtyDaysAgo}`
+          )
+        );
+      attendanceCount = result[0]?.count || 0;
+    }
+
+    res.json({
+      success: true,
+      summary: {
+        last30Days: {
+          checkins: checkinSummary[0]?.count || 0,
+          averageMood: checkinSummary[0]?.avgMood ? Math.round(checkinSummary[0].avgMood * 10) / 10 : null,
+          attendance: attendanceCount,
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching activity summary:', error);
+    res.status(500).json({ error: 'Failed to fetch activity summary' });
   }
 });
 

@@ -69,11 +69,13 @@ interface YouthData {
   attendanceData: AttendanceData | null;
   demographicsData: any | null;
   hiddenCategories: string[];
+  coGuardians?: Array<{ name: string; role: string }>;
 }
 
 interface LinkedYouth {
   userId: string;
   relation: string;
+  guardianRole?: string;
   verifiedAt: string | null;
   preferredName: string | null;
   firstName: string | null;
@@ -288,9 +290,18 @@ export default function ParentPortal() {
               <div>
                 <h2 className="text-lg font-semibold text-deepSage">{youthName}</h2>
                 <p className="text-sm text-textSecondaryLight">
-                  {selectedYouthBasic.relation === 'guardian' ? 'Guardian' : 'Parent'} •
+                  {selectedYouthBasic.relation === 'guardian' ? 'Guardian' : 'Parent'} 
+                  {selectedYouthBasic.guardianRole && ` (${selectedYouthBasic.guardianRole})`} •
                   Linked {selectedYouthBasic.verifiedAt && new Date(selectedYouthBasic.verifiedAt).toLocaleDateString()}
                 </p>
+                {youthData?.coGuardians && youthData.coGuardians.length > 0 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5 text-teal/70" />
+                    <span className="text-xs text-textSecondaryLight">
+                      Co-guardians: {youthData.coGuardians.map(g => g.name).join(', ')}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

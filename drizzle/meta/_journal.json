@@ -15,6 +15,20 @@
       "when": 1762798469778,
       "tag": "0001_fancy_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767745871112,
+      "tag": "0002_flippant_maggott",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767746283716,
+      "tag": "0003_light_spitfire",
+      "breakpoints": true
     }
   ]
 }

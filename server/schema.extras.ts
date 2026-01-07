@@ -7,7 +7,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { users } from "./schema.js";
+import { users } from "./schema.ts";
 
 export const parents = pgTable("parents", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -27,6 +27,7 @@ export const parentLinks = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     relation: text("relation").notNull(),
+    guardianRole: text("guardian_role").default("primary"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
   },
   (t) => ({
