@@ -59,6 +59,36 @@ export default function Admin() {
     checkAdminAccess();
   }, [user]);
 
+  const exportAuditLogsCSV = () => {
+    if (auditLogs.length === 0) return;
+    
+    const headers = ['ID', 'Action', 'Table', 'Record ID', 'Timestamp', 'User ID', 'Old Values', 'New Values'];
+    const csvRows = [headers.join(',')];
+    
+    auditLogs.forEach(log => {
+      const row = [
+        log.id,
+        log.action,
+        log.table_name,
+        log.record_id || '',
+        log.timestamp,
+        log.user_id || '',
+        log.old_values ? JSON.stringify(log.old_values).replace(/,/g, ';') : '',
+        log.new_values ? JSON.stringify(log.new_values).replace(/,/g, ';') : ''
+      ];
+      csvRows.push(row.map(cell => `"${cell}"`).join(','));
+    });
+    
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     if (isAdmin) {
       loadAuditLogs();
@@ -470,7 +500,12 @@ export default function Admin() {
             </select>
             
             {/* Export */}
-            <button className="p-2 rounded-lg hover:bg-sage/10 transition-colors">
+            <button 
+              onClick={exportAuditLogsCSV}
+              disabled={auditLogs.length === 0}
+              className="p-2 rounded-lg hover:bg-sage/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export audit logs as CSV"
+            >
               <Download className="w-4 h-4 text-textSecondaryLight" />
             </button>
           </div>

@@ -9,7 +9,6 @@ import {
   Trash2,
   LogOut,
   ChevronRight,
-  Moon,
   Smartphone,
   Sparkles,
   MapPin
@@ -319,28 +318,6 @@ export default function Settings() {
                     ximiConsent ? 'translate-x-6' : 'translate-x-0.5'
                   }`}
                 />
-              </button>
-            </div>
-
-            {/* Dark Mode */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-navy/10 rounded-lg flex items-center justify-center">
-                  <Moon className="w-5 h-5 text-navy" />
-                </div>
-                <div>
-                  <p className="font-medium text-deepSage">Dark Mode</p>
-                  <p className="text-sm text-textSecondaryLight">
-                    Coming soon
-                  </p>
-                </div>
-              </div>
-              
-              <button
-                disabled
-                className="w-12 h-6 rounded-full bg-sage/20 opacity-50 cursor-not-allowed"
-              >
-                <div className="w-5 h-5 bg-white rounded-full shadow-sm translate-x-0.5" />
               </button>
             </div>
 

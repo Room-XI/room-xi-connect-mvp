@@ -15,7 +15,7 @@ export default {
         navy: '#0F1A1C',
         navyElev: '#132327',
         textPrimaryLight: '#2F4A3F',
-        textSecondaryLight: '#617D70',
+        textSecondaryLight: '#4A6358',
         borderMutedLight: '#E5DFD6',
         
         // Enhanced cosmic colors for the breathing orb and effects
