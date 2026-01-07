@@ -11,7 +11,7 @@ export default {
         deepSage: '#2F4A3F',
         gold: '#D8AE3D',
         coral: '#E06F5E',
-        teal: '#2EC489',
+        teal: '#147A4D',
         navy: '#0F1A1C',
         navyElev: '#132327',
         textPrimaryLight: '#2F4A3F',
