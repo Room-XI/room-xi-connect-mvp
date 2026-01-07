@@ -2,6 +2,7 @@ import express from "express";
 import { db } from "../db.js";
 import { consents, consentEvents } from "../schema.js";
 import { eq, and } from "drizzle-orm";
+import logger from "../logger.ts";
 
 const router = express.Router();
 
@@ -94,7 +95,7 @@ router.post("/platform-bootstrap", requireAuth, async (req, res) => {
 
     res.json({ ok: true });
   } catch (error) {
-    console.error("Error bootstrapping platform consent:", error);
+    logger.error({ err: error, context: 'consent-auto-bootstrap' }, 'Error bootstrapping platform consent');
     res.status(500).json({ error: "Failed to create consent records" });
   }
 });
@@ -120,7 +121,7 @@ router.post("/program-request", requireAuth, async (req, res) => {
 
     res.json({ ok: true });
   } catch (error) {
-    console.error("Error creating program consent request:", error);
+    logger.error({ err: error, context: 'consent-auto-program-request' }, 'Error creating program consent request');
     res.status(500).json({ error: "Failed to create consent request" });
   }
 });
@@ -153,7 +154,7 @@ router.get("/pending/:userId", async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("Error fetching pending consents:", error);
+    logger.error({ err: error, context: 'consent-auto-pending' }, 'Error fetching pending consents');
     res.status(500).json({ error: "Failed to fetch consents" });
   }
 });
@@ -198,7 +199,7 @@ router.post("/approve", async (req, res) => {
 
     res.json({ ok: true });
   } catch (error) {
-    console.error("Error approving consent:", error);
+    logger.error({ err: error, context: 'consent-auto-approve' }, 'Error approving consent');
     res.status(500).json({ error: "Failed to approve consent" });
   }
 });

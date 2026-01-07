@@ -2,6 +2,7 @@ import webpush from 'web-push';
 import { db } from '../db.js';
 import { pushSubscriptions, profiles, programs } from '../schema.js';
 import { eq } from 'drizzle-orm';
+import logger from '../logger.ts';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
@@ -15,9 +16,9 @@ if (pushEnabled) {
     VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY
   );
-  console.log('[Push Service] Push notifications enabled - VAPID keys configured');
+  logger.info({ context: 'push-service-init' }, 'Push notifications enabled - VAPID keys configured');
 } else {
-  console.warn('[Push Service] Push notifications disabled - VAPID keys not configured');
+  logger.warn({ context: 'push-service-init' }, 'Push notifications disabled - VAPID keys not configured');
 }
 
 interface PushPayload {
@@ -59,7 +60,7 @@ export async function sendPushNotification(
       .where(eq(pushSubscriptions.userId, userId));
 
     if (subscriptions.length === 0) {
-      console.log(`[Push Service] No subscriptions found for user ${userId}`);
+      logger.info({ context: 'push-service-send', userId: '[REDACTED]' }, 'No subscriptions found for user');
       return result;
     }
 
@@ -95,7 +96,7 @@ export async function sendPushNotification(
         });
 
         if (error.statusCode === 410) {
-          console.log(`[Push Service] Subscription expired, removing: ${subscription.endpoint}`);
+          logger.info({ context: 'push-service-cleanup' }, 'Subscription expired, removing');
           await db
             .delete(pushSubscriptions)
             .where(eq(pushSubscriptions.id, subscription.id));
@@ -105,10 +106,10 @@ export async function sendPushNotification(
 
     await Promise.all(sendPromises);
 
-    console.log(`[Push Service] Sent ${result.sent} notifications, ${result.failed} failed`);
+    logger.info({ context: 'push-service-send', sent: result.sent, failed: result.failed }, 'Push notifications sent');
     return result;
   } catch (error) {
-    console.error('[Push Service] Error sending push notification:', error);
+    logger.error({ err: error, context: 'push-service-send' }, 'Error sending push notification');
     return result;
   }
 }
@@ -159,7 +160,7 @@ export async function sendCheckinReminder(userId: string): Promise<SendResult> {
       requireInteraction: false,
     });
   } catch (error) {
-    console.error('[Push Service] Error sending check-in reminder:', error);
+    logger.error({ err: error, context: 'push-service-checkin-reminder' }, 'Error sending check-in reminder');
     return { sent: 0, failed: 0, errors: [] };
   }
 }
@@ -180,7 +181,7 @@ export async function sendEventReminder(
       .limit(1);
 
     if (!program) {
-      console.warn(`[Push Service] Program ${programId} not found`);
+      logger.warn({ context: 'push-service-event-reminder', programId }, 'Program not found');
       return { sent: 0, failed: 0, errors: [] };
     }
 
@@ -192,7 +193,7 @@ export async function sendEventReminder(
       requireInteraction: true,
     });
   } catch (error) {
-    console.error('[Push Service] Error sending event reminder:', error);
+    logger.error({ err: error, context: 'push-service-event-reminder' }, 'Error sending event reminder');
     return { sent: 0, failed: 0, errors: [] };
   }
 }
@@ -223,7 +224,7 @@ export async function sendMoodDropAlert(userId: string): Promise<SendResult> {
       ],
     });
   } catch (error) {
-    console.error('[Push Service] Error sending mood drop alert:', error);
+    logger.error({ err: error, context: 'push-service-mood-alert' }, 'Error sending mood drop alert');
     return { sent: 0, failed: 0, errors: [] };
   }
 }
@@ -262,7 +263,7 @@ export async function sendStreakCelebration(
       requireInteraction: false,
     });
   } catch (error) {
-    console.error('[Push Service] Error sending streak celebration:', error);
+    logger.error({ err: error, context: 'push-service-streak-celebration' }, 'Error sending streak celebration');
     return { sent: 0, failed: 0, errors: [] };
   }
 }

@@ -5,6 +5,7 @@ import { checkins, programs, savedPrograms, ximiConversations, profiles, privacy
 import { applyDifferentialPrivacy, applyDPToStats } from '../lib/differentialPrivacy.js';
 import { Parser } from 'json2csv';
 import { applyDPWithLogging, addNoiseWithLogging } from '../middleware/differentialPrivacy.js';
+import logger from '../logger.ts';
 
 const router = Router();
 
@@ -118,7 +119,7 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error fetching transparency stats:', error);
+    logger.error({ err: error, context: 'transparency-stats' }, 'Error fetching transparency stats');
     res.status(500).json({ 
       error: 'Failed to fetch transparency data',
       message: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -174,7 +175,7 @@ router.get('/mood-distribution', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error fetching mood distribution:', error);
+    logger.error({ err: error, context: 'transparency-mood-distribution' }, 'Error fetching mood distribution');
     res.status(500).json({ 
       error: 'Failed to fetch mood distribution' 
     });
@@ -262,7 +263,7 @@ router.get('/opt-in-rates', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching opt-in rates:', error);
+    logger.error({ err: error, context: 'transparency-opt-in-rates' }, 'Error fetching opt-in rates');
     res.status(500).json({ 
       error: 'Failed to fetch opt-in rates' 
     });
@@ -384,7 +385,7 @@ router.get('/kpi-export', async (req, res) => {
     res.send(csv);
     
   } catch (error) {
-    console.error('Error exporting transparency KPI data:', error);
+    logger.error({ err: error, context: 'transparency-kpi-export' }, 'Error exporting transparency KPI data');
     res.status(500).json({ 
       error: 'Failed to export KPI data' 
     });

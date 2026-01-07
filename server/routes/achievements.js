@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { eq, gte, and, sql, desc } from 'drizzle-orm';
 import { db } from '../db.js';
 import { checkins, savedPrograms } from '../schema.js';
+import logger from '../logger.ts';
 
 const router = Router();
 
@@ -142,7 +143,7 @@ async function calculateAchievements(userId) {
 
     return achievements;
   } catch (error) {
-    console.error('Error calculating achievements:', error);
+    logger.error({ err: error, context: 'achievements-calculate' }, 'Error calculating achievements');
     return [];
   }
 }
@@ -185,7 +186,7 @@ router.get('/', async (req, res) => {
 
     res.json({ achievements, stats });
   } catch (error) {
-    console.error('Error fetching achievements:', error);
+    logger.error({ err: error, context: 'achievements-fetch' }, 'Error fetching achievements');
     res.status(500).json({ error: 'Failed to fetch achievements' });
   }
 });
@@ -209,7 +210,7 @@ router.post('/check', async (req, res) => {
 
     res.json({ newlyUnlocked });
   } catch (error) {
-    console.error('Error checking achievements:', error);
+    logger.error({ err: error, context: 'achievements-check' }, 'Error checking achievements');
     res.status(500).json({ error: 'Failed to check achievements' });
   }
 });

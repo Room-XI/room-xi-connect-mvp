@@ -4,6 +4,7 @@ import { parentInvites, parents, parentLinks } from "../schema.extras.js";
 import { profiles } from "../schema.js";
 import { eq, and } from "drizzle-orm";
 import nodemailer from "nodemailer";
+import logger from "../logger.ts";
 
 const BASE_URL = process.env.REPLIT_DEV_DOMAIN 
   ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
@@ -19,8 +20,8 @@ async function sendParentInviteEmail(toEmail: string, token: string, youthName?:
   const gmailPassword = process.env.GMAIL_APP_PASSWORD;
 
   if (!gmailUser || !gmailPassword) {
-    console.error("Gmail credentials not configured. Email not sent.");
-    console.log(`[DEV MODE] Parent invite link for ${toEmail}: ${link}`);
+    logger.error({ context: 'parent-invite-email' }, 'Gmail credentials not configured. Email not sent.');
+    logger.info({ context: 'parent-invite-dev', email: '[REDACTED]' }, 'Parent invite link generated in dev mode');
     return;
   }
 
@@ -115,9 +116,9 @@ async function sendParentInviteEmail(toEmail: string, token: string, youthName?:
       subject,
       html,
     });
-    console.log(`Parent invite email sent to ${toEmail}`);
+    logger.info({ context: 'parent-invite-sent', email: '[REDACTED]' }, 'Parent invite email sent');
   } catch (error) {
-    console.error("Failed to send parent invite email:", error);
+    logger.error({ err: error, context: 'parent-invite-send' }, 'Failed to send parent invite email');
     throw new Error("Failed to send invitation email");
   }
 }

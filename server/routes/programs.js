@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { programs, savedPrograms, profiles, orgMembers } from '../schema.js';
 import { eq, and, sql, gte, lte } from 'drizzle-orm';
 import { DateTime } from 'luxon';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
     
     res.json(allPrograms);
   } catch (error) {
-    console.error('Get programs error:', error);
+    logger.error({ err: error, context: 'programs-list' }, 'Get programs error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -50,7 +51,7 @@ router.get('/:id', async (req, res) => {
     // Programs-first approach: Both guests and authenticated users can view all program details
     res.json(program);
   } catch (error) {
-    console.error('Get program error:', error);
+    logger.error({ err: error, context: 'programs-get' }, 'Get program error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -72,7 +73,7 @@ router.get('/saved/list', async (req, res) => {
 
     res.json(saved);
   } catch (error) {
-    console.error('Get saved programs error:', error);
+    logger.error({ err: error, context: 'programs-saved-list' }, 'Get saved programs error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -91,7 +92,7 @@ router.post('/saved/:programId', async (req, res) => {
 
     res.status(201).json({ message: 'Program saved' });
   } catch (error) {
-    console.error('Save program error:', error);
+    logger.error({ err: error, context: 'programs-save' }, 'Save program error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -112,7 +113,7 @@ router.delete('/saved/:programId', async (req, res) => {
 
     res.json({ message: 'Program unsaved' });
   } catch (error) {
-    console.error('Unsave program error:', error);
+    logger.error({ err: error, context: 'programs-unsave' }, 'Unsave program error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -164,7 +165,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(newProgram);
   } catch (error) {
-    console.error('Create program error:', error);
+    logger.error({ err: error, context: 'programs-create' }, 'Create program error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -234,7 +235,7 @@ router.put('/:id', async (req, res) => {
 
     res.json(updatedProgram);
   } catch (error) {
-    console.error('Update program error:', error);
+    logger.error({ err: error, context: 'programs-update' }, 'Update program error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -282,7 +283,7 @@ router.delete('/:id', async (req, res) => {
     await db.delete(programs).where(eq(programs.id, req.params.id));
     res.json({ message: 'Program deleted' });
   } catch (error) {
-    console.error('Delete program error:', error);
+    logger.error({ err: error, context: 'programs-delete' }, 'Delete program error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

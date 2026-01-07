@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db.ts';
+import logger from '../logger.ts';
 
 /**
  * TASK 14: Record AI transparency metrics
@@ -24,6 +25,6 @@ export async function recordAiMetrics({
             moderation_flagged = ai_transparency_metrics.moderation_flagged + ${moderationFlaggedDelta}
     `);
   } catch (error) {
-    console.error('[AI Transparency] Failed to record metrics:', error);
+    logger.error({ err: error, context: 'ai-transparency-metrics' }, 'Failed to record metrics');
   }
 }

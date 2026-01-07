@@ -4,6 +4,7 @@ import { profiles, checkins, privacyConsents } from '../schema.js';
 import { eq, and, sql, gte } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { debugLog } from '../utils/logger.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ export async function checkMorningNudges() {
       }
     }
   } catch (error) {
-    console.error('Error checking morning nudges:', error);
+    logger.error({ err: error, context: 'notifications-morning-nudges' }, 'Error checking morning nudges');
   }
 }
 
@@ -87,7 +88,7 @@ async function sendMorningNudge(userId) {
 
     return true;
   } catch (error) {
-    console.error(`Error sending nudge to user ${userId}:`, error);
+    logger.error({ err: error, context: 'notifications-send-nudge', userId }, 'Error sending nudge to user');
     return false;
   }
 }
@@ -128,7 +129,7 @@ router.get('/status', async (req, res) => {
       currentTime: DateTime.now().setZone('America/Edmonton').toISO()
     });
   } catch (error) {
-    console.error('Error fetching notification status:', error);
+    logger.error({ err: error, context: 'notifications-status' }, 'Error fetching notification status');
     res.status(500).json({ error: 'Failed to fetch notification status' });
   }
 });
@@ -161,7 +162,7 @@ router.post('/test-nudge', async (req, res) => {
       message: success ? 'Test nudge sent successfully' : 'Failed to send test nudge'
     });
   } catch (error) {
-    console.error('Error sending test nudge:', error);
+    logger.error({ err: error, context: 'notifications-test-nudge' }, 'Error sending test nudge');
     res.status(500).json({ error: 'Failed to send test nudge' });
   }
 });

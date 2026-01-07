@@ -16,6 +16,7 @@ import {
 import { parentLinks, youthDemographics, parents } from '../schema.extras.js';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { Parser } from '@json2csv/plainjs';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -289,7 +290,7 @@ router.get('/youth-data/:youthId', requireParent, async (req, res) => {
       ...filteredData,
     });
   } catch (error) {
-    console.error('Error fetching youth data for parent:', error);
+    logger.error({ err: error, context: 'parent-portal-youth-data' }, 'Error fetching youth data for parent');
     res.status(500).json({ error: 'Failed to fetch youth data' });
   }
 });
@@ -334,7 +335,7 @@ router.get('/youth-data', requireParent, async (req, res) => {
       youth: youthData,
     });
   } catch (error) {
-    console.error('Error fetching all youth data for parent:', error);
+    logger.error({ err: error, context: 'parent-portal-all-youth' }, 'Error fetching all youth data for parent');
     res.status(500).json({ error: 'Failed to fetch youth data' });
   }
 });
@@ -392,7 +393,7 @@ router.get('/privacy-summary/:youthId', requireParent, async (req, res) => {
         : `${youthName} is sharing all information with you.`,
     });
   } catch (error) {
-    console.error('Error fetching privacy summary:', error);
+    logger.error({ err: error, context: 'parent-portal-privacy-summary' }, 'Error fetching privacy summary');
     res.status(500).json({ error: 'Failed to fetch privacy summary' });
   }
 });
@@ -450,7 +451,7 @@ router.post('/consent/withdraw/:youthId', requireParent, async (req, res) => {
       message: 'Consent has been withdrawn. The youth\'s account access will be restricted, but their data remains safe. You can re-grant consent at any time.',
     });
   } catch (error) {
-    console.error('Error withdrawing consent:', error);
+    logger.error({ err: error, context: 'parent-portal-withdraw-consent' }, 'Error withdrawing consent');
     res.status(500).json({ error: 'Failed to withdraw consent' });
   }
 });
@@ -581,7 +582,7 @@ router.get('/data/export/:youthId', requireParent, async (req, res) => {
     res.send(csvContent);
 
   } catch (error) {
-    console.error('Error exporting youth data:', error);
+    logger.error({ err: error, context: 'parent-portal-export-data' }, 'Error exporting youth data');
     res.status(500).json({ error: 'Failed to export data' });
   }
 });
@@ -604,7 +605,7 @@ router.get('/emergency-contacts/:youthId', requireParent, async (req, res) => {
 
     res.json({ success: true, contacts });
   } catch (error) {
-    console.error('Error fetching emergency contacts:', error);
+    logger.error({ err: error, context: 'parent-portal-emergency-contacts' }, 'Error fetching emergency contacts');
     res.status(500).json({ error: 'Failed to fetch emergency contacts' });
   }
 });
@@ -646,7 +647,7 @@ router.post('/emergency-contacts/:youthId', requireParent, async (req, res) => {
 
     res.json({ success: true, contact: newContact });
   } catch (error) {
-    console.error('Error adding emergency contact:', error);
+    logger.error({ err: error, context: 'parent-portal-add-contact' }, 'Error adding emergency contact');
     res.status(500).json({ error: 'Failed to add emergency contact' });
   }
 });
@@ -695,7 +696,7 @@ router.put('/emergency-contacts/:id', requireParent, async (req, res) => {
 
     res.json({ success: true, contact: updatedContact });
   } catch (error) {
-    console.error('Error updating emergency contact:', error);
+    logger.error({ err: error, context: 'parent-portal-update-contact' }, 'Error updating emergency contact');
     res.status(500).json({ error: 'Failed to update emergency contact' });
   }
 });
@@ -724,7 +725,7 @@ router.delete('/emergency-contacts/:id', requireParent, async (req, res) => {
 
     res.json({ success: true, message: 'Emergency contact removed' });
   } catch (error) {
-    console.error('Error deleting emergency contact:', error);
+    logger.error({ err: error, context: 'parent-portal-delete-contact' }, 'Error deleting emergency contact');
     res.status(500).json({ error: 'Failed to delete emergency contact' });
   }
 });
@@ -747,7 +748,7 @@ router.get('/consent-history/:youthId', requireParent, async (req, res) => {
 
     res.json({ success: true, history });
   } catch (error) {
-    console.error('Error fetching consent history:', error);
+    logger.error({ err: error, context: 'parent-portal-consent-history' }, 'Error fetching consent history');
     res.status(500).json({ error: 'Failed to fetch consent history' });
   }
 });
@@ -814,7 +815,7 @@ router.get('/activity-summary/:youthId', requireParent, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching activity summary:', error);
+    logger.error({ err: error, context: 'parent-portal-activity-summary' }, 'Error fetching activity summary');
     res.status(500).json({ error: 'Failed to fetch activity summary' });
   }
 });
@@ -867,7 +868,7 @@ router.post('/data/delete/:youthId', requireParent, async (req, res) => {
       requestId: `DEL-${Date.now()}`,
     });
   } catch (error) {
-    console.error('Error requesting data deletion:', error);
+    logger.error({ err: error, context: 'parent-portal-delete-request' }, 'Error requesting data deletion');
     res.status(500).json({ error: 'Failed to submit deletion request' });
   }
 });

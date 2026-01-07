@@ -5,6 +5,7 @@ import { youthDemographics, parentDemographics, parentLinks } from "../schema.ex
 import { guardianPerceptions, guardianVerifications } from "../schema.js";
 import { and, eq } from "drizzle-orm";
 import { requireDataConsent } from "../middleware/consent.ts";
+import logger from "../logger.ts";
 
 const router = express.Router();
 const Schema = z.record(z.any());
@@ -48,7 +49,7 @@ router.post("/youth", requireYouth, requireDataConsent(), async (req, res) => {
 
     res.json({ saved: true });
   } catch (error) {
-    console.error("Error saving youth demographics:", error);
+    logger.error({ err: error, context: 'demographics-youth-save' }, 'Error saving youth demographics');
     res.status(500).json({ error: "Failed to save demographics" });
   }
 });
@@ -67,7 +68,7 @@ router.get("/youth", requireYouth, async (req, res) => {
       updatedAt: demo?.updatedAt,
     });
   } catch (error) {
-    console.error("Error fetching youth demographics:", error);
+    logger.error({ err: error, context: 'demographics-youth-get' }, 'Error fetching youth demographics');
     res.status(500).json({ error: "Failed to fetch demographics" });
   }
 });
@@ -117,7 +118,7 @@ router.post("/parent", requireParent, async (req, res) => {
 
     res.json({ saved: true });
   } catch (error) {
-    console.error("Error saving parent demographics:", error);
+    logger.error({ err: error, context: 'demographics-parent-save' }, 'Error saving parent demographics');
     res.status(500).json({ error: "Failed to save demographics" });
   }
 });
@@ -156,7 +157,7 @@ router.get("/parent/:userId", requireParent, async (req, res) => {
       updatedAt: demo?.updatedAt,
     });
   } catch (error) {
-    console.error("Error fetching parent demographics:", error);
+    logger.error({ err: error, context: 'demographics-parent-get' }, 'Error fetching parent demographics');
     res.status(500).json({ error: "Failed to fetch demographics" });
   }
 });
@@ -205,7 +206,7 @@ router.post("/guardian-perception/:verificationId", async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Guardian perception save error:", error);
+    logger.error({ err: error, context: 'demographics-guardian-perception-save' }, 'Guardian perception save error');
     res.status(500).json({ error: "Failed to save guardian perceptions" });
   }
 });
@@ -248,7 +249,7 @@ router.get("/progress", requireYouth, async (req, res) => {
       missingFields: requiredFields.filter(f => !completedFields.includes(f))
     });
   } catch (error) {
-    console.error("Error getting demographics progress:", error);
+    logger.error({ err: error, context: 'demographics-progress' }, 'Error getting demographics progress');
     res.status(500).json({ error: "Failed to get progress" });
   }
 });
@@ -256,8 +257,8 @@ router.get("/progress", requireYouth, async (req, res) => {
 // Admin: Get perception vs reality comparison
 router.get("/comparison", async (req, res) => {
   try {
-    // Check if user is admin
-    if (!req.session?.isAdminSession) {
+    // Check if user is admin (supports both admin portal and profile-based admin)
+    if (!req.session?.isAdminSession && !req.session?.isAdmin) {
       return res.status(403).json({ error: "Admin only" });
     }
 
@@ -326,7 +327,7 @@ router.get("/comparison", async (req, res) => {
       comparisons: req.query.detailed === "true" ? comparisons : undefined
     });
   } catch (error) {
-    console.error("Comparison data error:", error);
+    logger.error({ err: error, context: 'demographics-comparison' }, 'Comparison data error');
     res.status(500).json({ error: "Failed to get comparison data" });
   }
 });

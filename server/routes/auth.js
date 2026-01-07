@@ -14,6 +14,7 @@ import { lookupCommunity, lookupCommunityEnhanced, normalizePostalCode } from '.
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimit.ts';
 import { getPublicUrl } from '../utils/publicUrl.ts';
 import { checkAccountLockout, recordFailedLogin, clearFailedLogin } from '../middleware/accountLockout.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -153,7 +154,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       try {
         communityInfo = await lookupCommunityEnhanced(postalCode);
       } catch (gisError) {
-        console.warn('GIS lookup failed, using FSA fallback:', gisError.message);
+        logger.warn({ err: gisError, context: 'auth-register-gis' }, 'GIS lookup failed, using FSA fallback');
       }
       
       // Fall back to FSA-based lookup if GIS returns null or failed
@@ -183,7 +184,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
     try {
       await sendVerificationEmail(newUser.id, email);
     } catch (emailError) {
-      console.error('Failed to send email verification email:', emailError);
+      logger.error({ err: emailError, context: 'auth-register-email' }, 'Failed to send email verification email');
     }
 
     // Handle guardian verification for users under 16 using two-step Email Plus consent flow
@@ -231,7 +232,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
           consentLink: `${baseUrl}/api/consent/view/${initialConsentToken}`
         });
       } catch (emailError) {
-        console.error('Failed to send initial consent email:', emailError);
+        logger.error({ err: emailError, context: 'auth-consent-email' }, 'Failed to send initial consent email');
       }
     }
 
@@ -245,7 +246,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
     // CRITICAL: Explicitly save session to database to ensure persistence
     req.session.save((saveErr) => {
       if (saveErr) {
-        console.error('Failed to save session after signup:', saveErr);
+        logger.error({ err: saveErr, context: 'auth-register-session' }, 'Failed to save session after signup');
         // Continue anyway - session may still work via cookie
       }
       
@@ -260,7 +261,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       });
     });
   } catch (error) {
-    console.error('Register error:', error);
+    logger.error({ err: error, context: 'auth-register' }, 'Register error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -283,7 +284,7 @@ router.post('/login', authLimiter, checkAccountLockout, validateBody(loginSchema
     .limit(1);
     
     if (!user) {
-      recordFailedLogin(email);
+      await recordFailedLogin(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -291,12 +292,12 @@ router.post('/login', authLimiter, checkAccountLockout, validateBody(loginSchema
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     
     if (!validPassword) {
-      recordFailedLogin(email);
+      await recordFailedLogin(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
     
     // Clear failed attempts on successful login
-    clearFailedLogin(email);
+    await clearFailedLogin(email);
 
     // TASK 6: Recalculate age from DOB on login for accurate guardian gating
     let computedAge = user.profile?.age ?? null;
@@ -337,7 +338,7 @@ router.post('/login', authLimiter, checkAccountLockout, validateBody(loginSchema
     // Regenerate session to prevent session fixation attacks
     req.session.regenerate((err) => {
       if (err) {
-        console.error('Session regeneration error:', err);
+        logger.error({ err, context: 'auth-login-session' }, 'Session regeneration error');
         return res.status(500).json({ error: 'Internal server error' });
       }
 
@@ -359,7 +360,7 @@ router.post('/login', authLimiter, checkAccountLockout, validateBody(loginSchema
       });
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error({ err: error, context: 'auth-login' }, 'Login error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -408,7 +409,7 @@ router.get('/me', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    logger.error({ err: error, context: 'auth-get-user' }, 'Get user error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -496,7 +497,7 @@ router.post('/add-guardian', authLimiter, validateBody(addGuardianSchema), async
         consentLink: `${baseUrl}/api/consent/view/${initialConsentToken}`
       });
     } catch (emailError) {
-      console.error('Failed to send initial consent email:', emailError);
+      logger.error({ err: emailError, context: 'auth-add-guardian-email' }, 'Failed to send initial consent email');
     }
 
     res.status(201).json({
@@ -504,7 +505,7 @@ router.post('/add-guardian', authLimiter, validateBody(addGuardianSchema), async
       status: 'pending_initial_consent'
     });
   } catch (error) {
-    console.error('Add guardian error:', error);
+    logger.error({ err: error, context: 'auth-add-guardian' }, 'Add guardian error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -526,7 +527,7 @@ router.delete('/account', validateBody(deleteAccountSchema), async (req, res) =>
       res.json({ message: 'Account deleted successfully' });
     });
   } catch (error) {
-    console.error('Delete account error:', error);
+    logger.error({ err: error, context: 'auth-delete-account' }, 'Delete account error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -552,7 +553,7 @@ router.get('/verify-email/:token', async (req, res) => {
 
     res.json({ message: result.message, emailVerified: true });
   } catch (error) {
-    console.error('Email verification error:', error);
+    logger.error({ err: error, context: 'auth-email-verify' }, 'Email verification error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -572,7 +573,7 @@ router.post('/resend-verification', async (req, res) => {
 
     res.json({ message: result.message });
   } catch (error) {
-    console.error('Resend verification error:', error);
+    logger.error({ err: error, context: 'auth-resend-verify' }, 'Resend verification error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -619,7 +620,7 @@ router.get('/verify-guardian/:token', async (req, res) => {
 
     res.json({ message: 'Guardian verification successful' });
   } catch (error) {
-    console.error('Guardian verification error:', error);
+    logger.error({ err: error, context: 'auth-guardian-verify' }, 'Guardian verification error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -644,7 +645,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     // Always return success to prevent email enumeration attacks
     // Even if user doesn't exist, we respond with success
     if (!user) {
-      console.log(`Password reset requested for non-existent email: ${normalizedEmail}`);
+      logger.info({ context: 'auth-password-reset', email: '[REDACTED]' }, 'Password reset requested for non-existent email');
       return res.json({ 
         message: 'If an account with that email exists, a password reset link has been sent.' 
       });
@@ -678,7 +679,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
         resetLink,
       });
     } catch (emailError) {
-      console.error('Failed to send password reset email:', emailError);
+      logger.error({ err: emailError, context: 'auth-password-reset-email' }, 'Failed to send password reset email');
       // Still return success to prevent enumeration
     }
 
@@ -686,7 +687,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
       message: 'If an account with that email exists, a password reset link has been sent.' 
     });
   } catch (error) {
-    console.error('Password reset request error:', error);
+    logger.error({ err: error, context: 'auth-password-reset-request' }, 'Password reset request error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -761,7 +762,7 @@ router.post('/reset-password/:token', async (req, res) => {
     
     res.json({ message: 'Password has been reset successfully. Please log in with your new password.' });
   } catch (error) {
-    console.error('Password reset completion error:', error);
+    logger.error({ err: error, context: 'auth-password-reset-complete' }, 'Password reset completion error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -801,7 +802,7 @@ router.get('/reset-password/:token/validate', async (req, res) => {
 
     res.json({ valid: true });
   } catch (error) {
-    console.error('Token validation error:', error);
+    logger.error({ err: error, context: 'auth-token-validate' }, 'Token validation error');
     res.status(500).json({ valid: false, error: 'Internal server error' });
   }
 });
@@ -910,7 +911,7 @@ router.post('/update-password', async (req, res) => {
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
-    console.error('Update password error:', error);
+    logger.error({ err: error, context: 'auth-update-password' }, 'Update password error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

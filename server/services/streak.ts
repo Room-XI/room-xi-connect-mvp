@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import logger from '../logger.ts';
 
 export interface StreakResult {
   newStreak: number;
@@ -45,11 +46,11 @@ export function calculateStreak(
 
   // Validate parsed dates
   if (!last.isValid || !now.isValid) {
-    console.error('Invalid dates provided to calculateStreak', {
+    logger.error({ context: 'streak-calculate',
       lastCheckinDate,
       checkinTimestamp,
       tz
-    });
+    }, 'Invalid dates provided to calculateStreak');
     // Default to resetting streak on invalid dates
     return {
       newStreak: 1,

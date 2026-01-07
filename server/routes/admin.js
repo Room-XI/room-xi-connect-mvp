@@ -11,6 +11,7 @@ import {
 } from '../schema.js';
 import { eq, sql, desc, and, gte, lte } from 'drizzle-orm';
 import { authLimiter } from '../middleware/rateLimit.js';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.post('/login', authLimiter, async (req, res) => {
     const adminPasswordHash = process.env.ADMIN_PASSWORD;
 
     if (!adminUsername || !adminPasswordHash) {
-      console.error('Admin credentials not configured in environment variables');
+      logger.error({ context: 'admin-login' }, 'Admin credentials not configured in environment variables');
       return res.status(500).json({ error: 'Admin login not configured' });
     }
 
@@ -43,7 +44,7 @@ router.post('/login', authLimiter, async (req, res) => {
 
     req.session.regenerate((err) => {
       if (err) {
-        console.error('Session regeneration error:', err);
+        logger.error({ err, context: 'admin-login-session' }, 'Session regeneration error');
         return res.status(500).json({ error: 'Session error' });
       }
 
@@ -52,7 +53,7 @@ router.post('/login', authLimiter, async (req, res) => {
 
       req.session.save((saveErr) => {
         if (saveErr) {
-          console.error('Session save error:', saveErr);
+          logger.error({ err: saveErr, context: 'admin-login-session-save' }, 'Session save error');
           return res.status(500).json({ error: 'Session error' });
         }
 
@@ -65,7 +66,7 @@ router.post('/login', authLimiter, async (req, res) => {
       });
     });
   } catch (error) {
-    console.error('Admin login error:', error);
+    logger.error({ err: error, context: 'admin-login' }, 'Admin login error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -78,7 +79,7 @@ router.post('/logout', async (req, res) => {
 
     req.session.destroy((err) => {
       if (err) {
-        console.error('Session destruction error:', err);
+        logger.error({ err, context: 'admin-logout' }, 'Session destruction error');
         return res.status(500).json({ error: 'Logout failed' });
       }
 
@@ -86,7 +87,7 @@ router.post('/logout', async (req, res) => {
       res.json({ success: true });
     });
   } catch (error) {
-    console.error('Admin logout error:', error);
+    logger.error({ err: error, context: 'admin-logout' }, 'Admin logout error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -164,7 +165,7 @@ router.get('/audit-logs', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching audit logs:', error);
+    logger.error({ err: error, context: 'admin-audit-logs' }, 'Error fetching audit logs');
     res.status(500).json({ error: 'Failed to fetch audit logs' });
   }
 });
@@ -275,7 +276,7 @@ router.get('/stats', async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error('Error fetching admin stats:', error);
+    logger.error({ err: error, context: 'admin-stats' }, 'Error fetching admin stats');
     res.status(500).json({ error: 'Failed to fetch admin stats' });
   }
 });

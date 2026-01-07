@@ -2,6 +2,7 @@ import express from "express";
 import { db } from "../db.js";
 import { moodTasks } from "../schema.extras.js";
 import { and, eq, isNull, lte } from "drizzle-orm";
+import logger from "../logger.ts";
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ router.get("/", requireAuth, async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("Error fetching mood tasks:", error);
+    logger.error({ err: error, context: 'mood-tasks-list' }, 'Error fetching mood tasks');
     res.status(500).json({ error: "Failed to fetch mood tasks" });
   }
 });
@@ -69,7 +70,7 @@ router.get("/due", requireAuth, async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("Error fetching due mood tasks:", error);
+    logger.error({ err: error, context: 'mood-tasks-due' }, 'Error fetching due mood tasks');
     res.status(500).json({ error: "Failed to fetch due tasks" });
   }
 });
@@ -103,7 +104,7 @@ router.post("/:id/complete", requireAuth, async (req, res) => {
 
     res.json({ ok: true });
   } catch (error) {
-    console.error("Error completing mood task:", error);
+    logger.error({ err: error, context: 'mood-tasks-complete' }, 'Error completing mood task');
     res.status(500).json({ error: "Failed to complete task" });
   }
 });
@@ -143,7 +144,7 @@ router.post("/create", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error creating mood task:", error);
+    logger.error({ err: error, context: 'mood-tasks-create' }, 'Error creating mood task');
     res.status(500).json({ error: "Failed to create task" });
   }
 });

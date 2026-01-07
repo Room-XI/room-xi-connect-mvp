@@ -8,6 +8,7 @@ import {
 import { db } from "../db.js";
 import { profiles } from "../schema.js";
 import { eq } from "drizzle-orm";
+import logger from "../logger.ts";
 
 const router = express.Router();
 
@@ -54,7 +55,7 @@ router.post("/invite", requireAuth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error creating parent invite:", error);
+    logger.error({ err: error, context: 'parent-auth-invite' }, 'Error creating parent invite');
     res.status(500).json({ error: "Failed to send invitation" });
   }
 });
@@ -73,7 +74,7 @@ router.get("/invites/pending", requireAuth, async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("Error fetching pending invites:", error);
+    logger.error({ err: error, context: 'parent-auth-pending' }, 'Error fetching pending invites');
     res.status(500).json({ error: "Failed to fetch invites" });
   }
 });
@@ -85,7 +86,7 @@ router.get("/accept/:token", async (req, res) => {
 
     req.session.regenerate((err) => {
       if (err) {
-        console.error("Session regeneration error:", err);
+        logger.error({ err, context: 'parent-auth-accept-session' }, 'Session regeneration error');
         return res.status(500).send("Session error");
       }
 
@@ -94,7 +95,7 @@ router.get("/accept/:token", async (req, res) => {
 
       req.session.save((saveErr) => {
         if (saveErr) {
-          console.error("Session save error:", saveErr);
+          logger.error({ err: saveErr, context: 'parent-auth-accept-session-save' }, 'Session save error');
           return res.status(500).send("Session error");
         }
 
@@ -102,7 +103,7 @@ router.get("/accept/:token", async (req, res) => {
       });
     });
   } catch (error) {
-    console.error("Error accepting parent invite:", error);
+    logger.error({ err: error, context: 'parent-auth-accept' }, 'Error accepting parent invite');
     const safeErrorMessage = String(error.message || 'An error occurred')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -163,7 +164,7 @@ router.get("/status", requireParent, async (req, res) => {
       linkedYouth: youth,
     });
   } catch (error) {
-    console.error("Error fetching parent status:", error);
+    logger.error({ err: error, context: 'parent-auth-status' }, 'Error fetching parent status');
     res.status(500).json({ error: "Failed to fetch status" });
   }
 });
@@ -172,7 +173,7 @@ router.post("/logout", requireParent, async (req, res) => {
   try {
     req.session.destroy((err) => {
       if (err) {
-        console.error("Session destruction error:", err);
+        logger.error({ err, context: 'parent-auth-logout' }, 'Session destruction error');
         return res.status(500).json({ error: "Logout failed" });
       }
 
@@ -180,7 +181,7 @@ router.post("/logout", requireParent, async (req, res) => {
       res.json({ success: true });
     });
   } catch (error) {
-    console.error("Parent logout error:", error);
+    logger.error({ err: error, context: 'parent-auth-logout' }, 'Parent logout error');
     res.status(500).json({ error: "Internal server error" });
   }
 });

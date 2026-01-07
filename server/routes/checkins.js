@@ -5,6 +5,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { calculateStreak, getLocalDateString } from '../services/streak.ts';
 import { analyzeMoodTrigger } from '../services/moodAnalysis.ts';
 import { requireDataConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
 
     res.json(userCheckins);
   } catch (error) {
-    console.error('Get checkins error:', error);
+    logger.error({ err: error, context: 'checkins-list' }, 'Get checkins error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -149,7 +150,7 @@ router.get('/summary', async (req, res) => {
       daysWithData
     });
   } catch (error) {
-    console.error('Get mood summary error:', error);
+    logger.error({ err: error, context: 'checkins-summary' }, 'Get mood summary error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -265,7 +266,7 @@ router.get('/summary-range', async (req, res) => {
       windowDays
     });
   } catch (error) {
-    console.error('Get summary range error:', error);
+    logger.error({ err: error, context: 'checkins-summary-range' }, 'Get summary range error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -304,7 +305,7 @@ router.get('/last-7-days', async (req, res) => {
 
     res.json(recentCheckins);
   } catch (error) {
-    console.error('Get last 7 days checkins error:', error);
+    logger.error({ err: error, context: 'checkins-last-7-days' }, 'Get last 7 days checkins error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -419,7 +420,7 @@ router.post('/', requireDataConsent(), async (req, res) => {
           };
         }
       } catch (error) {
-        console.error('[Checkins] Mood trigger analysis failed:', error);
+        logger.error({ err: error, context: 'checkins-mood-trigger' }, 'Mood trigger analysis failed');
         // Continue without Ximi trigger if analysis fails
       }
     }
@@ -429,7 +430,7 @@ router.post('/', requireDataConsent(), async (req, res) => {
       ximiTrigger
     });
   } catch (error) {
-    console.error('Create checkin error:', error);
+    logger.error({ err: error, context: 'checkins-create' }, 'Create checkin error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

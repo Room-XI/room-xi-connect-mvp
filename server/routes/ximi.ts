@@ -13,6 +13,7 @@ import { validateBody } from '../middleware/validate.ts';
 import { ximiChatSchema, ximiConsentSchema, ximiRecommendationsSchema } from '../schemas/ximi.ts';
 import { debugLog } from '../utils/logger.ts';
 import { requireDataConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -52,7 +53,7 @@ router.get('/conversations', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get conversations error:', error);
+    logger.error({ err: error, context: 'ximi-conversations' }, 'Get conversations error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -138,7 +139,7 @@ router.post('/chat', requireDataConsent(), validateBody(ximiChatSchema), async (
       recommendationsIncluded: recommendations.length > 0,
     });
   } catch (error) {
-    console.error('Ximi chat error:', error);
+    logger.error({ err: error, context: 'ximi-chat' }, 'Ximi chat error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -189,7 +190,7 @@ router.post('/follow-up', requireDataConsent(), async (req, res) => {
       wellnessDimensions: checkin.wellnessDimensions,
     });
   } catch (error) {
-    console.error('Generate follow-up error:', error);
+    logger.error({ err: error, context: 'ximi-follow-up' }, 'Generate follow-up error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -236,7 +237,7 @@ router.post('/consent', async (req, res) => {
       message: consent ? 'Ximi AI enabled' : 'Ximi AI disabled' 
     });
   } catch (error) {
-    console.error('[Ximi AI] Update consent error:', error);
+    logger.error({ err: error, context: 'ximi-consent' }, 'Update consent error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -276,7 +277,7 @@ router.get('/trends', async (req, res) => {
 
     res.json(trend);
   } catch (error) {
-    console.error('[Ximi AI] Get trends error:', error);
+    logger.error({ err: error, context: 'ximi-trends' }, 'Get trends error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -315,7 +316,7 @@ router.post('/recommendations', requireDataConsent(), async (req, res) => {
       count: recommendations.length,
     });
   } catch (error) {
-    console.error('[Ximi AI] Get recommendations error:', error);
+    logger.error({ err: error, context: 'ximi-recommendations' }, 'Get recommendations error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

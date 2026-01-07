@@ -2,6 +2,7 @@ import { db } from '../db.js';
 import { outcomeEvents, peerSuccessInsights, programs, auditTrail, privacyConsents } from '../schema.js';
 import { eq, and, gte, lte, sql, inArray } from 'drizzle-orm';
 import { DateTime } from 'luxon';
+import logger from '../logger.ts';
 
 const K_ANONYMITY_THRESHOLD = 5;
 const PERCENTAGE_ROUNDING = 5;
@@ -26,12 +27,7 @@ export async function computePeerInsights(
   periodStart: string,
   periodEnd: string
 ): Promise<PeerInsightData | null> {
-  console.log('[Peer Insights] Computing insights for program:', {
-    programId,
-    periodStart,
-    periodEnd,
-    timestamp: new Date().toISOString(),
-  });
+  logger.info({ context: 'peer-insights-compute', programId, periodStart, periodEnd }, 'Computing insights for program');
 
   const outcomes = await db
     .select()
@@ -46,17 +42,17 @@ export async function computePeerInsights(
     );
 
   if (outcomes.length === 0) {
-    console.log('[Peer Insights] No outcomes found for program in period');
+    logger.info({ context: 'peer-insights-compute' }, 'No outcomes found for program in period');
     return null;
   }
 
   const consentedUserIds = await getUsersWithOutcomeConsent();
   const consentedOutcomes = outcomes.filter((o) => consentedUserIds.includes(o.userId));
 
-  console.log(`[Peer Insights] ${consentedOutcomes.length}/${outcomes.length} outcomes with consent`);
+  logger.info({ context: 'peer-insights-compute', consentedCount: consentedOutcomes.length, totalCount: outcomes.length }, 'Outcomes with consent');
 
   if (consentedOutcomes.length < K_ANONYMITY_THRESHOLD) {
-    console.log(`[Peer Insights] Below k-anonymity threshold (${K_ANONYMITY_THRESHOLD}), suppressing data`);
+    logger.info({ context: 'peer-insights-compute', threshold: K_ANONYMITY_THRESHOLD }, 'Below k-anonymity threshold, suppressing data');
 
     return {
       programId,
@@ -147,12 +143,12 @@ export async function computePeerInsights(
     moodImprovementRate,
   });
 
-  console.log('[Peer Insights] Insights computed successfully:', {
+  logger.info({ context: 'peer-insights-compute',
     totalResponses: consentedOutcomes.length,
     averageRating,
     recommendationRate,
     moodImprovementRate,
-  });
+  }, 'Insights computed successfully');
 
   return {
     programId,
@@ -171,7 +167,7 @@ export async function computePeerInsights(
 }
 
 export async function storePeerInsights(insights: PeerInsightData): Promise<void> {
-  console.log('[Peer Insights] Storing insights for program:', insights.programId);
+  logger.info({ context: 'peer-insights-store', programId: insights.programId }, 'Storing insights for program');
 
   await db
     .insert(peerSuccessInsights)
@@ -211,11 +207,11 @@ export async function storePeerInsights(insights: PeerInsightData): Promise<void
       },
     });
 
-  console.log('[Peer Insights] Insights stored successfully');
+  logger.info({ context: 'peer-insights-store' }, 'Insights stored successfully');
 }
 
 export async function getProgramPeerInsights(programId: string): Promise<PeerInsightData | null> {
-  console.log('[Peer Insights] Fetching latest insights for program:', programId);
+  logger.info({ context: 'peer-insights-fetch', programId }, 'Fetching latest insights for program');
 
   const [latest] = await db
     .select()
@@ -225,12 +221,12 @@ export async function getProgramPeerInsights(programId: string): Promise<PeerIns
     .limit(1);
 
   if (!latest) {
-    console.log('[Peer Insights] No insights found for program');
+    logger.info({ context: 'peer-insights-fetch' }, 'No insights found for program');
     return null;
   }
 
   if (latest.suppressed) {
-    console.log('[Peer Insights] Insights are suppressed:', latest.suppressionReason);
+    logger.info({ context: 'peer-insights-fetch', reason: latest.suppressionReason }, 'Insights are suppressed');
   }
 
   return {
@@ -260,7 +256,7 @@ export async function getProgramPeerInsights(programId: string): Promise<PeerIns
 }
 
 export async function computePeerInsightsForAllPrograms(): Promise<void> {
-  console.log('[Peer Insights] Computing insights for all programs');
+  logger.info({ context: 'peer-insights-compute-all' }, 'Computing insights for all programs');
 
   const now = DateTime.now().setZone('America/Edmonton');
   const periodEnd = now.toISODate();
@@ -268,7 +264,7 @@ export async function computePeerInsightsForAllPrograms(): Promise<void> {
 
   const allPrograms = await db.select({ id: programs.id }).from(programs);
 
-  console.log(`[Peer Insights] Processing ${allPrograms.length} programs`);
+  logger.info({ context: 'peer-insights-compute-all', programCount: allPrograms.length }, 'Processing programs');
 
   let successCount = 0;
   let suppressedCount = 0;
@@ -289,16 +285,16 @@ export async function computePeerInsightsForAllPrograms(): Promise<void> {
         noDataCount++;
       }
     } catch (error) {
-      console.error(`[Peer Insights] Error computing insights for program ${program.id}:`, error);
+      logger.error({ err: error, context: 'peer-insights-compute', programId: program.id }, 'Error computing insights for program');
     }
   }
 
-  console.log('[Peer Insights] Computation complete:', {
+  logger.info({ context: 'peer-insights-compute-all',
     total: allPrograms.length,
     success: successCount,
     suppressed: suppressedCount,
     noData: noDataCount,
-  });
+  }, 'Peer insights computation complete');
 }
 
 async function getUsersWithOutcomeConsent(): Promise<string[]> {
@@ -377,6 +373,6 @@ async function logAggregationOperation(
       result: 'success',
     });
   } catch (error) {
-    console.error('[Peer Insights] Failed to log aggregation operation:', error);
+    logger.error({ err: error, context: 'peer-insights-audit' }, 'Failed to log aggregation operation');
   }
 }

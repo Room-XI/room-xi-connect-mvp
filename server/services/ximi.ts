@@ -4,6 +4,7 @@ import type { MoodTrendData } from './moodTrends.ts';
 import type { ProgramRecommendation } from './recommendations.ts';
 import { moderateText } from './moderation.ts';
 import { recordAiMetrics } from './aiTransparency.ts';
+import logger from '../logger.ts';
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY!,
@@ -277,25 +278,27 @@ export async function generateXimiResponse(
       const completion = await openai.chat.completions.create(completionParams);
 
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`[Ximi AI] OpenAI response received:`, {
+        logger.info({
+          context: 'ximi-ai-response',
           model: modelToUse,
           hasChoices: !!completion.choices,
           choicesLength: completion.choices?.length,
           hasContent: !!completion.choices?.[0]?.message?.content,
           contentLength: completion.choices?.[0]?.message?.content?.length || 0,
           finishReason: completion.choices?.[0]?.finish_reason,
-        });
+        }, 'OpenAI response received');
       }
 
       const responseText = completion.choices[0]?.message?.content?.trim();
       
       if (!responseText) {
         if (process.env.NODE_ENV !== 'production') {
-          console.error(`[Ximi AI] Empty response from ${modelToUse}:`, {
+          logger.error({
+            context: 'ximi-ai-error', model: modelToUse,
             completion: JSON.stringify(completion, null, 2),
-          });
+          }, 'Empty response from model');
         } else {
-          console.error(`[Ximi AI] Empty response from ${modelToUse}`);
+          logger.error({ context: 'ximi-ai-error', model: modelToUse }, 'Empty response from model');
         }
         throw new Error('Empty response from OpenAI API');
       }
@@ -314,14 +317,15 @@ export async function generateXimiResponse(
         crisisKeywords: [],
       };
     } catch (error: any) {
-      console.error(`[Ximi AI] Error with ${modelToUse} (attempt ${attempt}/${maxRetries}):`, {
+      logger.error({
+        context: 'ximi-ai-error', model: modelToUse, attempt, maxRetries,
         message: error?.message,
         status: error?.status,
         code: error?.code,
         type: error?.type,
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? 'SET' : 'MISSING',
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'MISSING',
-      });
+      }, 'Error with OpenAI API call');
       lastError = error;
       
       const status = error?.status || error?.response?.status;
@@ -332,7 +336,7 @@ export async function generateXimiResponse(
         (error?.message && error.message.includes('does not exist'));
       
       if (modelToUse === 'gpt-5' && (isModelNotAvailable || attempt === 1)) {
-        console.log('gpt-5 not available or not responding properly, falling back to gpt-4o-mini...');
+        logger.info({ context: 'ximi-ai-fallback' }, 'gpt-5 not available or not responding properly, falling back to gpt-4o-mini');
         modelToUse = 'gpt-4o-mini';
         useGpt5Params = false;
         attempt--;
@@ -341,7 +345,7 @@ export async function generateXimiResponse(
       
       if ((isRateLimitError || isServerError) && attempt < maxRetries) {
         const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 4000) + Math.random() * 1000;
-        console.log(`Retrying after ${Math.round(backoffMs)}ms due to ${isRateLimitError ? 'rate limit' : 'server error'}...`);
+        logger.info({ context: 'ximi-ai-retry', backoffMs: Math.round(backoffMs), reason: isRateLimitError ? 'rate limit' : 'server error' }, 'Retrying after backoff');
         await new Promise(resolve => setTimeout(resolve, backoffMs));
         continue;
       }
@@ -350,14 +354,15 @@ export async function generateXimiResponse(
     }
   }
   
-  console.error('[Ximi AI] Failed after all retries:', {
+  logger.error({
+    context: 'ximi-ai-error',
     error: lastError?.message || lastError,
     modelAttempted: modelToUse,
     env: {
       hasApiKey: !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
       baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
     },
-  });
+  }, 'Failed after all retries');
   
   return {
     message: "I'm having trouble thinking right now, but I'm here if you want to keep talking.",
@@ -415,7 +420,7 @@ export async function generateFollowUpPrompt(
       const response = await generateXimiResponse(prompt, context);
       return response.message;
     } catch (error) {
-      console.error('Failed to generate AI response, using scripted response:', error);
+      logger.error({ err: error, context: 'ximi-scripted-fallback' }, 'Failed to generate AI response, using scripted response');
       return baseResponse;
     }
   }

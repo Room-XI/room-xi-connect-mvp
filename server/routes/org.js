@@ -4,6 +4,7 @@ import { attendance, programs, profiles, checkins, orgMembers, xids, users, prog
 import { eq, sql, desc, and, gte, lte, count, countDistinct } from 'drizzle-orm';
 import { Parser } from '@json2csv/plainjs';
 import { DateTime } from 'luxon';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -45,7 +46,7 @@ const verifyOrgAccess = async (req, res, next) => {
     req.userRoles = userOrgs.map(o => o.role);
     next();
   } catch (error) {
-    console.error('Org access verification error:', error);
+    logger.error({ err: error, context: 'org-access-verify' }, 'Org access verification error');
     res.status(500).json({ error: 'Internal server error during authorization' });
   }
 };
@@ -94,7 +95,7 @@ router.get('/dashboard/stats', verifyOrgAccess, async (req, res) => {
       thisMonthAttendance
     });
   } catch (error) {
-    console.error('Error fetching org dashboard stats:', error);
+    logger.error({ err: error, context: 'org-dashboard-stats' }, 'Error fetching org dashboard stats');
     res.status(500).json({ error: 'Failed to fetch org dashboard stats' });
   }
 });
@@ -132,7 +133,7 @@ router.get('/dashboard', verifyOrgAccess, async (req, res) => {
       recentActivity: recentAttendance,
     });
   } catch (error) {
-    console.error('Error fetching org dashboard:', error);
+    logger.error({ err: error, context: 'org-dashboard' }, 'Error fetching org dashboard');
     res.status(500).json({ error: 'Failed to fetch org dashboard' });
   }
 });
@@ -214,7 +215,7 @@ router.get('/attendance/export', verifyOrgAccess, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="attendance-report-${timeRange}-${DateTime.now().toFormat('yyyy-MM-dd')}.csv"`);
     res.send(csv);
   } catch (error) {
-    console.error('Error exporting attendance report:', error);
+    logger.error({ err: error, context: 'org-attendance-export' }, 'Error exporting attendance report');
     res.status(500).json({ error: 'Failed to export attendance report' });
   }
 });
@@ -237,7 +238,7 @@ router.get('/programs', verifyOrgAccess, async (req, res) => {
     const programList = await query.orderBy(programs.title);
     res.json(programList);
   } catch (error) {
-    console.error('Error fetching programs:', error);
+    logger.error({ err: error, context: 'org-programs' }, 'Error fetching programs');
     res.status(500).json({ error: 'Failed to fetch programs' });
   }
 });
@@ -276,7 +277,7 @@ router.get('/programs/:id/attendance', verifyOrgAccess, async (req, res) => {
 
     res.json(attendanceRecords);
   } catch (error) {
-    console.error('Error fetching program attendance:', error);
+    logger.error({ err: error, context: 'org-program-attendance' }, 'Error fetching program attendance');
     res.status(500).json({ error: 'Failed to fetch program attendance' });
   }
 });
@@ -319,7 +320,7 @@ router.post('/programs/:id/attendance', verifyOrgAccess, async (req, res) => {
 
     res.json(record);
   } catch (error) {
-    console.error('Error recording attendance:', error);
+    logger.error({ err: error, context: 'org-record-attendance' }, 'Error recording attendance');
     res.status(500).json({ error: 'Failed to record attendance' });
   }
 });
@@ -383,7 +384,7 @@ router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
       wouldRecommendPercentage
     });
   } catch (error) {
-    console.error('Error fetching program outcomes:', error);
+    logger.error({ err: error, context: 'org-program-outcomes' }, 'Error fetching program outcomes');
     res.status(500).json({ error: 'Failed to fetch program outcomes' });
   }
 });

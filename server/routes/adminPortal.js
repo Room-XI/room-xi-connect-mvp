@@ -4,6 +4,7 @@ import { db } from '../db.js';
 import { users, organizations, orgMembers, profiles, consentEvents } from '../schema.js';
 import { eq, desc, sql, ilike, or } from 'drizzle-orm';
 import crypto from 'crypto';
+import logger from '../logger.ts';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // Log warning if credentials are not set
 if (!ACCESS_CODE || !ADMIN_USERNAME || !ADMIN_PASSWORD) {
-  console.warn('[Security] ADMIN_ACCESS_CODE, ADMIN_USERNAME, and ADMIN_PASSWORD must be set for admin portal access');
+  logger.warn({ context: 'admin-portal-init' }, 'ADMIN_ACCESS_CODE, ADMIN_USERNAME, and ADMIN_PASSWORD must be set for admin portal access');
 }
 
 // Rate limiting for access attempts
@@ -64,7 +65,7 @@ router.post('/verify-access', async (req, res) => {
       csrfToken: adminCsrfToken 
     });
   } catch (error) {
-    console.error('Access verification error:', error);
+    logger.error({ err: error, context: 'admin-portal-verify-access' }, 'Access verification error');
     res.status(500).json({ 
       message: 'Access verification failed' 
     });
@@ -125,7 +126,7 @@ router.post('/login', async (req, res) => {
     // Create admin session
     req.session.regenerate((err) => {
       if (err) {
-        console.error('Session regeneration error:', err);
+        logger.error({ err, context: 'admin-portal-login' }, 'Session regeneration error');
         return res.status(500).json({ 
           message: 'Session error' 
         });
@@ -142,7 +143,7 @@ router.post('/login', async (req, res) => {
       });
     });
   } catch (error) {
-    console.error('Admin login error:', error);
+    logger.error({ err: error, context: 'admin-portal-login' }, 'Admin login error');
     res.status(500).json({ 
       message: 'Login failed' 
     });
@@ -161,7 +162,7 @@ router.get('/status', (req, res) => {
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error('Logout error:', err);
+      logger.error({ err, context: 'admin-portal-logout' }, 'Logout error');
       return res.status(500).json({ 
         message: 'Logout failed' 
       });
@@ -204,7 +205,7 @@ router.get('/organizations', requireAdminSession, async (req, res) => {
 
     res.json({ organizations: orgs });
   } catch (error) {
-    console.error('List organizations error:', error);
+    logger.error({ err: error, context: 'admin-portal-list-orgs' }, 'List organizations error');
     res.status(500).json({ message: 'Failed to list organizations' });
   }
 });
@@ -224,7 +225,7 @@ router.post('/organizations', requireAdminSession, async (req, res) => {
 
     res.status(201).json({ organization: org });
   } catch (error) {
-    console.error('Create organization error:', error);
+    logger.error({ err: error, context: 'admin-portal-create-org' }, 'Create organization error');
     res.status(500).json({ message: 'Failed to create organization' });
   }
 });
@@ -247,7 +248,7 @@ router.put('/organizations/:id', requireAdminSession, async (req, res) => {
 
     res.json({ organization: org });
   } catch (error) {
-    console.error('Update organization error:', error);
+    logger.error({ err: error, context: 'admin-portal-update-org' }, 'Update organization error');
     res.status(500).json({ message: 'Failed to update organization' });
   }
 });
@@ -305,7 +306,7 @@ router.get('/users', requireAdminSession, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('List users error:', error);
+    logger.error({ err: error, context: 'admin-portal-list-users' }, 'List users error');
     res.status(500).json({ message: 'Failed to list users' });
   }
 });
@@ -341,7 +342,7 @@ router.get('/users/:id', requireAdminSession, async (req, res) => {
 
     res.json({ user });
   } catch (error) {
-    console.error('Get user error:', error);
+    logger.error({ err: error, context: 'admin-portal-get-user' }, 'Get user error');
     res.status(500).json({ message: 'Failed to get user' });
   }
 });
@@ -368,7 +369,7 @@ router.put('/users/:id/role', requireAdminSession, async (req, res) => {
 
     res.json({ success: true, isAdmin: profile.isAdmin });
   } catch (error) {
-    console.error('Update user role error:', error);
+    logger.error({ err: error, context: 'admin-portal-update-user-role' }, 'Update user role error');
     res.status(500).json({ message: 'Failed to update user role' });
   }
 });
@@ -425,7 +426,7 @@ router.get('/audit-logs', requireAdminSession, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get audit logs error:', error);
+    logger.error({ err: error, context: 'admin-portal-audit-logs' }, 'Get audit logs error');
     res.status(500).json({ message: 'Failed to get audit logs' });
   }
 });

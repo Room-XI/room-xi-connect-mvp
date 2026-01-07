@@ -8,6 +8,7 @@ import { db } from '../db.js';
 import { breachEvents } from '../schema.js';
 import { desc, eq } from 'drizzle-orm';
 import '../types/session.d.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.get('/', async (req: Request, res: Response) => {
     
     res.json({ data: breaches });
   } catch (error) {
-    console.error('Get breaches error:', error);
+    logger.error({ err: error, context: 'breach-list' }, 'Get breaches error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -97,17 +98,18 @@ router.post('/', async (req: Request, res: Response) => {
     
     // Log critical breach
     if (severity === 'critical' || severity === 'high') {
-      console.error('🚨 CRITICAL BREACH EVENT CREATED:', {
+      logger.error({
+        context: 'breach-critical',
         id: breach.id,
         type: breachType,
         severity,
         affectedCount: affectedUserCount,
-      });
+      }, 'CRITICAL BREACH EVENT CREATED');
     }
     
     res.status(201).json({ data: breach });
   } catch (error) {
-    console.error('Create breach error:', error);
+    logger.error({ err: error, context: 'breach-create' }, 'Create breach error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -160,7 +162,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     
     res.json({ data: breach });
   } catch (error) {
-    console.error('Update breach error:', error);
+    logger.error({ err: error, context: 'breach-update' }, 'Update breach error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

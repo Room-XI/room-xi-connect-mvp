@@ -1,6 +1,7 @@
 import express from 'express';
 import { db } from '../db.js';
 import { crisisSupports } from '../schema.js';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.get('/', async (req, res) => {
     const supports = await db.select().from(crisisSupports);
     res.json(supports);
   } catch (error) {
-    console.error('Get crisis supports error:', error);
+    logger.error({ err: error, context: 'crisis-supports-get' }, 'Get crisis supports error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

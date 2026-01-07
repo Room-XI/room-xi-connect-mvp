@@ -13,6 +13,7 @@ import {
 } from '../services/outcomes.js';
 import { getProgramPeerInsights } from '../services/peerInsights.js';
 import { checkPrivacyConsent, requirePrivacyConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -80,7 +81,7 @@ router.post('/', async (req, res) => {
 
     res.json(outcome);
   } catch (error) {
-    console.error('[Outcomes API] Create error:', error);
+    logger.error({ err: error, context: 'outcomes-create' }, 'Create error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -138,7 +139,7 @@ router.put('/:id', async (req, res) => {
 
     res.json(updated);
   } catch (error) {
-    console.error('[Outcomes API] Update error:', error);
+    logger.error({ err: error, context: 'outcomes-update' }, 'Update error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -159,7 +160,7 @@ router.get('/', async (req, res) => {
 
     res.json(outcomes);
   } catch (error) {
-    console.error('[Outcomes API] Get user outcomes error:', error);
+    logger.error({ err: error, context: 'outcomes-user-get' }, 'Get user outcomes error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -174,7 +175,7 @@ router.get('/summary', async (req, res) => {
 
     res.json(summary);
   } catch (error) {
-    console.error('[Outcomes API] Get summary error:', error);
+    logger.error({ err: error, context: 'outcomes-summary' }, 'Get summary error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -194,7 +195,7 @@ router.get('/:id', async (req, res) => {
 
     res.json(outcome);
   } catch (error) {
-    console.error('[Outcomes API] Get outcome error:', error);
+    logger.error({ err: error, context: 'outcomes-get' }, 'Get outcome error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -214,7 +215,7 @@ router.get('/program/:programId', requirePrivacyConsent('research'), async (req,
 
     res.json(insights);
   } catch (error) {
-    console.error('[Outcomes API] Get program insights error:', error);
+    logger.error({ err: error, context: 'outcomes-program-insights' }, 'Get program insights error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

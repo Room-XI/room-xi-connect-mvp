@@ -2,6 +2,7 @@ import { db } from '../db.js';
 import { outcomeEvents, recommendationEvents, programs, profiles } from '../schema.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
+import logger from '../logger.ts';
 
 export interface OutcomeEventData {
   userId: string;
@@ -57,12 +58,12 @@ const MOOD_SCORES: Record<MoodKey, number> = {
 };
 
 export async function createOutcomeEvent(data: OutcomeEventData): Promise<OutcomeEvent> {
-  console.log('[Outcomes] Creating outcome event:', {
-    userId: data.userId,
+  logger.info({
+    context: 'outcomes-create',
+    userId: '[REDACTED]',
     programId: data.programId,
     attended: data.attended,
-    timestamp: new Date().toISOString(),
-  });
+  }, 'Creating outcome event');
 
   const [outcome] = await db
     .insert(outcomeEvents)
@@ -84,7 +85,7 @@ export async function createOutcomeEvent(data: OutcomeEventData): Promise<Outcom
     })
     .returning();
 
-  console.log('[Outcomes] Outcome event created:', outcome.id);
+  logger.info({ context: 'outcomes-create', outcomeId: outcome.id }, 'Outcome event created');
   return outcome as OutcomeEvent;
 }
 
@@ -93,12 +94,12 @@ export async function updateOutcomeEvent(
   userId: string,
   updates: Partial<OutcomeEventData>
 ): Promise<OutcomeEvent | null> {
-  console.log('[Outcomes] Updating outcome event:', {
+  logger.info({
+    context: 'outcomes-update',
     outcomeId,
-    userId,
+    userId: '[REDACTED]',
     hasReflection: !!updates.reflectionText,
-    timestamp: new Date().toISOString(),
-  });
+  }, 'Updating outcome event');
 
   const [existing] = await db
     .select()
@@ -107,7 +108,7 @@ export async function updateOutcomeEvent(
     .limit(1);
 
   if (!existing) {
-    console.log('[Outcomes] Outcome event not found or unauthorized');
+    logger.info({ context: 'outcomes-update' }, 'Outcome event not found or unauthorized');
     return null;
   }
 
@@ -132,7 +133,7 @@ export async function updateOutcomeEvent(
     .where(eq(outcomeEvents.id, outcomeId))
     .returning();
 
-  console.log('[Outcomes] Outcome event updated:', updated.id);
+  logger.info({ context: 'outcomes-update', outcomeId: updated.id }, 'Outcome event updated');
   return updated as OutcomeEvent;
 }
 
@@ -140,7 +141,7 @@ export async function getUserOutcomes(
   userId: string,
   limit: number = 50
 ): Promise<OutcomeEvent[]> {
-  console.log('[Outcomes] Fetching outcomes for user:', userId);
+  logger.info({ context: 'outcomes-fetch-user', userId: '[REDACTED]' }, 'Fetching outcomes for user');
 
   const outcomes = await db
     .select()
@@ -149,12 +150,12 @@ export async function getUserOutcomes(
     .orderBy(desc(outcomeEvents.createdAt))
     .limit(limit);
 
-  console.log(`[Outcomes] Found ${outcomes.length} outcome(s) for user`);
+  logger.info({ context: 'outcomes-fetch-user', count: outcomes.length }, 'Found outcomes for user');
   return outcomes as OutcomeEvent[];
 }
 
 export async function getProgramOutcomes(programId: string): Promise<OutcomeEvent[]> {
-  console.log('[Outcomes] Fetching outcomes for program:', programId);
+  logger.info({ context: 'outcomes-fetch-program', programId }, 'Fetching outcomes for program');
 
   const outcomes = await db
     .select()
@@ -162,7 +163,7 @@ export async function getProgramOutcomes(programId: string): Promise<OutcomeEven
     .where(and(eq(outcomeEvents.programId, programId), eq(outcomeEvents.attended, true)))
     .orderBy(desc(outcomeEvents.createdAt));
 
-  console.log(`[Outcomes] Found ${outcomes.length} outcome(s) for program`);
+  logger.info({ context: 'outcomes-fetch-program', count: outcomes.length }, 'Found outcomes for program');
   return outcomes as OutcomeEvent[];
 }
 
@@ -215,14 +216,14 @@ export async function checkUserOutcomeConsent(userId: string): Promise<boolean> 
 }
 
 export async function deleteUserOutcomes(userId: string): Promise<number> {
-  console.log('[Outcomes] Deleting all outcomes for user:', userId);
+  logger.info({ context: 'outcomes-delete', userId: '[REDACTED]' }, 'Deleting all outcomes for user');
 
   const deleted = await db
     .delete(outcomeEvents)
     .where(eq(outcomeEvents.userId, userId))
     .returning();
 
-  console.log(`[Outcomes] Deleted ${deleted.length} outcome(s)`);
+  logger.info({ context: 'outcomes-delete', count: deleted.length }, 'Deleted outcomes');
   return deleted.length;
 }
 

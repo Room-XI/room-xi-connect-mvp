@@ -16,6 +16,7 @@ import { sendGuardianVerificationEmail, sendInitialConsentEmail, sendConfirmatio
 import { consentNoticeV1, CONSENT_NOTICE_VERSION, confirmationSuccessPage, pendingConfirmationPage, expiredLinkPage } from '../services/consentNotices.js';
 import { getPublicUrl } from '../utils/publicUrl.ts';
 import { debugLog } from '../utils/logger.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -74,7 +75,7 @@ router.get('/view/:token', async (req, res) => {
     
     res.send(consentNoticeV1(youthName, token, formNonce));
   } catch (error) {
-    console.error('Consent view error:', error);
+    logger.error({ err: error, context: 'consent-view' }, 'Consent view error');
     res.status(500).send('<html><body><h1>Error</h1><p>Something went wrong. Please try again.</p></body></html>');
   }
 });
@@ -158,7 +159,7 @@ router.post('/agree/:token', async (req, res) => {
 
     res.send(pendingConfirmationPage(verification.guardianContactValue));
   } catch (error) {
-    console.error('Consent agree error:', error);
+    logger.error({ err: error, context: 'consent-agree' }, 'Consent agree error');
     res.status(500).send('<html><body><h1>Error</h1><p>Something went wrong. Please try again.</p></body></html>');
   }
 });
@@ -240,7 +241,7 @@ router.get('/confirm/:token', async (req, res) => {
         }),
       });
     } catch (emailError) {
-      console.error('Failed to send consent complete email:', emailError);
+      logger.error({ err: emailError, context: 'consent-confirm-email' }, 'Failed to send consent complete email');
     }
 
     await db.insert(consentEvents).values({
@@ -256,7 +257,7 @@ router.get('/confirm/:token', async (req, res) => {
 
     res.send(confirmationSuccessPage(youthName));
   } catch (error) {
-    console.error('Consent confirm error:', error);
+    logger.error({ err: error, context: 'consent-confirm' }, 'Consent confirm error');
     res.status(500).send('<html><body><h1>Error</h1><p>Something went wrong. Please try again.</p></body></html>');
   }
 });
@@ -310,7 +311,7 @@ router.get('/guardian-status', async (req, res) => {
       guardians
     });
   } catch (error) {
-    console.error('Guardian status check error:', error);
+    logger.error({ err: error, context: 'consent-guardian-status' }, 'Guardian status check error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -394,7 +395,7 @@ router.post('/resend-guardian', async (req, res) => {
         consentLink: consentViewUrl,
       });
     } catch (emailError) {
-      console.error('[Resend Guardian] Email send failed:', emailError.message || emailError);
+      logger.error({ err: emailError, context: 'consent-resend-guardian-email' }, 'Email send failed');
       
       res.status(207).json({ 
         success: false, 
@@ -406,7 +407,7 @@ router.post('/resend-guardian', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('[Resend Guardian] Unexpected error:', error.message || error, error.stack);
+    logger.error({ err: error, context: 'consent-resend-guardian' }, 'Unexpected error');
     res.status(500).json({ error: 'Failed to resend consent. Please try again.' });
   }
 });
@@ -425,7 +426,7 @@ router.get('/', async (req, res) => {
 
     res.json(userConsents);
   } catch (error) {
-    console.error('Get consents error:', error);
+    logger.error({ err: error, context: 'consent-get' }, 'Get consents error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -448,7 +449,7 @@ router.get('/my-consents', async (req, res) => {
 
     res.json({ data: consentsMap });
   } catch (error) {
-    console.error('Get consents map error:', error);
+    logger.error({ err: error, context: 'consent-map' }, 'Get consents map error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -558,13 +559,13 @@ router.post('/', async (req, res) => {
         userAgent,
       });
     } catch (auditError) {
-      console.error('Failed to log to consent audit log:', auditError);
+      logger.error({ err: auditError, context: 'consent-audit-log' }, 'Failed to log to consent audit log');
       // Don't fail the request if audit logging fails
     }
 
     res.json(result);
   } catch (error) {
-    console.error('Update consent error:', error);
+    logger.error({ err: error, context: 'consent-update' }, 'Update consent error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -621,7 +622,7 @@ router.post('/guardian/request-verification', async (req, res) => {
       pending: true,
     });
   } catch (error) {
-    console.error('Guardian verification request error:', error);
+    logger.error({ err: error, context: 'consent-guardian-request' }, 'Guardian verification request error');
     res.status(500).json({ 
       error: 'Failed to send verification email. Please try again or contact support.' 
     });
@@ -644,7 +645,7 @@ router.post('/guardian/verify/:token', async (req, res) => {
     
     res.json({ message: 'Guardian verification completed successfully' });
   } catch (error) {
-    console.error('Guardian verification error:', error);
+    logger.error({ err: error, context: 'consent-guardian-verify' }, 'Guardian verification error');
     res.status(400).json({ error: error.message || 'Failed to verify guardian' });
   }
 });
@@ -660,7 +661,7 @@ router.get('/guardian/status', async (req, res) => {
     
     res.json({ data: status });
   } catch (error) {
-    console.error('Guardian status check error:', error);
+    logger.error({ err: error, context: 'consent-guardian-status' }, 'Guardian status check error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -676,7 +677,7 @@ router.get('/audit-trail', async (req, res) => {
     
     res.json({ data: events });
   } catch (error) {
-    console.error('Audit trail error:', error);
+    logger.error({ err: error, context: 'consent-audit-trail' }, 'Audit trail error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -694,7 +695,7 @@ router.get('/export-data', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="room-xi-data-export-${req.session.userId}.json"`);
     res.json(data);
   } catch (error) {
-    console.error('Data export error:', error);
+    logger.error({ err: error, context: 'consent-data-export' }, 'Data export error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -716,13 +717,13 @@ router.post('/delete-account', async (req, res) => {
     
     req.session.destroy((err) => {
       if (err) {
-        console.error('Session destroy error:', err);
+        logger.error({ err, context: 'consent-delete-session' }, 'Session destroy error');
       }
     });
     
     res.json({ message: 'Account deleted successfully' });
   } catch (error) {
-    console.error('Account deletion error:', error);
+    logger.error({ err: error, context: 'consent-delete-account' }, 'Account deletion error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -803,7 +804,7 @@ router.get('/consent-audit/export', async (req, res) => {
     res.send(csv);
     
   } catch (error) {
-    console.error('Consent audit export error:', error);
+    logger.error({ err: error, context: 'consent-audit-export' }, 'Consent audit export error');
     res.status(500).json({ 
       error: 'Failed to export consent audit log',
       message: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -916,7 +917,7 @@ router.post('/withdraw', async (req, res) => {
         userAgent,
       });
     } catch (auditError) {
-      console.error('Failed to log to consent audit log:', auditError);
+      logger.error({ err: auditError, context: 'consent-audit-log' }, 'Failed to log to consent audit log');
     }
 
     // Send staff notification email
@@ -936,7 +937,7 @@ router.post('/withdraw', async (req, res) => {
         youthId: targetUserId,
       });
     } catch (emailError) {
-      console.error('Failed to send staff notification email:', emailError);
+      logger.error({ err: emailError, context: 'consent-withdraw-notification' }, 'Failed to send staff notification email');
       // Don't fail the request if email fails
     }
 
@@ -951,7 +952,7 @@ router.post('/withdraw', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Consent withdrawal error:', error);
+    logger.error({ err: error, context: 'consent-withdraw' }, 'Consent withdrawal error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1024,7 +1025,7 @@ router.get('/mature-minor/status', async (req, res) => {
       withdrawnAt: verification.withdrawnAt,
     });
   } catch (error) {
-    console.error('Mature minor status check error:', error);
+    logger.error({ err: error, context: 'consent-mature-minor-status' }, 'Mature minor status check error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1115,7 +1116,7 @@ router.post('/mature-minor/submit', async (req, res) => {
         : 'Assessment completed. Some answers suggest you may benefit from additional support. Staff may reach out.',
     });
   } catch (error) {
-    console.error('Mature minor assessment submission error:', error);
+    logger.error({ err: error, context: 'consent-mature-minor-submit' }, 'Mature minor assessment submission error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1165,7 +1166,7 @@ router.get('/mature-minor/questions', async (req, res) => {
 
     res.json({ questions });
   } catch (error) {
-    console.error('Mature minor questions fetch error:', error);
+    logger.error({ err: error, context: 'consent-mature-minor-questions' }, 'Mature minor questions fetch error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

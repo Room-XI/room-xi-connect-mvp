@@ -3,6 +3,7 @@ import { checkins, moodTrendSummaries } from '../schema.js';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { variance, mean } from 'simple-statistics';
+import logger from '../logger.ts';
 
 export type TrendDirection = 'improving' | 'stable' | 'declining' | 'insufficient_data';
 export type WindowType = 'week' | 'month' | 'quarter';
@@ -34,7 +35,7 @@ export async function computeMoodTrends(
   userId: string,
   windowType: WindowType = 'week'
 ): Promise<MoodTrendData | null> {
-  console.log(`[Mood Trends] Computing ${windowType} trends for user ${userId}`);
+  logger.info({ context: 'mood-trends-compute', userId: '[REDACTED]', windowType }, 'Computing mood trends');
 
   const now = DateTime.now().setZone('America/Edmonton');
   const { windowStart, windowEnd } = getTimeWindow(now, windowType);
@@ -53,11 +54,11 @@ export async function computeMoodTrends(
     .orderBy(desc(checkins.timestamp));
 
   if (checkinsData.length === 0) {
-    console.log(`[Mood Trends] No check-ins found for user ${userId} in ${windowType} window`);
+    logger.info({ context: 'mood-trends-compute', windowType }, 'No check-ins found for user in window');
     return null;
   }
 
-  console.log(`[Mood Trends] Found ${checkinsData.length} check-ins for analysis`);
+  logger.info({ context: 'mood-trends-compute', checkinsCount: checkinsData.length }, 'Found check-ins for analysis');
 
   // Calculate basic metrics
   const moodLevels = checkinsData.map(c => c.moodLevel16);
@@ -103,12 +104,13 @@ export async function computeMoodTrends(
     wellnessScores,
   };
 
-  console.log(`[Mood Trends] Computed trends:`, {
+  logger.info({
+    context: 'mood-trends-compute',
     averageMoodLevel: trendData.averageMoodLevel,
     trendDirection: trendData.trendDirection,
     dominantMood: trendData.dominantMood,
     patternsDetected: trendData.patternsDetected,
-  });
+  }, 'Computed trends');
 
   return trendData;
 }
@@ -117,7 +119,7 @@ export async function computeMoodTrends(
  * Store computed trend data in the database
  */
 export async function storeMoodTrends(trendData: MoodTrendData): Promise<void> {
-  console.log(`[Mood Trends] Storing trends for user ${trendData.userId}`);
+  logger.info({ context: 'mood-trends-store', userId: '[REDACTED]' }, 'Storing trends for user');
 
   await db
     .insert(moodTrendSummaries)
@@ -156,7 +158,7 @@ export async function storeMoodTrends(trendData: MoodTrendData): Promise<void> {
       },
     });
 
-  console.log(`[Mood Trends] Successfully stored trends`);
+  logger.info({ context: 'mood-trends-store' }, 'Successfully stored trends');
 }
 
 /**
@@ -403,7 +405,7 @@ function analyzeWellnessDimensions(
  * Compute trends for all active users (for scheduler)
  */
 export async function computeTrendsForAllUsers(): Promise<void> {
-  console.log('[Mood Trends] Computing trends for all active users...');
+  logger.info({ context: 'mood-trends-compute-all' }, 'Computing trends for all active users');
 
   try {
     // Get all users with recent check-ins (last 30 days)
@@ -414,7 +416,7 @@ export async function computeTrendsForAllUsers(): Promise<void> {
       .from(checkins)
       .where(gte(checkins.checkinDate, thirtyDaysAgo));
 
-    console.log(`[Mood Trends] Found ${activeUsers.length} active users`);
+    logger.info({ context: 'mood-trends-compute-all', userCount: activeUsers.length }, 'Found active users');
 
     let successCount = 0;
     let errorCount = 0;
@@ -428,14 +430,14 @@ export async function computeTrendsForAllUsers(): Promise<void> {
           successCount++;
         }
       } catch (error) {
-        console.error(`[Mood Trends] Error computing trends for user ${userId}:`, error);
+        logger.error({ err: error, context: 'mood-trends-compute' }, 'Error computing trends for user');
         errorCount++;
       }
     }
 
-    console.log(`[Mood Trends] Trend computation complete: ${successCount} success, ${errorCount} errors`);
+    logger.info({ context: 'mood-trends-compute-all', successCount, errorCount }, 'Trend computation complete');
   } catch (error) {
-    console.error('[Mood Trends] Error in computeTrendsForAllUsers:', error);
+    logger.error({ err: error, context: 'mood-trends-compute-all' }, 'Error in computeTrendsForAllUsers');
     throw error;
   }
 }

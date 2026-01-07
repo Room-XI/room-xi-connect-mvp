@@ -5,6 +5,7 @@
 
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -44,7 +45,7 @@ router.post('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error generating skip token:', error);
+    logger.error({ err: error, context: 'skip-token-generate' }, 'Error generating skip token');
     res.status(500).json({ error: 'Failed to generate skip token' });
   }
 });
@@ -80,7 +81,7 @@ router.post('/verify', async (req, res) => {
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ valid: false, error: 'Invalid token' });
     }
-    console.error('Error verifying skip token:', error);
+    logger.error({ err: error, context: 'skip-token-verify' }, 'Error verifying skip token');
     res.status(500).json({ error: 'Failed to verify token' });
   }
 });

@@ -5,6 +5,7 @@ import { dpApplications } from '../schema.js';
 import { addLaplaceNoise, applyDPToStats, applyDifferentialPrivacy } from '../lib/differentialPrivacy.js';
 import { addNoiseWithLogging, applyDPWithLogging } from '../middleware/differentialPrivacy.js';
 import { Parser } from 'json2csv';
+import logger from '../logger.ts';
 
 // Helper to log DP application
 async function logDPToDatabase(operation, tableName, originalCount, noiseAdded, suppressed, suppressionReason = null) {
@@ -25,7 +26,7 @@ async function logDPToDatabase(operation, tableName, originalCount, noiseAdded, 
       }
     });
   } catch (error) {
-    console.error('[KPI DP Logging] Failed to log DP application:', error);
+    logger.error({ err: error, context: 'kpi-dp-logging' }, 'Failed to log DP application');
   }
 }
 
@@ -56,7 +57,7 @@ async function checkKPIPermission(req, res, next) {
 
     next();
   } catch (error) {
-    console.error('Permission check error:', error);
+    logger.error({ err: error, context: 'kpi-permission-check' }, 'Permission check error');
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -118,7 +119,7 @@ router.get('/daily-checkins', checkKPIPermission, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching daily check-ins:', error);
+    logger.error({ err: error, context: 'kpi-daily-checkins' }, 'Error fetching daily check-ins');
     res.status(500).json({ error: 'Failed to fetch daily check-in metrics' });
   }
 });
@@ -173,7 +174,7 @@ router.get('/streak-completion', checkKPIPermission, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching streak completion:', error);
+    logger.error({ err: error, context: 'kpi-streak-completion' }, 'Error fetching streak completion');
     res.status(500).json({ error: 'Failed to fetch streak completion metrics' });
   }
 });
@@ -215,7 +216,7 @@ router.get('/explore-unlocks', checkKPIPermission, async (req, res) => {
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching explore unlocks:', error);
+    logger.error({ err: error, context: 'kpi-explore-unlocks' }, 'Error fetching explore unlocks');
     res.status(500).json({ error: 'Failed to fetch explore unlock metrics' });
   }
 });
@@ -264,7 +265,7 @@ router.get('/opt-in-rates', checkKPIPermission, async (req, res) => {
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching opt-in rates:', error);
+    logger.error({ err: error, context: 'kpi-opt-in-rates' }, 'Error fetching opt-in rates');
     res.status(500).json({ error: 'Failed to fetch opt-in rates' });
   }
 });
@@ -303,7 +304,7 @@ router.get('/staff-usage', checkKPIPermission, async (req, res) => {
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching staff usage:', error);
+    logger.error({ err: error, context: 'kpi-staff-usage' }, 'Error fetching staff usage');
     res.status(500).json({ error: 'Failed to fetch staff usage metrics' });
   }
 });
@@ -339,7 +340,7 @@ router.get('/referral-conversion', checkKPIPermission, async (req, res) => {
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching referral conversion:', error);
+    logger.error({ err: error, context: 'kpi-referral-conversion' }, 'Error fetching referral conversion');
     res.status(500).json({ error: 'Failed to fetch referral conversion metrics' });
   }
 });
@@ -379,7 +380,7 @@ router.get('/crisis-routing', checkKPIPermission, async (req, res) => {
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching crisis routing:', error);
+    logger.error({ err: error, context: 'kpi-crisis-routing' }, 'Error fetching crisis routing');
     res.status(500).json({ error: 'Failed to fetch crisis routing metrics' });
   }
 });
@@ -411,7 +412,7 @@ router.get('/summary', checkKPIPermission, async (req, res) => {
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching KPI summary:', error);
+    logger.error({ err: error, context: 'kpi-summary' }, 'Error fetching KPI summary');
     res.status(500).json({ error: 'Failed to fetch KPI summary' });
   }
 });
@@ -554,7 +555,7 @@ router.get('/export', checkKPIPermission, async (req, res) => {
     res.send(csv);
     
   } catch (error) {
-    console.error('Error exporting KPI data:', error);
+    logger.error({ err: error, context: 'kpi-export' }, 'Error exporting KPI data');
     res.status(500).json({ error: 'Failed to export KPI data' });
   }
 });

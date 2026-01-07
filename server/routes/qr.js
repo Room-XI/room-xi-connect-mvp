@@ -2,6 +2,7 @@ import express from "express";
 import crypto from "crypto";
 import { db } from "../db.js";
 import { moodTasks } from "../schema.extras.js";
+import logger from "../logger.ts";
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ router.post("/badge/rotate", requireAuth, async (req, res) => {
       expiresAt: new Date(exp),
     });
   } catch (error) {
-    console.error("Error rotating badge token:", error);
+    logger.error({ err: error, context: 'qr-badge-rotate' }, 'Error rotating badge token');
     res.status(500).json({ error: "Failed to generate token" });
   }
 });
@@ -92,7 +93,7 @@ router.post("/scan", requireAuthStaff, async (req, res) => {
       tasksCreated: eventEnd ? 2 : 1,
     });
   } catch (error) {
-    console.error("Error scanning QR code:", error);
+    logger.error({ err: error, context: 'qr-scan' }, 'Error scanning QR code');
     res.status(500).json({ error: "Failed to process scan" });
   }
 });
@@ -111,7 +112,7 @@ router.get("/validate/:token", async (req, res) => {
       expiresAt: new Date(rec.exp),
     });
   } catch (error) {
-    console.error("Error validating token:", error);
+    logger.error({ err: error, context: 'qr-validate' }, 'Error validating token');
     res.status(500).json({ error: "Failed to validate token" });
   }
 });

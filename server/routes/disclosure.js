@@ -4,6 +4,7 @@ import { db } from "../db.js";
 import { sql } from "drizzle-orm";
 import { parentLinks } from "../schema.extras.js";
 import { eq, and } from "drizzle-orm";
+import logger from "../logger.ts";
 
 const router = express.Router();
 
@@ -86,7 +87,7 @@ router.post("/request", requireParent, async (req, res) => {
       message: "Request sent. Youth will be notified to approve or deny."
     });
   } catch (error) {
-    console.error("Disclosure request error:", error);
+    logger.error({ err: error, context: 'disclosure-request' }, 'Disclosure request error');
     res.status(500).json({ error: "Failed to create request" });
   }
 });
@@ -115,7 +116,7 @@ router.get("/pending", requireYouth, async (req, res) => {
 
     res.json({ requests: requests.rows });
   } catch (error) {
-    console.error("Error fetching pending requests:", error);
+    logger.error({ err: error, context: 'disclosure-pending' }, 'Error fetching pending requests');
     res.status(500).json({ error: "Failed to fetch requests" });
   }
 });
@@ -166,7 +167,7 @@ router.post("/respond", requireYouth, async (req, res) => {
         : "Request denied. Your demographics remain private."
     });
   } catch (error) {
-    console.error("Disclosure response error:", error);
+    logger.error({ err: error, context: 'disclosure-response' }, 'Disclosure response error');
     res.status(500).json({ error: "Failed to process response" });
   }
 });
@@ -214,7 +215,7 @@ router.get("/access/:youthId", requireParent, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Access check error:", error);
+    logger.error({ err: error, context: 'disclosure-access-check' }, 'Access check error');
     res.status(500).json({ error: "Failed to check access" });
   }
 });
@@ -241,7 +242,7 @@ router.get("/history", requireYouth, async (req, res) => {
 
     res.json({ history: history.rows });
   } catch (error) {
-    console.error("Error fetching disclosure history:", error);
+    logger.error({ err: error, context: 'disclosure-history' }, 'Error fetching disclosure history');
     res.status(500).json({ error: "Failed to fetch history" });
   }
 });

@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { profiles } from '../schema.js';
 import { eq } from 'drizzle-orm';
 import { requireDataConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
 
     res.json(profile);
   } catch (error) {
-    console.error('Get profile error:', error);
+    logger.error({ err: error, context: 'profile-get' }, 'Get profile error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -63,7 +64,7 @@ router.put('/', requireDataConsent(), async (req, res) => {
 
     res.json(updated);
   } catch (error) {
-    console.error('Update profile error:', error);
+    logger.error({ err: error, context: 'profile-update' }, 'Update profile error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

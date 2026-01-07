@@ -9,6 +9,7 @@ import { checkins } from '../schema.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { applyDPToMoodDistribution, logDPApplication } from './differentialPrivacy.js';
+import logger from '../logger.ts';
 
 // Mood levels mapping (1-6 scale)
 const MOOD_LEVELS = {
@@ -147,7 +148,7 @@ export async function get7DayMoodOrb(userId, timezone = 'America/Edmonton') {
       timezone
     };
   } catch (error) {
-    console.error('Error calculating 7-day mood orb:', error);
+    logger.error({ err: error, context: 'mood-orb-calculate' }, 'Error calculating 7-day mood orb');
     throw error;
   }
 }

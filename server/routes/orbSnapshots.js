@@ -4,6 +4,7 @@ import { weeklyOrbSnapshots, checkins, profiles } from '../schema.js';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { debugLog } from '../utils/logger.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -154,7 +155,7 @@ export async function captureWeeklySnapshot(userId) {
     debugLog('orbSnapshots', `Weekly snapshot captured for user ${userId} on ${snapshotDate}`);
     return snapshot;
   } catch (error) {
-    console.error('Error capturing weekly snapshot:', error);
+    logger.error({ err: error, context: 'orb-snapshots-capture-weekly' }, 'Error capturing weekly snapshot');
     throw error;
   }
 }
@@ -183,7 +184,7 @@ export async function captureAllWeeklySnapshots() {
     
     return { successful, failed };
   } catch (error) {
-    console.error('Error capturing all weekly snapshots:', error);
+    logger.error({ err: error, context: 'orb-snapshots-capture-all' }, 'Error capturing all weekly snapshots');
     throw error;
   }
 }
@@ -209,7 +210,7 @@ router.post('/capture', async (req, res) => {
     const result = await captureAllWeeklySnapshots();
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error in manual snapshot capture:', error);
+    logger.error({ err: error, context: 'orb-snapshots-manual-capture' }, 'Error in manual snapshot capture');
     res.status(500).json({ error: 'Failed to capture snapshots' });
   }
 });
@@ -236,7 +237,7 @@ router.get('/recent', async (req, res) => {
 
     res.json(snapshots);
   } catch (error) {
-    console.error('Error fetching recent snapshots:', error);
+    logger.error({ err: error, context: 'orb-snapshots-recent' }, 'Error fetching recent snapshots');
     res.status(500).json({ error: 'Failed to fetch snapshots' });
   }
 });
@@ -267,7 +268,7 @@ router.get('/:date', async (req, res) => {
 
     res.json(snapshot);
   } catch (error) {
-    console.error('Error fetching snapshot:', error);
+    logger.error({ err: error, context: 'orb-snapshots-by-date' }, 'Error fetching snapshot');
     res.status(500).json({ error: 'Failed to fetch snapshot' });
   }
 });

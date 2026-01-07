@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../db.js';
 import { dailyQuotes, profiles } from '../schema.js';
 import { eq, and, sql } from 'drizzle-orm';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -84,7 +85,7 @@ router.get('/daily', async (req, res) => {
       data: quote
     });
   } catch (error) {
-    console.error('Error fetching daily quote:', error);
+    logger.error({ err: error, context: 'quotes-daily' }, 'Error fetching daily quote');
     res.status(500).json({ error: 'Failed to fetch daily quote' });
   }
 });
@@ -117,7 +118,7 @@ router.get('/all', async (req, res) => {
       count: quotes.length
     });
   } catch (error) {
-    console.error('Error fetching all quotes:', error);
+    logger.error({ err: error, context: 'quotes-all' }, 'Error fetching all quotes');
     res.status(500).json({ error: 'Failed to fetch quotes' });
   }
 });
@@ -163,7 +164,7 @@ router.post('/', async (req, res) => {
       data: newQuote
     });
   } catch (error) {
-    console.error('Error adding quote:', error);
+    logger.error({ err: error, context: 'quotes-add' }, 'Error adding quote');
     res.status(500).json({ error: 'Failed to add quote' });
   }
 });

@@ -4,6 +4,7 @@ import { eq, and, gte, lte, inArray, sql, desc, or, isNull } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import type { MoodTrendData } from './moodTrends.js';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
+import logger from '../logger.ts';
 
 /**
  * Calculate distance between two points using Haversine formula
@@ -129,7 +130,7 @@ function calculateNextOccurrence(event: any, nowInEdmonton: DateTime): Date | nu
 export async function generateRecommendations(
   context: RecommendationContext
 ): Promise<ProgramRecommendation[]> {
-  console.log(`[Recommendations] Generating recommendations for user ${context.userId}`);
+  logger.info({ context: 'recommendations-generate', userId: '[REDACTED]' }, 'Generating recommendations for user');
 
   const maxResults = context.maxResults || 5;
 
@@ -157,8 +158,8 @@ export async function generateRecommendations(
     }
   }
 
-  console.log(`[Recommendations] Looking for events between ${startDate.toISOString()} and ${endDate.toISOString()}`);
-  console.log(`[Recommendations] Days in window: ${daysInWindow.join(', ')}`);
+  logger.info({ context: 'recommendations-generate', startDate: startDate.toISOString(), endDate: endDate.toISOString() }, 'Looking for events in window');
+  logger.debug({ context: 'recommendations-generate', daysInWindow }, 'Days in window');
 
   // Format dates for SQL
   const startDateStr = startDate.toISOString().split('T')[0];
@@ -197,11 +198,11 @@ export async function generateRecommendations(
     );
 
   if (upcomingEvents.length === 0) {
-    console.log('[Recommendations] No upcoming events available in 7-14 day window');
+    logger.info({ context: 'recommendations-generate' }, 'No upcoming events available in 7-14 day window');
     return [];
   }
 
-  console.log(`[Recommendations] Found ${upcomingEvents.length} upcoming events to score`);
+  logger.info({ context: 'recommendations-generate', eventCount: upcomingEvents.length }, 'Found upcoming events to score');
 
   // Score each event with its parent program data
   const scoredEvents = await Promise.all(
@@ -219,7 +220,7 @@ export async function generateRecommendations(
   const minDate = nowInEdmonton.plus({ days: 7 }).startOf('day');
   const maxDate = nowInEdmonton.plus({ days: 14 }).endOf('day');
 
-  console.log(`[Recommendations] Filtering events to 7-14 day window: ${minDate.toISO()} to ${maxDate.toISO()}`);
+  logger.info({ context: 'recommendations-generate', minDate: minDate.toISO(), maxDate: maxDate.toISO() }, 'Filtering events to 7-14 day window');
 
   // Filter out null entries, low scores, and events outside 7-14 day window
   const validEvents = scoredEvents.filter(
@@ -230,7 +231,7 @@ export async function generateRecommendations(
       
       // Enforce 7-14 day window on calculated nextStart
       if (!item.nextStart) {
-        console.log(`[Recommendations] Excluding event ${item.event.id}: no nextStart calculated`);
+        logger.debug({ context: 'recommendations-filter', eventId: item.event.id }, 'Excluding event: no nextStart calculated');
         return false;
       }
       
@@ -238,7 +239,7 @@ export async function generateRecommendations(
       const inWindow = nextStartDT >= minDate && nextStartDT <= maxDate;
       
       if (!inWindow) {
-        console.log(`[Recommendations] Excluding event ${item.event.id}: nextStart ${nextStartDT.toISO()} outside 7-14 day window`);
+        logger.debug({ context: 'recommendations-filter', eventId: item.event.id, nextStart: nextStartDT.toISO() }, 'Excluding event: outside 7-14 day window');
       }
       
       return inWindow;
@@ -276,7 +277,7 @@ export async function generateRecommendations(
               distance = calculateDistance(context.userLat, context.userLng, lat, lng);
             }
           } catch (error) {
-            console.error('[Recommendations] Error calculating distance:', error);
+            logger.error({ err: error, context: 'recommendations-distance' }, 'Error calculating distance');
           }
         }
       }
@@ -321,7 +322,7 @@ export async function generateRecommendations(
       };
     });
 
-  console.log(`[Recommendations] Generated ${recommendations.length} recommendations`);
+  logger.info({ context: 'recommendations-generate', count: recommendations.length }, 'Generated recommendations');
 
   return recommendations;
 }
@@ -410,7 +411,7 @@ async function scoreEvent(
           }
         }
       } catch (error) {
-        console.error('[Recommendations] Error calculating distance:', error);
+        logger.error({ err: error, context: 'recommendations-distance' }, 'Error calculating distance');
       }
     }
   }
@@ -545,7 +546,7 @@ async function scorePeerSuccess(programId: string): Promise<number> {
 
     return ratingScore + recScore;
   } catch (error) {
-    console.error('[Recommendations] Error fetching peer success insights:', error);
+    logger.error({ err: error, context: 'recommendations-peer-insights' }, 'Error fetching peer success insights');
     return 0;
   }
 }
@@ -602,7 +603,7 @@ export async function trackRecommendation(
   matchScore: number,
   conversationId?: string
 ): Promise<void> {
-  console.log(`[Recommendations] Tracking recommendation event for user ${userId}`);
+  logger.info({ context: 'recommendations-track', userId: '[REDACTED]' }, 'Tracking recommendation event');
 
   await db.insert(recommendationEvents).values({
     userId,
@@ -614,7 +615,7 @@ export async function trackRecommendation(
     matchScore: matchScore.toString(),
   });
 
-  console.log('[Recommendations] Recommendation event tracked successfully');
+  logger.info({ context: 'recommendations-track' }, 'Recommendation event tracked successfully');
 }
 
 /**
@@ -625,7 +626,7 @@ export async function updateRecommendationAction(
   userAction: string,
   feedback?: string
 ): Promise<void> {
-  console.log(`[Recommendations] Updating recommendation ${recommendationId} with action: ${userAction}`);
+  logger.info({ context: 'recommendations-update', recommendationId, userAction }, 'Updating recommendation action');
 
   await db
     .update(recommendationEvents)
@@ -636,7 +637,7 @@ export async function updateRecommendationAction(
     })
     .where(eq(recommendationEvents.id, recommendationId));
 
-  console.log('[Recommendations] Recommendation action updated');
+  logger.info({ context: 'recommendations-update' }, 'Recommendation action updated');
 }
 
 /**
@@ -676,7 +677,7 @@ export async function getRecommendationsWithContext(
         rec.matchScore
       );
     } catch (error) {
-      console.error('[Recommendations] Error tracking recommendation:', error);
+      logger.error({ err: error, context: 'recommendations-track' }, 'Error tracking recommendation');
     }
   }
 

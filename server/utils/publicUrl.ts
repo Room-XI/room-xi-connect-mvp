@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import logger from '../logger.ts';
 
 export function getPublicUrl(req?: Request): string {
   if (process.env.PUBLIC_URL) {
@@ -24,7 +25,7 @@ export function getPublicUrl(req?: Request): string {
   }
   
   if (process.env.NODE_ENV === 'production') {
-    console.warn('PUBLIC_URL not set in production - consent links may not work correctly');
+    logger.warn({ context: 'public-url' }, 'PUBLIC_URL not set in production - consent links may not work correctly');
   }
   
   return 'http://localhost:5000';

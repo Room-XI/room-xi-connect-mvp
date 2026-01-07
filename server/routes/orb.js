@@ -9,6 +9,7 @@ import { checkins } from '../schema.js';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { addLaplaceNoise } from '../lib/differentialPrivacy.js';
 import { DateTime } from 'luxon';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -109,7 +110,7 @@ router.get('/summary', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching orb summary:', error);
+    logger.error({ err: error, context: 'orb-summary' }, 'Error fetching orb summary');
     res.status(500).json({ error: 'Failed to fetch orb summary' });
   }
 });

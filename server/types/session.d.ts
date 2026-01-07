@@ -9,6 +9,9 @@ declare module 'express-session' {
   interface SessionData {
     userId?: string;
     isAdmin?: boolean;
+    isAdminSession?: boolean;
+    adminAccessGranted?: boolean;
+    adminCsrfToken?: string;
     consents?: Record<string, boolean>;
     email?: string;
     firstName?: string;

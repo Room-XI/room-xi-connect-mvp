@@ -3,6 +3,7 @@ import { db } from '../db.js';
 import { users } from '../schema.js';
 import { eq } from 'drizzle-orm';
 import { getPublicUrl } from '../utils/publicUrl.js';
+import logger from '../logger.ts';
 
 const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
 const USE_SENDGRID = EMAIL_PROVIDER === 'sendgrid';
@@ -21,7 +22,7 @@ async function sendEmail({ to, subject, html }: { to: string; subject: string; h
       html,
     };
     await sgMail.default.send(msg);
-    console.log(`[Email] Verification sent via SendGrid to: ${to}`);
+    logger.info({ context: 'email-verification', provider: 'sendgrid', to: '[REDACTED]' }, 'Verification email sent');
   } else {
     const nodemailer = await import('nodemailer');
     const transporter = nodemailer.default.createTransport({
@@ -38,7 +39,7 @@ async function sendEmail({ to, subject, html }: { to: string; subject: string; h
       html,
     };
     await transporter.sendMail(mailOptions);
-    console.log(`[Email] Verification sent via Gmail to: ${to}`);
+    logger.info({ context: 'email-verification', provider: 'gmail', to: '[REDACTED]' }, 'Verification email sent');
   }
 }
 
@@ -172,10 +173,10 @@ export async function sendVerificationEmail(userId: string, email: string): Prom
       subject: 'Verify Your Email - Room XI Connect',
       html,
     });
-    console.log('Email verification sent to:', email);
+    logger.info({ context: 'email-verification-request', email: '[REDACTED]' }, 'Email verification sent');
     return { token };
   } catch (error) {
-    console.error('Failed to send verification email:', error);
+    logger.error({ err: error, context: 'email-verification-send' }, 'Failed to send verification email');
     throw new Error('Failed to send verification email');
   }
 }
@@ -207,7 +208,7 @@ export async function verifyEmail(token: string): Promise<{ success: boolean; me
     })
     .where(eq(users.id, user.id));
 
-  console.log('Email verified for user:', user.id);
+  logger.info({ context: 'email-verification-confirm', userId: '[REDACTED]' }, 'Email verified for user');
   return { success: true, message: 'Email verified successfully', userId: user.id };
 }
 
@@ -229,7 +230,7 @@ export async function resendVerificationEmail(userId: string): Promise<{ success
     await sendVerificationEmail(userId, user.email);
     return { success: true, message: 'Verification email sent' };
   } catch (error) {
-    console.error('Failed to resend verification email:', error);
+    logger.error({ err: error, context: 'email-verification-resend' }, 'Failed to resend verification email');
     return { success: false, message: 'Failed to send verification email' };
   }
 }

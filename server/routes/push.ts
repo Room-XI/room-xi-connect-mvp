@@ -4,6 +4,7 @@ import { pushSubscriptions, profiles } from '../schema.js';
 import { eq, and } from 'drizzle-orm';
 import { pushEnabled } from '../services/pushNotification.ts';
 import { requirePrivacyConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -68,7 +69,7 @@ router.post('/subscribe', requirePrivacyConsent('notifications'), async (req, re
 
     res.json({ success: true, message: 'Subscription saved' });
   } catch (error) {
-    console.error('[Push] Error subscribing:', error);
+    logger.error({ err: error, context: 'push-subscribe' }, 'Error subscribing');
     res.status(500).json({ error: 'Failed to save subscription' });
   }
 });
@@ -96,7 +97,7 @@ router.delete('/unsubscribe', requirePrivacyConsent('notifications'), async (req
 
     res.json({ success: true, message: 'Subscription removed' });
   } catch (error) {
-    console.error('[Push] Error unsubscribing:', error);
+    logger.error({ err: error, context: 'push-unsubscribe' }, 'Error unsubscribing');
     res.status(500).json({ error: 'Failed to remove subscription' });
   }
 });
@@ -118,7 +119,7 @@ router.get('/status', async (req, res) => {
       configured: !!VAPID_PUBLIC_KEY,
     });
   } catch (error) {
-    console.error('[Push] Error getting status:', error);
+    logger.error({ err: error, context: 'push-status' }, 'Error getting status');
     res.status(500).json({ error: 'Failed to get subscription status' });
   }
 });
@@ -163,7 +164,7 @@ router.post('/send', async (req, res) => {
 
     res.json({ success: true, sent: result.sent, failed: result.failed });
   } catch (error) {
-    console.error('[Push] Error sending notification:', error);
+    logger.error({ err: error, context: 'push-send' }, 'Error sending notification');
     res.status(500).json({ error: 'Failed to send notification' });
   }
 });
@@ -197,7 +198,7 @@ router.post('/test', requirePrivacyConsent('notifications'), async (req, res) =>
       message: `Sent to ${result.sent} device(s)`,
     });
   } catch (error) {
-    console.error('[Push] Error sending test notification:', error);
+    logger.error({ err: error, context: 'push-test' }, 'Error sending test notification');
     res.status(500).json({ error: 'Failed to send test notification' });
   }
 });

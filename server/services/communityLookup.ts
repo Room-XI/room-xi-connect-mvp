@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import logger from '../logger.ts';
 
 /**
  * City of Edmonton GIS Integration for Ward Boundary Lookups
@@ -208,7 +209,7 @@ export async function lookupWardByCoordinates(
     });
 
     if (!response.ok) {
-      console.error(`Edmonton API error: ${response.status} ${response.statusText}`);
+      logger.error({ context: 'community-lookup-edmonton-api', status: response.status }, 'Edmonton API error');
       coordinatesCache.set(cacheKey, createCacheEntry(null));
       return null;
     }
@@ -232,7 +233,7 @@ export async function lookupWardByCoordinates(
     coordinatesCache.set(cacheKey, createCacheEntry(result));
     return result;
   } catch (error) {
-    console.error('Error querying Edmonton ward API:', error);
+    logger.error({ err: error, context: 'community-lookup-edmonton-api' }, 'Error querying Edmonton ward API');
     coordinatesCache.set(cacheKey, createCacheEntry(null));
     return null;
   }
@@ -280,7 +281,7 @@ export async function geocodePostalCode(
     });
 
     if (!response.ok) {
-      console.error(`Nominatim API error: ${response.status} ${response.statusText}`);
+      logger.error({ context: 'community-lookup-nominatim', status: response.status }, 'Nominatim API error');
       geocodeCache.set(normalized, createCacheEntry(null));
       return null;
     }
@@ -306,7 +307,7 @@ export async function geocodePostalCode(
     geocodeCache.set(normalized, createCacheEntry(result));
     return result;
   } catch (error) {
-    console.error('Error geocoding postal code:', error);
+    logger.error({ err: error, context: 'community-lookup-geocode' }, 'Error geocoding postal code');
     geocodeCache.set(normalized, createCacheEntry(null));
     return null;
   }
@@ -343,7 +344,7 @@ export async function lookupCommunityEnhanced(
       }
     }
   } catch (error) {
-    console.error('Enhanced lookup failed, falling back to FSA:', error);
+    logger.error({ err: error, context: 'community-lookup-enhanced' }, 'Enhanced lookup failed, falling back to FSA');
   }
 
   // Step 3: Fall back to FSA-based lookup

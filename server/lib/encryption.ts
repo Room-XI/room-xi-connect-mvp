@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import logger from '../logger.ts';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
@@ -38,7 +39,7 @@ export function encryptHealthData(plaintext: string | null | undefined): string 
     
     return `${ivBase64}:${authTagBase64}:${encrypted}`;
   } catch (error) {
-    console.error('Encryption error:', error);
+    logger.error({ err: error, context: 'encryption' }, 'Encryption error');
     throw new Error('Failed to encrypt health data');
   }
 }
@@ -72,7 +73,7 @@ export function decryptHealthData(encryptedValue: string | null | undefined): st
     
     return decrypted;
   } catch (error) {
-    console.error('Decryption error - data may be unencrypted or corrupted:', error);
+    logger.error({ err: error, context: 'decryption' }, 'Decryption error - data may be unencrypted or corrupted');
     return encryptedValue;
   }
 }

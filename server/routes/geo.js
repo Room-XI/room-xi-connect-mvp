@@ -11,6 +11,7 @@ import { checkins, profiles } from '../schema.js';
 import { eq, gte, and } from 'drizzle-orm';
 import { applyDPToMoodDistribution, addLaplaceNoise } from '../lib/differentialPrivacy.js';
 import { checkPrivacyConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -106,7 +107,7 @@ router.post('/aggregate', async (req, res) => {
         bucket.totalCheckins++;
         if (checkin.city) bucket.cities.add(checkin.city);
       } catch (error) {
-        console.error('[Geo] Invalid coordinates, skipping:', error);
+        logger.warn({ err: error, context: 'geo-aggregate-coords' }, 'Invalid coordinates, skipping');
         continue;
       }
     }
@@ -183,7 +184,7 @@ router.post('/aggregate', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Geo] Aggregation error:', error);
+    logger.error({ err: error, context: 'geo-aggregate' }, 'Aggregation error');
     res.status(500).json({
       error: 'Failed to aggregate geo data',
       message: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message
@@ -233,7 +234,7 @@ router.post('/hex-for-location', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[Geo] Hex lookup error:', error);
+    logger.error({ err: error, context: 'geo-hex-lookup' }, 'Hex lookup error');
     res.status(500).json({
       error: 'Failed to get hex for location',
       message: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message

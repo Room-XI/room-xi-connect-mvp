@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { db } from '../db.js';
 import { xids, attendance } from '../schema.js';
 import { eq, and, isNull } from 'drizzle-orm';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -73,7 +74,7 @@ router.post('/create', async (req, res) => {
       message: 'XID created successfully'
     });
   } catch (error) {
-    console.error('XID creation error:', error);
+    logger.error({ err: error, context: 'xid-create' }, 'XID creation error');
     res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 });
@@ -116,7 +117,7 @@ router.post('/attendance', async (req, res) => {
 
     res.status(201).json(record);
   } catch (error) {
-    console.error('Attendance creation error:', error);
+    logger.error({ err: error, context: 'xid-attendance-create' }, 'Attendance creation error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -144,7 +145,7 @@ router.get('/attendance', async (req, res) => {
 
     res.json(records);
   } catch (error) {
-    console.error('Get attendance error:', error);
+    logger.error({ err: error, context: 'xid-attendance-get' }, 'Get attendance error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

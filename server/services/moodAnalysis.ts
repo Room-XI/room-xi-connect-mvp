@@ -12,6 +12,7 @@ import { checkins, profiles, consentEvents } from '../schema.js';
 import { eq, gte, desc, and } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
+import logger from '../logger.ts';
 
 // Numerical mood scores for variance calculation (1-6 scale)
 const MOOD_SCORES: Record<MoodKey, number> = {
@@ -78,7 +79,7 @@ async function hasOptedOut(userId: string): Promise<boolean> {
     // Check if ximiConsent is explicitly false
     return userProfile[0].ximiConsent === false;
   } catch (error) {
-    console.error('[MoodAnalysis] Error checking opt-out status:', error);
+    logger.error({ err: error, context: 'mood-analysis-opt-out' }, 'Error checking opt-out status');
     return false; // Fail open: allow triggers if we can't check
   }
 }
@@ -106,7 +107,7 @@ async function getLastTriggerTime(userId: string): Promise<Date | null> {
 
     return null;
   } catch (error) {
-    console.error('[MoodAnalysis] Error getting last trigger time:', error);
+    logger.error({ err: error, context: 'mood-analysis-trigger-time' }, 'Error getting last trigger time');
     return null;
   }
 }
@@ -127,7 +128,7 @@ async function logTriggerEvent(userId: string, reason: string, details: any): Pr
       })
     });
   } catch (error) {
-    console.error('[MoodAnalysis] Error logging trigger event:', error);
+    logger.error({ err: error, context: 'mood-analysis-log-trigger' }, 'Error logging trigger event');
   }
 }
 
@@ -231,7 +232,7 @@ export async function analyzeMoodTrigger(
     };
 
   } catch (error) {
-    console.error('[MoodAnalysis] Error analyzing mood trigger:', error);
+    logger.error({ err: error, context: 'mood-analysis-analyze' }, 'Error analyzing mood trigger');
     return { shouldTrigger: false };
   }
 }
@@ -282,7 +283,7 @@ export async function getMoodAnalysisSummary(userId: string): Promise<any> {
     };
 
   } catch (error) {
-    console.error('[MoodAnalysis] Error getting mood summary:', error);
+    logger.error({ err: error, context: 'mood-analysis-summary' }, 'Error getting mood summary');
     return { hasData: false, error: error.message };
   }
 }

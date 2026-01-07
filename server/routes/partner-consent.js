@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { db } from "../db.js";
 import { partnerOrganizations, consentDelegations, consentDelegationEvents } from "../schema.js";
 import { eq, and } from "drizzle-orm";
+import logger from "../logger.ts";
 
 const router = express.Router();
 
@@ -69,7 +70,7 @@ async function authenticatePartner(req, res, next) {
     req.partner = partner;
     next();
   } catch (error) {
-    console.error("Partner auth error:", error);
+    logger.error({ err: error, context: 'partner-consent-auth' }, 'Partner auth error');
     res.status(500).json({ error: "Authentication failed" });
   }
 }
@@ -183,7 +184,7 @@ router.get("/consent-status/:delegationId", authenticatePartner, async (req, res
       createdAt: delegation.createdAt
     });
   } catch (error) {
-    console.error("Consent status error:", error);
+    logger.error({ err: error, context: 'partner-consent-status' }, 'Consent status error');
     res.status(500).json({ error: "Failed to retrieve consent status" });
   }
 });
@@ -230,7 +231,7 @@ router.get("/my-consents", authenticatePartner, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("List consents error:", error);
+    logger.error({ err: error, context: 'partner-consent-list' }, 'List consents error');
     res.status(500).json({ error: "Failed to list consent requests" });
   }
 });

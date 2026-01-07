@@ -5,6 +5,7 @@ import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import crypto from 'crypto';
 import { applyDPToStats, logDPApplication } from '../lib/differentialPrivacy.js';
 import { decryptHealthProfile } from '../lib/encryption.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -111,7 +112,7 @@ router.get('/consents', async (req, res) => {
       lastUpdated: consent.updatedAt,
     });
   } catch (error) {
-    console.error('Error fetching privacy consents:', error);
+    logger.error({ err: error, context: 'privacy-consents-get' }, 'Error fetching privacy consents');
     res.status(500).json({ error: 'Failed to fetch privacy settings' });
   }
 });
@@ -211,7 +212,7 @@ router.put('/consents', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error updating privacy consents:', error);
+    logger.error({ err: error, context: 'privacy-consents-update' }, 'Error updating privacy consents');
     res.status(500).json({ error: 'Failed to update privacy settings' });
   }
 });
@@ -248,7 +249,7 @@ router.get('/audit-log', async (req, res) => {
       userXid,
     });
   } catch (error) {
-    console.error('Error fetching audit log:', error);
+    logger.error({ err: error, context: 'privacy-audit-log' }, 'Error fetching audit log');
     res.status(500).json({ error: 'Failed to fetch audit history' });
   }
 });
@@ -305,7 +306,7 @@ router.post('/reminder-response', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error recording reminder response:', error);
+    logger.error({ err: error, context: 'privacy-reminder-response' }, 'Error recording reminder response');
     res.status(500).json({ error: 'Failed to record response' });
   }
 });
@@ -402,7 +403,7 @@ router.post('/revoke-consent', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error revoking consent:', error);
+    logger.error({ err: error, context: 'privacy-revoke-consent' }, 'Error revoking consent');
     res.status(500).json({ error: 'Failed to revoke consent' });
   }
 });
@@ -544,7 +545,7 @@ router.get(['/export', '/data-export'], async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.json(exportData);
   } catch (error) {
-    console.error('Error exporting user data:', error);
+    logger.error({ err: error, context: 'privacy-data-export' }, 'Error exporting user data');
     res.status(500).json({ error: 'Failed to export data' });
   }
 });
@@ -595,7 +596,7 @@ router.post('/request-deletion', async (req, res) => {
     // Clear session
     req.session.destroy((err) => {
       if (err) {
-        console.error('Error destroying session during deletion:', err);
+        logger.error({ err, context: 'privacy-deletion-session' }, 'Error destroying session during deletion');
       }
       res.json({ 
         success: true, 
@@ -604,7 +605,7 @@ router.post('/request-deletion', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error requesting account deletion:', error);
+    logger.error({ err: error, context: 'privacy-request-deletion' }, 'Error requesting account deletion');
     res.status(500).json({ error: 'Failed to process deletion request' });
   }
 });
@@ -657,7 +658,7 @@ router.get('/aggregate-stats', async (req, res) => {
       disclaimer: 'Aggregate statistics include differential privacy noise for user protection',
     });
   } catch (error) {
-    console.error('Error fetching aggregate stats:', error);
+    logger.error({ err: error, context: 'privacy-aggregate-stats' }, 'Error fetching aggregate stats');
     res.status(500).json({ error: 'Failed to fetch aggregate statistics' });
   }
 });
@@ -701,7 +702,7 @@ router.get('/youth-settings', async (req, res) => {
       lastReviewedAt: settings.lastReviewedAt,
     });
   } catch (error) {
-    console.error('Error fetching youth privacy settings:', error);
+    logger.error({ err: error, context: 'privacy-youth-settings-get' }, 'Error fetching youth privacy settings');
     res.status(500).json({ error: 'Failed to fetch privacy settings' });
   }
 });
@@ -791,7 +792,7 @@ router.put('/youth-settings', async (req, res) => {
       lastReviewedAt: settings.lastReviewedAt,
     });
   } catch (error) {
-    console.error('Error updating youth privacy settings:', error);
+    logger.error({ err: error, context: 'privacy-youth-settings-update' }, 'Error updating youth privacy settings');
     res.status(500).json({ error: 'Failed to update privacy settings' });
   }
 });

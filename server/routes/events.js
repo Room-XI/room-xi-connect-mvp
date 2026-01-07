@@ -6,6 +6,7 @@ import { DateTime } from 'luxon';
 import { getRecommendationsWithContext } from '../services/recommendations.ts';
 import { debugLog } from '../utils/logger.ts';
 import { requireResearchConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -75,7 +76,7 @@ function formatEventWithProgram(event, program, userLat = null, userLng = null) 
       const eventLng = parseFloat(result.lng);
       result.distance = calculateDistance(userLat, userLng, eventLat, eventLng);
     } catch (error) {
-      console.error('Error calculating distance:', error);
+      logger.error({ err: error, context: 'events-distance-calc' }, 'Error calculating distance');
       result.distance = null;
     }
   }
@@ -224,7 +225,7 @@ router.get('/happening-now', async (req, res) => {
       filter: 'happening-now'
     });
   } catch (error) {
-    console.error('[happening-now] Error:', error);
+    logger.error({ err: error, context: 'events-happening-now' }, 'Error fetching happening now events');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -290,7 +291,7 @@ router.get('/today', async (req, res) => {
       filter: 'today'
     });
   } catch (error) {
-    console.error('[today] Error:', error);
+    logger.error({ err: error, context: 'events-today' }, 'Error fetching today events');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -363,7 +364,7 @@ router.get('/this-weekend', async (req, res) => {
       weekendDates: { saturday: nextSaturday, sunday: nextSunday }
     });
   } catch (error) {
-    console.error('[this-weekend] Error:', error);
+    logger.error({ err: error, context: 'events-this-weekend' }, 'Error fetching this weekend events');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -464,7 +465,7 @@ router.get('/later', async (req, res) => {
       daysIncluded: nextSevenDays
     });
   } catch (error) {
-    console.error('[later] Error:', error);
+    logger.error({ err: error, context: 'events-later' }, 'Error fetching later events');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -644,7 +645,7 @@ router.get('/programs-grouped', async (req, res) => {
             const programLng = parseFloat(program.lng);
             distance = calculateDistance(userLat, userLng, programLat, programLng);
           } catch (e) {
-            console.error('Error calculating distance:', e);
+            logger.error({ err: e, context: 'events-distance-calc' }, 'Error calculating distance');
           }
         }
 
@@ -764,7 +765,7 @@ router.get('/programs-grouped', async (req, res) => {
       count: programsList.length
     });
   } catch (error) {
-    console.error('[programs-grouped] Error:', error);
+    logger.error({ err: error, context: 'events-programs-grouped' }, 'Error fetching grouped programs');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -828,7 +829,7 @@ router.get('/program-occurrences', async (req, res) => {
 
     res.json(sortedEvents);
   } catch (error) {
-    console.error('[program-occurrences] Error:', error);
+    logger.error({ err: error, context: 'events-program-occurrences' }, 'Error fetching program occurrences');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -901,7 +902,7 @@ router.get('/recommendations', requireResearchConsent(), async (req, res) => {
       count: topRecommendations.length,
     });
   } catch (error) {
-    console.error('[recommendations] Error:', error);
+    logger.error({ err: error, context: 'events-recommendations' }, 'Error fetching recommendations');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });

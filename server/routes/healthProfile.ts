@@ -4,6 +4,7 @@ import { healthProfiles } from '../schema.js';
 import { eq } from 'drizzle-orm';
 import { encryptHealthProfile, decryptHealthProfile } from '../lib/encryption.ts';
 import { grantConsent } from '../services/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get('/', async (req: Request, res: Response) => {
     const decrypted = decryptHealthProfile(profile);
     res.json(decrypted);
   } catch (error) {
-    console.error('Get health profile error:', error);
+    logger.error({ err: error, context: 'health-profile-get' }, 'Get health profile error');
     res.status(500).json({ error: 'Failed to get health profile' });
   }
 });
@@ -121,7 +122,7 @@ router.put('/', async (req: Request, res: Response) => {
     const decrypted = decryptHealthProfile(result);
     res.json(decrypted);
   } catch (error) {
-    console.error('Update health profile error:', error);
+    logger.error({ err: error, context: 'health-profile-update' }, 'Update health profile error');
     res.status(500).json({ error: 'Failed to update health profile' });
   }
 });
@@ -159,7 +160,7 @@ router.delete('/', async (req: Request, res: Response) => {
 
     res.json({ success: true, message: 'Health profile deleted' });
   } catch (error) {
-    console.error('Delete health profile error:', error);
+    logger.error({ err: error, context: 'health-profile-delete' }, 'Delete health profile error');
     res.status(500).json({ error: 'Failed to delete health profile' });
   }
 });

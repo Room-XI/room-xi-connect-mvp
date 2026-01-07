@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import logger from '../logger.ts';
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY!,
@@ -26,17 +27,14 @@ export async function moderateText(text: string): Promise<ModerationResult> {
     const categories = (moderationResult?.categories as unknown as Record<string, boolean>) ?? {};
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[Moderation] debug', { flagged, categories });
+      logger.debug({ context: 'moderation', flagged, categories }, 'Moderation debug');
     } else {
-      console.log('[Moderation] summary', { flagged, categoriesCount: Object.keys(categories).length });
+      logger.info({ context: 'moderation', flagged, categoriesCount: Object.keys(categories).length }, 'Moderation summary');
     }
 
     return { flagged, categories };
   } catch (error: any) {
-    console.error('[Moderation] Error calling moderation API:', {
-      message: error?.message,
-      status: error?.status,
-    });
+    logger.error({ err: error, context: 'moderation-api', message: error?.message, status: error?.status }, 'Error calling moderation API');
     return { flagged: false, categories: {} };
   }
 }

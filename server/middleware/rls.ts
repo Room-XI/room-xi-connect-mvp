@@ -13,6 +13,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { Pool } from 'pg';
+import logger from '../logger.ts';
 
 declare module 'express-session' {
   interface SessionData {
@@ -129,7 +130,7 @@ export async function logAuditTrail(
       ]
     );
   } catch (error) {
-    console.error('Failed to log audit trail:', error);
+    logger.error({ err: error, context: 'audit-trail' }, 'Failed to log audit trail');
     // Don't throw - audit logging failures shouldn't break app
   }
 }

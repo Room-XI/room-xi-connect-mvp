@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../db.ts';
 import { dpApplications } from '../schema.ts';
 import { applyDPToStats, addLaplaceNoise } from '../lib/differentialPrivacy.js';
+import logger from '../logger.ts';
 
 interface DPMetadata {
   operation: string;
@@ -40,7 +41,7 @@ async function logDPApplication(metadata: DPMetadata): Promise<void> {
       }
     });
   } catch (error) {
-    console.error('[DP Middleware] Failed to log DP application:', error);
+    logger.error({ err: error, context: 'dp-middleware-log' }, 'Failed to log DP application');
   }
 }
 
@@ -136,7 +137,7 @@ export function enforceDifferentialPrivacy(options: {
 
           return originalJson(data);
         } catch (error) {
-          console.error('[DP Middleware] Error processing response:', error);
+          logger.error({ err: error, context: 'dp-middleware-response' }, 'Error processing response');
           return originalJson(data);
         }
       })();

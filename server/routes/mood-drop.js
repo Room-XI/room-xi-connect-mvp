@@ -9,6 +9,7 @@ import { moodDrops } from '../schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { Filter } from 'bad-words';
 import { requireResearchConsent } from '../middleware/consent.ts';
+import logger from '../logger.ts';
 
 const router = express.Router();
 const profanityFilter = new Filter();
@@ -75,7 +76,7 @@ router.post('/', requireResearchConsent(), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating mood drop:', error);
+    logger.error({ err: error, context: 'mood-drop-create' }, 'Error creating mood drop');
     res.status(500).json({ error: 'Failed to create mood drop' });
   }
 });
@@ -104,7 +105,7 @@ router.get('/public', async (req, res) => {
     res.json({ drops, count: drops.length });
 
   } catch (error) {
-    console.error('Error fetching public mood drops:', error);
+    logger.error({ err: error, context: 'mood-drop-public' }, 'Error fetching public mood drops');
     res.status(500).json({ error: 'Failed to fetch mood drops' });
   }
 });
@@ -128,7 +129,7 @@ router.get('/my', async (req, res) => {
     res.json({ drops, count: drops.length });
 
   } catch (error) {
-    console.error('Error fetching user mood drops:', error);
+    logger.error({ err: error, context: 'mood-drop-my' }, 'Error fetching user mood drops');
     res.status(500).json({ error: 'Failed to fetch mood drops' });
   }
 });
