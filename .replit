@@ -56,3 +56,6 @@ EMAIL_FROM = "roomxi.ent@gmail.com"
 
 [userenv.production]
 PUBLIC_URL = "https://ct-mvp--erickrushxi.replit.app"
+
+[userenv.development]
+PUBLIC_URL = "https://4da2b7bf-6020-4c0a-9461-a2517f11e166-00-2gp3v82rn8h81.picard.replit.dev"
