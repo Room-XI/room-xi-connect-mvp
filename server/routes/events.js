@@ -5,6 +5,7 @@ import { eq, and, or, sql, inArray, isNull, lte, gte, desc } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { getRecommendationsWithContext } from '../services/recommendations.ts';
 import { debugLog } from '../utils/logger.ts';
+import { requireResearchConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 
@@ -834,7 +835,8 @@ router.get('/program-occurrences', async (req, res) => {
 
 // GET /api/events/recommendations
 // Returns personalized program recommendations based on user's mood and check-in history
-router.get('/recommendations', async (req, res) => {
+// Requires research participation consent
+router.get('/recommendations', requireResearchConsent(), async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Authentication required' });

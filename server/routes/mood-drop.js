@@ -8,6 +8,7 @@ import { db } from '../db.js';
 import { moodDrops } from '../schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { Filter } from 'bad-words';
+import { requireResearchConsent } from '../middleware/consent.ts';
 
 const router = express.Router();
 const profanityFilter = new Filter();
@@ -15,8 +16,9 @@ const profanityFilter = new Filter();
 /**
  * POST /api/mood-drop
  * Create a moderated mood post
+ * Requires research participation consent for community sharing
  */
-router.post('/', async (req, res) => {
+router.post('/', requireResearchConsent(), async (req, res) => {
   try {
     const userId = req.session?.userId;
     if (!userId) {
