@@ -5,7 +5,7 @@ integrations = ["github:1.0.0", "javascript_database:1.0.0", "javascript_openai_
 
 [nix]
 channel = "stable-25_05"
-packages = ["unzip", "glib"]
+packages = ["unzip", "glib", "zip"]
 
 [workflows]
 runButton = "Project"
