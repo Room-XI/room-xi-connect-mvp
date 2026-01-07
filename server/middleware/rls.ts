@@ -12,6 +12,16 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { Pool } from 'pg';
+
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+    isAdmin?: boolean;
+    consents?: Record<string, boolean>;
+    lastActivity?: number;
+  }
+}
 
 /**
  * NOTE: setRLSContext and applyRLS are NOT USED in this architecture.
