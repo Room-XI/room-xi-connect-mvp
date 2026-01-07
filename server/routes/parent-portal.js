@@ -873,4 +873,309 @@ router.post('/data/delete/:youthId', requireParent, async (req, res) => {
   }
 });
 
+// ========== PORTAL STATUS AND SUMMARY ENDPOINTS ==========
+
+/**
+ * GET /parent-portal/status
+ * Get overall consent status and youth info for the logged-in parent
+ */
+router.get('/status', requireParent, async (req, res) => {
+  try {
+    const parentId = req.session.parentId;
+
+    const [parent] = await db
+      .select({
+        id: parents.id,
+        email: parents.email,
+        name: parents.name,
+        lastLoginAt: parents.lastLoginAt,
+      })
+      .from(parents)
+      .where(eq(parents.id, parentId))
+      .limit(1);
+
+    if (!parent) {
+      return res.status(404).json({ error: 'Parent not found' });
+    }
+
+    const links = await db
+      .select({
+        userId: parentLinks.userId,
+        relation: parentLinks.relation,
+        verifiedAt: parentLinks.verifiedAt,
+        firstName: profiles.firstName,
+        preferredName: profiles.preferredName,
+        age: profiles.age,
+      })
+      .from(parentLinks)
+      .leftJoin(profiles, eq(parentLinks.userId, profiles.userId))
+      .where(eq(parentLinks.parentId, parentId));
+
+    const youthSummaries = await Promise.all(
+      links.filter(l => l.verifiedAt).map(async (link) => {
+        const [verification] = await db
+          .select({
+            status: guardianVerifications.status,
+            confirmedAt: guardianVerifications.confirmedAt,
+            withdrawnAt: guardianVerifications.withdrawnAt,
+          })
+          .from(guardianVerifications)
+          .where(eq(guardianVerifications.userId, link.userId))
+          .limit(1);
+
+        return {
+          youthId: link.userId,
+          name: link.preferredName || link.firstName || 'Unknown',
+          age: link.age,
+          relation: link.relation,
+          verifiedAt: link.verifiedAt,
+          consentStatus: verification?.status || 'unknown',
+          consentConfirmedAt: verification?.confirmedAt || null,
+          consentWithdrawnAt: verification?.withdrawnAt || null,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      parent: {
+        id: parent.id,
+        email: parent.email,
+        name: parent.name,
+        lastLoginAt: parent.lastLoginAt,
+      },
+      youth: youthSummaries,
+      totalYouth: youthSummaries.length,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-portal-status' }, 'Error fetching portal status');
+    res.status(500).json({ error: 'Failed to fetch status' });
+  }
+});
+
+/**
+ * GET /parent-portal/mood-summary
+ * Get aggregated mood summary across all linked youth (privacy-filtered)
+ */
+router.get('/mood-summary', requireParent, async (req, res) => {
+  try {
+    const parentId = req.session.parentId;
+
+    const links = await db
+      .select({
+        userId: parentLinks.userId,
+        verifiedAt: parentLinks.verifiedAt,
+      })
+      .from(parentLinks)
+      .where(eq(parentLinks.parentId, parentId));
+
+    const verifiedLinks = links.filter(l => l.verifiedAt);
+
+    if (verifiedLinks.length === 0) {
+      return res.json({
+        success: true,
+        summary: null,
+        message: 'No verified youth linked',
+      });
+    }
+
+    const moodSummaries = await Promise.all(
+      verifiedLinks.map(async (link) => {
+        const privacySettings = await getYouthPrivacySettings(link.userId);
+        
+        if (!privacySettings.parentCanSeeMood) {
+          return null;
+        }
+
+        const [profile] = await db
+          .select({
+            firstName: profiles.firstName,
+            preferredName: profiles.preferredName,
+            streakCount: profiles.streakCount,
+            lastCheckinDate: profiles.lastCheckinDate,
+          })
+          .from(profiles)
+          .where(eq(profiles.userId, link.userId))
+          .limit(1);
+
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const recentCheckins = await db
+          .select({
+            moodLevel16: checkins.moodLevel16,
+            moodType: checkins.moodType,
+            timestamp: checkins.timestamp,
+          })
+          .from(checkins)
+          .where(
+            and(
+              eq(checkins.userId, link.userId),
+              sql`${checkins.timestamp} >= ${sevenDaysAgo}`
+            )
+          )
+          .orderBy(desc(checkins.timestamp))
+          .limit(7);
+
+        const avgMood = recentCheckins.length > 0
+          ? recentCheckins.reduce((sum, c) => sum + c.moodLevel16, 0) / recentCheckins.length
+          : null;
+
+        return {
+          youthId: link.userId,
+          name: profile?.preferredName || profile?.firstName || 'Youth',
+          checkinsLast7Days: recentCheckins.length,
+          averageMood: avgMood ? Math.round(avgMood * 10) / 10 : null,
+          latestMoodType: recentCheckins[0]?.moodType || null,
+          streakCount: profile?.streakCount || 0,
+          lastCheckinDate: profile?.lastCheckinDate || null,
+          moodTrend: recentCheckins.length >= 2 
+            ? (recentCheckins[0]?.moodLevel16 > recentCheckins[recentCheckins.length - 1]?.moodLevel16 ? 'improving' : 'declining')
+            : 'stable',
+        };
+      })
+    );
+
+    const visibleSummaries = moodSummaries.filter(s => s !== null);
+
+    res.json({
+      success: true,
+      summaries: visibleSummaries,
+      hiddenCount: moodSummaries.length - visibleSummaries.length,
+      message: visibleSummaries.length === 0 
+        ? 'All linked youth have chosen to keep their mood data private.'
+        : null,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-portal-mood-summary' }, 'Error fetching mood summary');
+    res.status(500).json({ error: 'Failed to fetch mood summary' });
+  }
+});
+
+/**
+ * GET /parent-portal/alerts
+ * Get any alerts or notifications for the parent (crisis alerts, consent updates, etc.)
+ */
+router.get('/alerts', requireParent, async (req, res) => {
+  try {
+    const parentId = req.session.parentId;
+
+    const links = await db
+      .select({
+        userId: parentLinks.userId,
+        verifiedAt: parentLinks.verifiedAt,
+      })
+      .from(parentLinks)
+      .where(eq(parentLinks.parentId, parentId));
+
+    const verifiedLinks = links.filter(l => l.verifiedAt);
+    const alerts = [];
+
+    for (const link of verifiedLinks) {
+      const [profile] = await db
+        .select({
+          firstName: profiles.firstName,
+          preferredName: profiles.preferredName,
+          streakCount: profiles.streakCount,
+          lastCheckinDate: profiles.lastCheckinDate,
+        })
+        .from(profiles)
+        .where(eq(profiles.userId, link.userId))
+        .limit(1);
+
+      const youthName = profile?.preferredName || profile?.firstName || 'Youth';
+
+      // Check for inactivity (no check-in for 7+ days)
+      if (profile?.lastCheckinDate) {
+        const daysSinceCheckin = Math.floor(
+          (Date.now() - new Date(profile.lastCheckinDate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysSinceCheckin >= 7) {
+          alerts.push({
+            type: 'inactivity',
+            severity: 'info',
+            youthId: link.userId,
+            youthName,
+            message: `${youthName} hasn't checked in for ${daysSinceCheckin} days`,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Check for consent issues
+      const [verification] = await db
+        .select({
+          status: guardianVerifications.status,
+          expiresAt: guardianVerifications.expiresAt,
+          withdrawnAt: guardianVerifications.withdrawnAt,
+        })
+        .from(guardianVerifications)
+        .where(eq(guardianVerifications.userId, link.userId))
+        .limit(1);
+
+      if (verification?.withdrawnAt) {
+        alerts.push({
+          type: 'consent_withdrawn',
+          severity: 'warning',
+          youthId: link.userId,
+          youthName,
+          message: `Consent for ${youthName} has been withdrawn`,
+          createdAt: verification.withdrawnAt,
+        });
+      }
+
+      // Check for recent low mood (if privacy allows)
+      const privacySettings = await getYouthPrivacySettings(link.userId);
+      if (privacySettings.parentCanSeeMood) {
+        const twoDaysAgo = new Date();
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+        const recentLowMoods = await db
+          .select({
+            moodLevel16: checkins.moodLevel16,
+            timestamp: checkins.timestamp,
+          })
+          .from(checkins)
+          .where(
+            and(
+              eq(checkins.userId, link.userId),
+              sql`${checkins.timestamp} >= ${twoDaysAgo}`,
+              sql`${checkins.moodLevel16} <= 4`
+            )
+          )
+          .limit(3);
+
+        if (recentLowMoods.length >= 2) {
+          alerts.push({
+            type: 'low_mood',
+            severity: 'attention',
+            youthId: link.userId,
+            youthName,
+            message: `${youthName} has reported low mood multiple times recently`,
+            createdAt: recentLowMoods[0]?.timestamp,
+          });
+        }
+      }
+    }
+
+    // Sort alerts by severity and date
+    const severityOrder = { attention: 0, warning: 1, info: 2 };
+    alerts.sort((a, b) => {
+      const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+      if (severityDiff !== 0) return severityDiff;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    res.json({
+      success: true,
+      alerts,
+      totalAlerts: alerts.length,
+      hasUrgent: alerts.some(a => a.severity === 'attention'),
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-portal-alerts' }, 'Error fetching alerts');
+    res.status(500).json({ error: 'Failed to fetch alerts' });
+  }
+});
+
 export default router;

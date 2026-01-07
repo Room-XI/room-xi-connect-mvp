@@ -688,6 +688,32 @@ export const api = {
       fetchApi('/parent-auth/logout', {
         method: 'POST',
       }),
+    login: (email: string, password: string) =>
+      fetchApi<{ success: boolean; parentId: string; email: string; name: string | null }>('/parent-auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    validateSetupToken: (token: string) =>
+      fetchApi<{ valid: boolean; email: string; name: string | null }>(`/parent-auth/validate-setup-token/${token}`),
+    setPassword: (token: string, password: string, name?: string) =>
+      fetchApi<{ success: boolean; parentId: string }>('/parent-auth/set-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password, name }),
+      }),
+    forgotPassword: (email: string) =>
+      fetchApi<{ success: boolean; message: string }>('/parent-auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    validateResetToken: (token: string) =>
+      fetchApi<{ valid: boolean; email: string }>(`/parent-auth/validate-reset-token/${token}`),
+    resetPassword: (token: string, password: string) =>
+      fetchApi<{ success: boolean; message: string }>('/parent-auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      }),
+    me: () =>
+      fetchApi<{ authenticated: boolean; parent: { id: string; email: string; name: string | null; lastLoginAt: string | null }; linkedYouth: any[] }>('/parent-auth/me'),
   },
 
   // Parent Portal (filtered youth data based on privacy settings)
@@ -698,6 +724,12 @@ export const api = {
         : fetchApi('/parent-portal/youth-data'),
     getPrivacySummary: (youthId: string) =>
       fetchApi(`/parent-portal/privacy-summary/${youthId}`),
+    getStatus: () =>
+      fetchApi<{ success: boolean; parent: any; youth: any[]; totalYouth: number }>('/parent-portal/status'),
+    getMoodSummary: () =>
+      fetchApi<{ success: boolean; summaries: any[]; hiddenCount: number; message: string | null }>('/parent-portal/mood-summary'),
+    getAlerts: () =>
+      fetchApi<{ success: boolean; alerts: any[]; totalAlerts: number; hasUrgent: boolean }>('/parent-portal/alerts'),
   },
 
   // Consent Auto

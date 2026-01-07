@@ -1,4 +1,6 @@
 import express from "express";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 import {
   acceptParentInvite,
   createOrRefreshParentInvite,
@@ -7,10 +9,14 @@ import {
 } from "../services/parentInvite.js";
 import { db } from "../db.js";
 import { profiles } from "../schema.js";
+import { parents, parentLinks } from "../schema.extras.js";
 import { eq } from "drizzle-orm";
 import logger from "../logger.ts";
+import { sendParentPasswordResetEmail } from "../services/email.js";
+import { getPublicUrl } from "../utils/publicUrl.ts";
 
 const router = express.Router();
+const SALT_ROUNDS = 12;
 
 const requireAuth = (req, res, next) => {
   if (!req.session?.userId) {
@@ -182,6 +188,422 @@ router.post("/logout", requireParent, async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'parent-auth-logout' }, 'Parent logout error');
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ========== PASSWORD-BASED AUTH ROUTES ==========
+
+/**
+ * GET /parent-auth/validate-setup-token/:token
+ * Validate password setup token before showing form
+ */
+router.get("/validate-setup-token/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const [parent] = await db.select({
+      id: parents.id,
+      email: parents.email,
+      name: parents.name,
+      passwordSetupExpires: parents.passwordSetupExpires,
+      passwordHash: parents.passwordHash,
+    })
+    .from(parents)
+    .where(eq(parents.passwordSetupToken, token))
+    .limit(1);
+
+    if (!parent) {
+      return res.status(404).json({ 
+        error: "Invalid or expired token",
+        code: "TOKEN_NOT_FOUND" 
+      });
+    }
+
+    if (parent.passwordHash) {
+      return res.status(400).json({ 
+        error: "Password has already been set",
+        code: "PASSWORD_ALREADY_SET"
+      });
+    }
+
+    if (new Date() > new Date(parent.passwordSetupExpires)) {
+      return res.status(410).json({ 
+        error: "This link has expired",
+        code: "TOKEN_EXPIRED"
+      });
+    }
+
+    res.json({
+      valid: true,
+      email: parent.email,
+      name: parent.name,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-auth-validate-token' }, 'Token validation error');
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /parent-auth/set-password
+ * Set initial password using setup token
+ */
+router.post("/set-password", async (req, res) => {
+  try {
+    const { token, password, name } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ error: "Token and password are required" });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    const [parent] = await db.select()
+      .from(parents)
+      .where(eq(parents.passwordSetupToken, token))
+      .limit(1);
+
+    if (!parent) {
+      return res.status(404).json({ 
+        error: "Invalid or expired token",
+        code: "TOKEN_NOT_FOUND" 
+      });
+    }
+
+    if (parent.passwordHash) {
+      return res.status(400).json({ 
+        error: "Password has already been set. Please use the login page.",
+        code: "PASSWORD_ALREADY_SET"
+      });
+    }
+
+    if (new Date() > new Date(parent.passwordSetupExpires)) {
+      return res.status(410).json({ 
+        error: "This link has expired. Please request a new one from the login page.",
+        code: "TOKEN_EXPIRED"
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    await db.update(parents)
+      .set({
+        passwordHash,
+        name: name || parent.name,
+        passwordSetupToken: null,
+        passwordSetupExpires: null,
+        lastLoginAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(parents.id, parent.id));
+
+    // Create session
+    req.session.regenerate((err) => {
+      if (err) {
+        logger.error({ err, context: 'parent-auth-set-password-session' }, 'Session regeneration error');
+        return res.status(500).json({ error: "Session error" });
+      }
+
+      req.session.parentId = parent.id;
+      req.session.isParentSession = true;
+
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          logger.error({ err: saveErr, context: 'parent-auth-set-password-session-save' }, 'Session save error');
+          return res.status(500).json({ error: "Session error" });
+        }
+
+        logger.info({ context: 'parent-auth-set-password', parentId: parent.id }, 'Parent password set successfully');
+
+        res.json({
+          success: true,
+          message: "Password set successfully",
+          parentId: parent.id,
+        });
+      });
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-auth-set-password' }, 'Set password error');
+    res.status(500).json({ error: "Failed to set password" });
+  }
+});
+
+/**
+ * POST /parent-auth/login
+ * Parent login with email and password
+ */
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const [parent] = await db.select()
+      .from(parents)
+      .where(eq(parents.email, normalizedEmail))
+      .limit(1);
+
+    if (!parent) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    if (!parent.passwordHash) {
+      return res.status(401).json({ 
+        error: "Please set your password first using the link sent to your email",
+        code: "PASSWORD_NOT_SET"
+      });
+    }
+
+    const isValid = await bcrypt.compare(password, parent.passwordHash);
+    if (!isValid) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    // Update last login
+    await db.update(parents)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(parents.id, parent.id));
+
+    // Create session
+    req.session.regenerate((err) => {
+      if (err) {
+        logger.error({ err, context: 'parent-auth-login-session' }, 'Session regeneration error');
+        return res.status(500).json({ error: "Session error" });
+      }
+
+      req.session.parentId = parent.id;
+      req.session.isParentSession = true;
+
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          logger.error({ err: saveErr, context: 'parent-auth-login-session-save' }, 'Session save error');
+          return res.status(500).json({ error: "Session error" });
+        }
+
+        logger.info({ context: 'parent-auth-login', parentId: parent.id }, 'Parent logged in successfully');
+
+        res.json({
+          success: true,
+          parentId: parent.id,
+          email: parent.email,
+          name: parent.name,
+        });
+      });
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-auth-login' }, 'Login error');
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+/**
+ * POST /parent-auth/forgot-password
+ * Request password reset email
+ */
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Always return success to prevent email enumeration
+    const successResponse = {
+      success: true,
+      message: "If an account exists with this email, you will receive a password reset link.",
+    };
+
+    const [parent] = await db.select()
+      .from(parents)
+      .where(eq(parents.email, normalizedEmail))
+      .limit(1);
+
+    if (!parent) {
+      // Don't reveal if account exists
+      return res.json(successResponse);
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await db.update(parents)
+      .set({
+        passwordResetToken: resetToken,
+        passwordResetExpires: resetExpires,
+        updatedAt: new Date(),
+      })
+      .where(eq(parents.id, parent.id));
+
+    // Send reset email
+    try {
+      const baseUrl = getPublicUrl(req);
+      const resetLink = `${baseUrl}/parent/reset-password/${resetToken}`;
+      
+      await sendParentPasswordResetEmail({
+        email: parent.email,
+        resetLink,
+      });
+      
+      logger.info({ context: 'parent-auth-forgot-password', email: '[REDACTED]' }, 'Password reset email sent');
+    } catch (emailError) {
+      logger.error({ err: emailError, context: 'parent-auth-forgot-password-email' }, 'Failed to send reset email');
+    }
+
+    res.json(successResponse);
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-auth-forgot-password' }, 'Forgot password error');
+    res.status(500).json({ error: "Failed to process request" });
+  }
+});
+
+/**
+ * GET /parent-auth/validate-reset-token/:token
+ * Validate password reset token before showing form
+ */
+router.get("/validate-reset-token/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const [parent] = await db.select({
+      id: parents.id,
+      email: parents.email,
+      passwordResetExpires: parents.passwordResetExpires,
+    })
+    .from(parents)
+    .where(eq(parents.passwordResetToken, token))
+    .limit(1);
+
+    if (!parent) {
+      return res.status(404).json({ 
+        error: "Invalid or expired token",
+        code: "TOKEN_NOT_FOUND" 
+      });
+    }
+
+    if (new Date() > new Date(parent.passwordResetExpires)) {
+      return res.status(410).json({ 
+        error: "This link has expired",
+        code: "TOKEN_EXPIRED"
+      });
+    }
+
+    res.json({
+      valid: true,
+      email: parent.email,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-auth-validate-reset-token' }, 'Reset token validation error');
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /parent-auth/reset-password
+ * Reset password using reset token
+ */
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ error: "Token and password are required" });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    const [parent] = await db.select()
+      .from(parents)
+      .where(eq(parents.passwordResetToken, token))
+      .limit(1);
+
+    if (!parent) {
+      return res.status(404).json({ 
+        error: "Invalid or expired token",
+        code: "TOKEN_NOT_FOUND" 
+      });
+    }
+
+    if (new Date() > new Date(parent.passwordResetExpires)) {
+      return res.status(410).json({ 
+        error: "This link has expired. Please request a new one.",
+        code: "TOKEN_EXPIRED"
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    await db.update(parents)
+      .set({
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(parents.id, parent.id));
+
+    logger.info({ context: 'parent-auth-reset-password', parentId: parent.id }, 'Parent password reset successfully');
+
+    res.json({
+      success: true,
+      message: "Password reset successfully. You can now log in.",
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-auth-reset-password' }, 'Reset password error');
+    res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+/**
+ * GET /parent-auth/me
+ * Get current parent session info
+ */
+router.get("/me", requireParent, async (req, res) => {
+  try {
+    const parentId = req.session.parentId;
+
+    const [parent] = await db.select({
+      id: parents.id,
+      email: parents.email,
+      name: parents.name,
+      lastLoginAt: parents.lastLoginAt,
+      createdAt: parents.createdAt,
+    })
+    .from(parents)
+    .where(eq(parents.id, parentId))
+    .limit(1);
+
+    if (!parent) {
+      return res.status(404).json({ error: "Parent not found" });
+    }
+
+    const youth = await getLinkedYouth(parentId);
+
+    res.json({
+      authenticated: true,
+      parent: {
+        id: parent.id,
+        email: parent.email,
+        name: parent.name,
+        lastLoginAt: parent.lastLoginAt,
+        createdAt: parent.createdAt,
+      },
+      linkedYouth: youth,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'parent-auth-me' }, 'Get current parent error');
     res.status(500).json({ error: "Internal server error" });
   }
 });

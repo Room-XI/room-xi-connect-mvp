@@ -7,15 +7,26 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { users } from "./schema.ts";
+import { users, guardianVerifications } from "./schema.ts";
 
 export const parents = pgTable("parents", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash"),
+  name: text("name"),
+  guardianVerificationId: uuid("guardian_verification_id").references(() => guardianVerifications.id, { onDelete: "set null" }),
+  passwordSetupToken: text("password_setup_token").unique(),
+  passwordSetupExpires: timestamp("password_setup_expires", { withTimezone: true }),
+  passwordResetToken: text("password_reset_token").unique(),
+  passwordResetExpires: timestamp("password_reset_expires", { withTimezone: true }),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+  emailIdx: index("parents_email_idx").on(table.email),
+  setupTokenIdx: index("parents_setup_token_idx").on(table.passwordSetupToken),
+  resetTokenIdx: index("parents_reset_token_idx").on(table.passwordResetToken),
+}));
 
 export const parentLinks = pgTable(
   "parent_links",

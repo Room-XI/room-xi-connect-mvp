@@ -165,9 +165,28 @@ export async function sendGuardianVerificationEmail({ guardianEmail, youthName, 
             <li>Approve or decline the request</li>
           </ol>
           
-          <center>
-            <a href="${verificationLink}" class="button">Verify Guardian Consent</a>
+          <center style="margin: 20px 0;">
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${verificationLink}" style="height:50px;v-text-anchor:middle;width:280px;" arcsize="16%" strokecolor="#667eea" fillcolor="#667eea">
+              <w:anchorlock/>
+              <center style="color:#ffffff;font-family:sans-serif;font-size:16px;font-weight:bold;">Verify Guardian Consent</center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
+            <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+              <tr>
+                <td align="center" bgcolor="#667eea" style="border-radius: 6px;">
+                  <a href="${verificationLink}" target="_blank" style="display: inline-block; padding: 14px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 6px;">Verify Guardian Consent</a>
+                </td>
+              </tr>
+            </table>
+            <!--<![endif]-->
           </center>
+          
+          <p style="font-size: 12px; color: #666; margin-top: 10px; word-break: break-all;">
+            <strong>If the button doesn't work, copy and paste this link:</strong><br>
+            <a href="${verificationLink}" style="color: #667eea;">${verificationLink}</a>
+          </p>
           
           <div class="warning">
             <p><strong>⏱️ This link expires in 30 minutes</strong> for security reasons.</p>
@@ -369,8 +388,27 @@ export async function sendInitialConsentEmail({ guardianEmail, guardianName, you
           </ol>
           
           <center style="margin: 30px 0;">
-            <a href="${consentLink}" class="button">Review Consent Form</a>
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${consentLink}" style="height:50px;v-text-anchor:middle;width:250px;" arcsize="16%" strokecolor="#667eea" fillcolor="#667eea">
+              <w:anchorlock/>
+              <center style="color:#ffffff;font-family:sans-serif;font-size:16px;font-weight:bold;">Review Consent Form</center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
+            <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+              <tr>
+                <td align="center" bgcolor="#667eea" style="border-radius: 8px;">
+                  <a href="${consentLink}" target="_blank" style="display: inline-block; padding: 16px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">Review Consent Form</a>
+                </td>
+              </tr>
+            </table>
+            <!--<![endif]-->
           </center>
+          
+          <p style="font-size: 12px; color: #666; margin-top: 15px; word-break: break-all;">
+            <strong>If the button doesn't work, copy and paste this link:</strong><br>
+            <a href="${consentLink}" style="color: #667eea;">${consentLink}</a>
+          </p>
           
           <div class="warning">
             <p><strong>This link expires in 24 hours</strong> for security reasons.</p>
@@ -523,8 +561,27 @@ export async function sendConfirmationEmail({ guardianEmail, youthName, confirma
           </div>
           
           <center style="margin: 30px 0;">
-            <a href="${confirmationLink}" class="button">Confirm My Consent</a>
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${confirmationLink}" style="height:50px;v-text-anchor:middle;width:250px;" arcsize="16%" strokecolor="#22c55e" fillcolor="#22c55e">
+              <w:anchorlock/>
+              <center style="color:#ffffff;font-family:sans-serif;font-size:16px;font-weight:bold;">Confirm My Consent</center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
+            <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+              <tr>
+                <td align="center" bgcolor="#22c55e" style="border-radius: 8px;">
+                  <a href="${confirmationLink}" target="_blank" style="display: inline-block; padding: 16px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">Confirm My Consent</a>
+                </td>
+              </tr>
+            </table>
+            <!--<![endif]-->
           </center>
+          
+          <p style="font-size: 12px; color: #666; margin-top: 15px; word-break: break-all;">
+            <strong>If the button doesn't work, copy and paste this link:</strong><br>
+            <a href="${confirmationLink}" style="color: #22c55e;">${confirmationLink}</a>
+          </p>
           
           <p>Once confirmed:</p>
           <ul>
@@ -1021,17 +1078,33 @@ export async function sendPasswordResetEmail({ email, resetLink }) {
         
         <p>Click the button below to reset your password:</p>
         
-        <center>
-          <a href="${resetLink}" class="button">Reset Password</a>
+        <center style="margin: 20px 0;">
+          <!--[if mso]>
+          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${resetLink}" style="height:50px;v-text-anchor:middle;width:220px;" arcsize="16%" strokecolor="#667eea" fillcolor="#667eea">
+            <w:anchorlock/>
+            <center style="color:#ffffff;font-family:sans-serif;font-size:16px;font-weight:bold;">Reset Password</center>
+          </v:roundrect>
+          <![endif]-->
+          <!--[if !mso]><!-->
+          <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" bgcolor="#667eea" style="border-radius: 6px;">
+                <a href="${resetLink}" target="_blank" style="display: inline-block; padding: 14px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 6px;">Reset Password</a>
+              </td>
+            </tr>
+          </table>
+          <!--<![endif]-->
         </center>
         
+        <p style="font-size: 12px; color: #666; margin-top: 10px; word-break: break-all;">
+          <strong>If the button doesn't work, copy and paste this link:</strong><br>
+          <a href="${resetLink}" style="color: #667eea;">${resetLink}</a>
+        </p>
+        
         <div class="warning">
-          <p><strong>⏱️ This link expires in 24 hours</strong> for security reasons.</p>
+          <p><strong>This link expires in 24 hours</strong> for security reasons.</p>
           <p>If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.</p>
         </div>
-        
-        <p>If the button doesn't work, copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color: #667eea;">${resetLink}</p>
         
         <p style="margin-top: 30px;">
           Stay safe,<br>
@@ -1058,6 +1131,260 @@ export async function sendPasswordResetEmail({ email, resetLink }) {
   } catch (error) {
     console.error('Failed to send password reset email:', error);
     throw new Error('Failed to send password reset email');
+  }
+}
+
+/**
+ * Send parent password setup email after consent is confirmed
+ * 
+ * @param {Object} options - Email options
+ * @param {string} options.guardianEmail - Guardian's email address
+ * @param {string} options.guardianName - Guardian's name
+ * @param {string} options.youthName - Youth's name
+ * @param {string} options.passwordSetupLink - Full URL to set password
+ * @returns {Promise<Object>} - Send result
+ */
+export async function sendParentPasswordSetupEmail({ guardianEmail, guardianName, youthName, passwordSetupLink }) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background: linear-gradient(135deg, #5FA8A3 0%, #2C4A3E 100%);
+          color: white;
+          padding: 30px;
+          border-radius: 8px 8px 0 0;
+          text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content {
+          background: #ffffff;
+          padding: 30px;
+          border: 1px solid #e0e0e0;
+          border-top: none;
+        }
+        .info-box {
+          background: #E8F5F3;
+          border-left: 4px solid #5FA8A3;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .footer {
+          background: #f5f7fa;
+          padding: 20px;
+          border-radius: 0 0 8px 8px;
+          border: 1px solid #e0e0e0;
+          border-top: none;
+          text-align: center;
+          font-size: 12px;
+          color: #666;
+        }
+        .warning {
+          background: #FFF5F5;
+          border-left: 4px solid #E67E73;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Set Up Your Parent Portal Access</h1>
+      </div>
+      
+      <div class="content">
+        <p>Hello${guardianName ? ` ${guardianName}` : ''},</p>
+        
+        <p>Thank you for confirming your consent for <strong>${youthName}</strong> to use Room XI Connect.</p>
+        
+        <div class="info-box">
+          <p><strong>Your Parent Portal is Ready!</strong></p>
+          <p>As a guardian, you have access to a dedicated parent portal where you can:</p>
+          <ul>
+            <li>View ${youthName}'s wellness summary (based on their privacy settings)</li>
+            <li>Manage consent preferences</li>
+            <li>Access crisis support resources</li>
+            <li>Export or delete data if needed</li>
+          </ul>
+        </div>
+        
+        <p>Click the button below to create your password and access your portal:</p>
+        
+        <center style="margin: 25px 0;">
+          <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" bgcolor="#5FA8A3" style="border-radius: 8px;">
+                <a href="${passwordSetupLink}" target="_blank" style="display: inline-block; padding: 16px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">Set Up My Password</a>
+              </td>
+            </tr>
+          </table>
+        </center>
+        
+        <p style="font-size: 12px; color: #666; margin-top: 15px; word-break: break-all;">
+          <strong>If the button doesn't work, copy and paste this link:</strong><br>
+          <a href="${passwordSetupLink}" style="color: #5FA8A3;">${passwordSetupLink}</a>
+        </p>
+        
+        <div class="warning">
+          <p><strong>This link expires in 7 days</strong> for security reasons.</p>
+          <p>If it expires, you can request a new one by visiting the parent portal login page.</p>
+        </div>
+        
+        <p style="margin-top: 30px;">
+          Welcome to Room XI Connect,<br>
+          <strong>Room XI Connect Team</strong>
+        </p>
+      </div>
+      
+      <div class="footer">
+        <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+        <p>Edmonton, Alberta, Canada</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendEmail({
+      to: guardianEmail,
+      subject: `Set Up Your Parent Portal Password - Room XI Connect`,
+      html,
+    });
+    console.log('Parent password setup email sent to:', guardianEmail);
+    return { messageId: 'sent' };
+  } catch (error) {
+    console.error('Failed to send parent password setup email:', error);
+    throw new Error('Failed to send parent password setup email');
+  }
+}
+
+/**
+ * Send parent password reset email
+ * 
+ * @param {Object} options - Email options
+ * @param {string} options.email - Parent's email address
+ * @param {string} options.resetLink - Full URL to reset password
+ * @returns {Promise<Object>} - Send result
+ */
+export async function sendParentPasswordResetEmail({ email, resetLink }) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background: linear-gradient(135deg, #5FA8A3 0%, #2C4A3E 100%);
+          color: white;
+          padding: 30px;
+          border-radius: 8px 8px 0 0;
+          text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content {
+          background: #ffffff;
+          padding: 30px;
+          border: 1px solid #e0e0e0;
+          border-top: none;
+        }
+        .footer {
+          background: #f5f7fa;
+          padding: 20px;
+          border-radius: 0 0 8px 8px;
+          border: 1px solid #e0e0e0;
+          border-top: none;
+          text-align: center;
+          font-size: 12px;
+          color: #666;
+        }
+        .warning {
+          background: #FFF5F5;
+          border-left: 4px solid #E67E73;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Parent Portal Password Reset</h1>
+      </div>
+      
+      <div class="content">
+        <p>Hello,</p>
+        
+        <p>We received a request to reset your password for your <strong>Room XI Connect Parent Portal</strong> account.</p>
+        
+        <p>Click the button below to reset your password:</p>
+        
+        <center style="margin: 25px 0;">
+          <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" bgcolor="#5FA8A3" style="border-radius: 8px;">
+                <a href="${resetLink}" target="_blank" style="display: inline-block; padding: 16px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">Reset My Password</a>
+              </td>
+            </tr>
+          </table>
+        </center>
+        
+        <p style="font-size: 12px; color: #666; margin-top: 15px; word-break: break-all;">
+          <strong>If the button doesn't work, copy and paste this link:</strong><br>
+          <a href="${resetLink}" style="color: #5FA8A3;">${resetLink}</a>
+        </p>
+        
+        <div class="warning">
+          <p><strong>This link expires in 24 hours</strong> for security reasons.</p>
+          <p>If you didn't request this password reset, you can safely ignore this email.</p>
+        </div>
+        
+        <p style="margin-top: 30px;">
+          Stay safe,<br>
+          <strong>Room XI Connect Team</strong>
+        </p>
+      </div>
+      
+      <div class="footer">
+        <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+        <p>This is an automated message. Please do not reply directly to this email.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendEmail({
+      to: email,
+      subject: 'Parent Portal Password Reset - Room XI Connect',
+      html,
+    });
+    console.log('Parent password reset email sent to:', email);
+    return { messageId: 'sent' };
+  } catch (error) {
+    console.error('Failed to send parent password reset email:', error);
+    throw new Error('Failed to send parent password reset email');
   }
 }
 

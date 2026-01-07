@@ -1,6 +1,7 @@
 import express from 'express';
 import { db } from '../db.js';
 import { consents, consentEvents, profiles, consentAuditLog, xids, guardianVerifications, users, matureMinorAssessments } from '../schema.js';
+import { parents, parentLinks } from '../schema.extras.js';
 import { eq, and, desc } from 'drizzle-orm';
 import crypto from 'crypto';
 import { Parser } from 'json2csv';
@@ -12,7 +13,7 @@ import {
   exportUserData,
   deleteUserData,
 } from '../services/consent.js';
-import { sendGuardianVerificationEmail, sendInitialConsentEmail, sendConfirmationEmail, sendConsentCompleteEmail, sendConsentWithdrawalStaffNotification } from '../services/email.js';
+import { sendGuardianVerificationEmail, sendInitialConsentEmail, sendConfirmationEmail, sendConsentCompleteEmail, sendConsentWithdrawalStaffNotification, sendParentPasswordSetupEmail } from '../services/email.js';
 import { consentNoticeV1, CONSENT_NOTICE_VERSION, confirmationSuccessPage, pendingConfirmationPage, expiredLinkPage } from '../services/consentNotices.js';
 import { getPublicUrl } from '../utils/publicUrl.ts';
 import { debugLog } from '../utils/logger.ts';
@@ -167,7 +168,7 @@ router.post('/agree/:token', async (req, res) => {
 /**
  * GET /consent/confirm/:token
  * Handle final confirmation click from second email (Step 2)
- * This completes the consent process
+ * This completes the consent process and creates parent account
  */
 router.get('/confirm/:token', async (req, res) => {
   try {
@@ -226,7 +227,80 @@ router.get('/confirm/:token', async (req, res) => {
     .limit(1);
 
     const youthName = profile?.firstName || 'Your child';
+    const guardianEmail = verification.guardianContactValue.toLowerCase().trim();
+    const guardianName = verification.guardianName || null;
+    const baseUrl = getPublicUrl(req);
 
+    // Create or update parent account with password setup token
+    const passwordSetupToken = crypto.randomBytes(32).toString('hex');
+    const passwordSetupExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    let parentId;
+    const [existingParent] = await db.select()
+      .from(parents)
+      .where(eq(parents.email, guardianEmail))
+      .limit(1);
+
+    if (existingParent) {
+      // Update existing parent with new verification link
+      parentId = existingParent.id;
+      if (!existingParent.passwordHash) {
+        // Only update token if they haven't set a password yet
+        await db.update(parents)
+          .set({
+            name: guardianName || existingParent.name,
+            guardianVerificationId: verification.id,
+            passwordSetupToken,
+            passwordSetupExpires,
+            updatedAt: new Date(),
+          })
+          .where(eq(parents.id, existingParent.id));
+      } else {
+        // Already has password, just update verification ID
+        await db.update(parents)
+          .set({
+            guardianVerificationId: verification.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(parents.id, existingParent.id));
+      }
+    } else {
+      // Create new parent account
+      const [newParent] = await db.insert(parents)
+        .values({
+          email: guardianEmail,
+          name: guardianName,
+          guardianVerificationId: verification.id,
+          passwordSetupToken,
+          passwordSetupExpires,
+        })
+        .returning();
+      parentId = newParent.id;
+    }
+
+    // Create parent-youth link if it doesn't exist
+    const [existingLink] = await db.select()
+      .from(parentLinks)
+      .where(and(
+        eq(parentLinks.parentId, parentId),
+        eq(parentLinks.userId, verification.userId)
+      ))
+      .limit(1);
+
+    if (!existingLink) {
+      await db.insert(parentLinks).values({
+        parentId,
+        userId: verification.userId,
+        relation: verification.guardianRole || 'guardian',
+        verifiedAt: confirmedAt,
+      });
+    } else if (!existingLink.verifiedAt) {
+      await db.update(parentLinks)
+        .set({ verifiedAt: confirmedAt })
+        .where(eq(parentLinks.id, existingLink.id));
+    }
+
+    // Send consent complete email
     try {
       await sendConsentCompleteEmail({
         guardianEmail: verification.guardianContactValue,
@@ -244,6 +318,23 @@ router.get('/confirm/:token', async (req, res) => {
       logger.error({ err: emailError, context: 'consent-confirm-email' }, 'Failed to send consent complete email');
     }
 
+    // Send password setup email if parent hasn't set password yet
+    const shouldSendPasswordEmail = !existingParent?.passwordHash;
+    if (shouldSendPasswordEmail) {
+      try {
+        const passwordSetupLink = `${baseUrl}/parent/set-password/${passwordSetupToken}`;
+        await sendParentPasswordSetupEmail({
+          guardianEmail,
+          guardianName,
+          youthName,
+          passwordSetupLink,
+        });
+        logger.info({ context: 'consent-confirm', email: '[REDACTED]' }, 'Parent password setup email sent');
+      } catch (emailError) {
+        logger.error({ err: emailError, context: 'consent-confirm-password-email' }, 'Failed to send parent password setup email');
+      }
+    }
+
     await db.insert(consentEvents).values({
       userId: verification.userId,
       actor: 'guardian',
@@ -252,7 +343,7 @@ router.get('/confirm/:token', async (req, res) => {
       newValue: true,
       ipAddress,
       userAgent,
-      notes: `Two-step Email Plus consent confirmed. Version: ${CONSENT_NOTICE_VERSION}`,
+      notes: `Two-step Email Plus consent confirmed. Version: ${CONSENT_NOTICE_VERSION}. Parent account ${existingParent ? 'linked' : 'created'}.`,
     });
 
     res.send(confirmationSuccessPage(youthName));

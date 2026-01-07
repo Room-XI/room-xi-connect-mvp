@@ -18,7 +18,7 @@ export default function Explore() {
   const { view } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useSession();
+  const { user, needsGuardianVerification } = useSession();
   const { isGateOpen, needsCheckIn, isLoading } = useExploreGate();
   const currentView = view === 'today' ? 'today' : view === 'map' ? 'map' : view === 'saved' ? 'saved' : 'programs';
   const [crisisOpen, setCrisisOpen] = useState(false);
@@ -55,7 +55,9 @@ export default function Explore() {
   const [hasCheckedIn, setHasCheckedIn] = useState<boolean | null>(null);
 
   // 8am Gate Check - we now show a banner instead of redirecting
-  const showCheckInPrompt = user && !isLoading && needsCheckIn && !isGateOpen && searchParams.get('skip_gate') !== 'true';
+  // Don't show check-in prompt for unconsented youth (they can't complete check-ins anyway)
+  // This allows youth without guardian consent to still browse programs/events
+  const showCheckInPrompt = user && !needsGuardianVerification && !isLoading && needsCheckIn && !isGateOpen && searchParams.get('skip_gate') !== 'true';
 
   // Persist locationEnabled changes to localStorage
   useEffect(() => {

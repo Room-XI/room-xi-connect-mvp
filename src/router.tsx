@@ -43,6 +43,9 @@ const Achievements = lazy(() => import('./components/Achievements').then(m => ({
 const KPIDashboard = lazy(() => import('./components/KPIDashboard').then(m => ({ default: m.KPIDashboard })));
 const OrbTimelapse = lazy(() => import('./components/OrbTimelapse'));
 const ParentPortal = lazy(() => import('./routes/ParentPortal'));
+const ParentLogin = lazy(() => import('./routes/ParentLogin'));
+const ParentSetPassword = lazy(() => import('./routes/ParentSetPassword'));
+const ParentResetPassword = lazy(() => import('./routes/ParentResetPassword'));
 const AdminPortal = lazy(() => import('./routes/AdminPortal'));
 const DemoYouth = lazy(() => import('./routes/demos/Youth'));
 const DemoOrganization = lazy(() => import('./routes/demos/Organization'));
@@ -94,6 +97,9 @@ export const router = createBrowserRouter([
       { path: 'verify-consent/:token', element: withSuspense(VerifyConsent) },
       { path: 'guardian/verify/:token', element: withSuspense(GuardianVerify) },
       { path: 'parent', element: withSuspense(ParentPortal) },
+      { path: 'parent/login', element: withSuspense(ParentLogin) },
+      { path: 'parent/set-password/:token', element: withSuspense(ParentSetPassword) },
+      { path: 'parent/reset-password/:token', element: withSuspense(ParentResetPassword) },
       { path: 'parent/accept/:token', element: withSuspense(ParentPortal) },
       { path: 'org/dashboard', element: withProtectedSuspense(OrgDashboard) },
       { path: 'org/programs', element: withProtectedSuspense(ProgramManagement) },

@@ -16,7 +16,7 @@ interface ExploreGateState {
 }
 
 export function useExploreGate() {
-  const { user, loading: sessionLoading } = useSession();
+  const { user, loading: sessionLoading, needsGuardianVerification } = useSession();
   const [state, setState] = useState<ExploreGateState>({
     isGateOpen: false,
     needsCheckIn: false,
@@ -31,7 +31,7 @@ export function useExploreGate() {
     if (!sessionLoading) {
       checkGateStatus();
     }
-  }, [sessionLoading, user]);
+  }, [sessionLoading, user, needsGuardianVerification]);
 
   async function checkGateStatus() {
     const zone = 'America/Edmonton';
@@ -86,6 +86,20 @@ export function useExploreGate() {
     // Only check if user is authenticated
     if (!user) {
       // For unauthenticated users, gate is always open (they'll need to log in for check-in features)
+      setState({
+        isGateOpen: true,
+        needsCheckIn: false,
+        isLoading: false,
+        currentTime: now,
+        gateTime: gate,
+        hasSkipToken: false
+      });
+      return;
+    }
+
+    // For youth awaiting guardian verification, skip check-in requirement
+    // They can't access check-in endpoints anyway, so allow them to browse programs/events
+    if (needsGuardianVerification) {
       setState({
         isGateOpen: true,
         needsCheckIn: false,
