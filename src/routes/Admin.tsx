@@ -62,8 +62,15 @@ export default function Admin() {
   const exportAuditLogsCSV = () => {
     if (auditLogs.length === 0) return;
     
+    const escapeCSV = (value: string): string => {
+      if (value.includes('"') || value.includes(',') || value.includes('\n') || value.includes('\r')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return `"${value}"`;
+    };
+    
     const headers = ['ID', 'Action', 'Table', 'Record ID', 'Timestamp', 'User ID', 'Old Values', 'New Values'];
-    const csvRows = [headers.join(',')];
+    const csvRows = [headers.map(h => escapeCSV(h)).join(',')];
     
     auditLogs.forEach(log => {
       const row = [
@@ -73,10 +80,10 @@ export default function Admin() {
         log.record_id || '',
         log.timestamp,
         log.user_id || '',
-        log.old_values ? JSON.stringify(log.old_values).replace(/,/g, ';') : '',
-        log.new_values ? JSON.stringify(log.new_values).replace(/,/g, ';') : ''
+        log.old_values ? JSON.stringify(log.old_values) : '',
+        log.new_values ? JSON.stringify(log.new_values) : ''
       ];
-      csvRows.push(row.map(cell => `"${cell}"`).join(','));
+      csvRows.push(row.map(cell => escapeCSV(String(cell))).join(','));
     });
     
     const csvContent = csvRows.join('\n');
@@ -505,8 +512,9 @@ export default function Admin() {
               disabled={auditLogs.length === 0}
               className="p-2 rounded-lg hover:bg-sage/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Export audit logs as CSV"
+              aria-label="Export audit logs as CSV"
             >
-              <Download className="w-4 h-4 text-textSecondaryLight" />
+              <Download className="w-4 h-4 text-textSecondaryLight" aria-hidden="true" />
             </button>
           </div>
         </div>
