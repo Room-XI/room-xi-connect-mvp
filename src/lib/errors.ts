@@ -11,6 +11,7 @@ export enum ErrorCode {
   CONSENT_REQUIRED = 'CONSENT_REQUIRED',
   SESSION_EXPIRED = 'SESSION_EXPIRED',
   INVALID_CSRF = 'INVALID_CSRF',
+  GUARDIAN_VERIFICATION_REQUIRED = 'GUARDIAN_VERIFICATION_REQUIRED',
 }
 
 export interface AppError {
@@ -29,6 +30,7 @@ const ERROR_MAP: Record<number | string, ErrorCode> = {
   'Missing consent': ErrorCode.CONSENT_REQUIRED,
   'Session expired': ErrorCode.SESSION_EXPIRED,
   'VALIDATION_ERROR': ErrorCode.VALIDATION_ERROR,
+  'Guardian verification required': ErrorCode.GUARDIAN_VERIFICATION_REQUIRED,
 };
 
 /**
@@ -77,6 +79,8 @@ export function getFriendlyErrorMessage(error: any): string {
         return 'Security token expired. Please refresh the page.';
       case ErrorCode.VALIDATION_ERROR:
         return 'Please check your input and try again.';
+      case ErrorCode.GUARDIAN_VERIFICATION_REQUIRED:
+        return 'Guardian verification is required. Please ask your guardian to check their email.';
       default:
         return 'An unexpected error occurred. Please try again later.';
     }

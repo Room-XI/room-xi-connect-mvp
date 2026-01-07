@@ -44,15 +44,7 @@ export default function App() {
     );
   }
 
-  const publicRoutes = ['/auth', '/explore', '/events', '/program', '/transparency', '/control/entrance', '/about', '/privacy-policy', '/terms-of-service', '/home'];
   const currentPath = window.location.pathname;
-  const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
-
-  if (!user && !isPublicRoute) {
-    window.location.href = '/explore';
-    return null;
-  }
-
   const isAuthRoute = currentPath.startsWith('/auth') || currentPath.startsWith('/control/entrance');
 
   return (

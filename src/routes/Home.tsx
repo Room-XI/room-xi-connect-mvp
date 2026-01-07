@@ -62,15 +62,15 @@ export default function Home() {
     try {
       setLoading(true);
       
-      // Load check-ins
-      const { data: checkInsData } = await api.checkins.list();
-      if (checkInsData && checkInsData.length > 0) {
+      // Load check-ins (may fail if guardian verification required - that's OK)
+      const { data: checkInsData, error: checkInsError } = await api.checkins.list();
+      if (!checkInsError && checkInsData && checkInsData.length > 0) {
         setLastCheckIn(checkInsData[0]);
       }
 
       // Load profile for streak info
-      const { data: profileData } = await api.profile.get();
-      if (profileData) {
+      const { data: profileData, error: profileError } = await api.profile.get();
+      if (!profileError && profileData) {
         setProfile({
           streak_count: profileData.streakCount || 0,
           last_checkin_date: profileData.lastCheckinDate,

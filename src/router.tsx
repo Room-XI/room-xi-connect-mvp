@@ -74,7 +74,7 @@ export const router = createBrowserRouter([
     errorElement: <ErrorBoundary />,
     children: [
       { index: true, element: withSuspense(Explore) },
-      { path: 'home', element: withSuspense(Home) },
+      { path: 'home', element: withProtectedSuspense(Home) },
       { path: 'explore', element: withSuspense(Explore) },
       { path: 'explore/:view', element: withSuspense(Explore) },
       { path: 'events', element: withSuspense(Events) },
