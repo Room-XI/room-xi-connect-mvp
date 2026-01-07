@@ -1,12 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const isReplit = process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT;
-const productionUrl = 'https://room-xi-connect.replit.app';
 const localUrl = 'http://localhost:5000';
 
 function getBaseUrl() {
+  // Always prefer explicit BASE_URL, default to localhost for safety
+  // Never default to production to prevent accidental data mutations
   if (process.env.BASE_URL) return process.env.BASE_URL;
-  return productionUrl;
+  return localUrl;
 }
 
 export default defineConfig({
@@ -17,7 +17,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
   use: {
-    baseURL: isReplit ? localUrl : getBaseUrl(),
+    baseURL: getBaseUrl(),
     trace: 'on-first-retry',
   },
   projects: [
@@ -33,7 +33,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: isReplit ? undefined : {
+  webServer: process.env.REPL_ID ? undefined : {
     command: 'npm run dev',
     url: 'http://localhost:5000',
     reuseExistingServer: !process.env.CI,

@@ -28,34 +28,13 @@ const SessionContext = createContext<SessionContextType>({
   isAuthenticated: false,
 });
 
-/**
- * Check if session cookie exists (doesn't validate it, just checks presence)
- * This prevents unnecessary 401 API calls when user is clearly not logged in
- */
-function hasSessionCookie(): boolean {
-  return document.cookie.includes('connect.sid');
-}
-
-/**
- * Clear session cookie when it's expired/invalid
- * This prevents infinite retry loops when session is expired but cookie exists
- */
-function clearSessionCookie(): void {
-  document.cookie = 'connect.sid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-}
-
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = async (retries = 3) => {
-    // Skip API call if no session cookie exists (reduces 401 console noise)
-    if (!hasSessionCookie()) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-    
+  const fetchUser = async (retries = 2) => {
+    // Always try to fetch user - httpOnly cookies aren't visible to JS
+    // but the server can still validate them
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const { data, error } = await api.auth.getUser();
@@ -64,8 +43,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
           return;
         } else {
-          // Session expired or invalid - clear cookie to prevent retry loops
-          clearSessionCookie();
+          // No valid session - user is not logged in
           setUser(null);
           setLoading(false);
           return;
@@ -75,11 +53,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         
         if (attempt < retries) {
           // Wait before retry (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
         } else {
-          // All retries exhausted
-          console.error('Failed to fetch user after retries:', error);
-          clearSessionCookie();
+          // All retries exhausted - assume not logged in
           setUser(null);
           setLoading(false);
           return;

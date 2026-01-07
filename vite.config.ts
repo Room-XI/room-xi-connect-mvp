@@ -35,7 +35,7 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/programs.*/,
+            urlPattern: /\/api\/programs.*/,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'programs-cache',
@@ -46,13 +46,35 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/crisis_supports.*/,
+            urlPattern: /\/api\/events.*/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'events-cache',
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/crisis.*/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'crisis-cache',
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/quotes.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'quotes-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 // 24 hours
               }
             }
           }
