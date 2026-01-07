@@ -348,7 +348,7 @@ export function consentNoticeV1(youthName, token, formNonce = '') {
           </label>
         </div>
 
-        <button type="submit" class="button" id="submit-btn">
+        <button type="submit" class="button" id="submit-btn" disabled>
           I Agree - Submit Consent
         </button>
         
@@ -361,7 +361,7 @@ export function consentNoticeV1(youthName, token, formNonce = '') {
     </div>
   </div>
 
-  <script src="/static/consent-form.js"></script>
+  <script src="/static/consent-form.js" defer></script>
 </body>
 </html>
 `;
