@@ -4,6 +4,7 @@ import { privacyConsents, consentAuditLog, consentReminders, dpApplications, xid
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import crypto from 'crypto';
 import { applyDPToStats, logDPApplication } from '../lib/differentialPrivacy.js';
+import { decryptHealthProfile } from '../lib/encryption.ts';
 
 const router = express.Router();
 
@@ -517,7 +518,7 @@ router.get(['/export', '/data-export'], async (req, res) => {
       savedPrograms: userSavedPrograms || [],
       journalEntries: userJournalEntries || [],
       ximiConversations: userXimiConversations || [],
-      healthProfile: healthProfile || null,
+      healthProfile: decryptHealthProfile(healthProfile),
       demographics: demographics || null,
       attendance: userAttendance || [],
       privacyConsents: privacyConsentData || null,

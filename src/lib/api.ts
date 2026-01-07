@@ -577,6 +577,31 @@ export const api = {
     },
   },
 
+  breach: {
+    list: () => fetchApi('/breach'),
+    create: (data: {
+      breachType: string;
+      severity: string;
+      description: string;
+      affectedUserCount?: number;
+      oipcNotificationRequired?: boolean;
+    }) =>
+      fetchApi('/breach', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: {
+      oipcNotifiedAt?: string;
+      oipcReferenceNumber?: string;
+      remediationSteps?: string;
+      remediationCompletedAt?: string;
+    }) =>
+      fetchApi(`/breach/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+  },
+
   // Events - Real-time program event finder
   events: {
     happeningNow: (userLat?: number, userLng?: number) => {

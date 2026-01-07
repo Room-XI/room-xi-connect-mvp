@@ -7,6 +7,7 @@ import express, { Request, Response } from 'express';
 import { db } from '../db.js';
 import { breachEvents } from '../schema.js';
 import { desc, eq } from 'drizzle-orm';
+import '../types/session.d.ts';
 
 const router = express.Router();
 

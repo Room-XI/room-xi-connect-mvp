@@ -7,6 +7,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
+  ENCRYPTION_SECRET: z.string().min(32, 'ENCRYPTION_SECRET must be at least 32 characters for AES-256').optional(),
   
   EMAIL_PROVIDER: z.enum(['sendgrid', 'gmail']).default('gmail'),
   GMAIL_USER: z.string().optional(),

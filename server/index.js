@@ -146,6 +146,7 @@ async function createServer() {
   const { default: analyticsRoutes } = await import('./routes/analytics.ts');
   const { default: parentPortalRoutes } = await import('./routes/parent-portal.js');
   const { default: partnerConsentRoutes } = await import('./routes/partner-consent.js');
+  const { default: healthProfileRoutes } = await import('./routes/healthProfile.ts');
 
   // Health check endpoints (no auth required for monitoring)
   app.use('/health', healthRoutes);
@@ -198,6 +199,7 @@ async function createServer() {
   app.use('/api/mood-tasks', validateCsrfToken, requireGuardianVerification, writeLimiter, moodTasksRoutes);
   app.use('/api/qr', validateCsrfToken, writeLimiter, qrRoutes);
   app.use('/api/disclosure', validateCsrfToken, writeLimiter, disclosureRoutes);
+  app.use('/api/health-profile', validateCsrfToken, requireGuardianVerification, writeLimiter, healthProfileRoutes);
 
   // Production or development mode
   if (env.NODE_ENV === 'production') {

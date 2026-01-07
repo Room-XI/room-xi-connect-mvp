@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { LineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '@/lib/api';
 import { DemographicsComparison } from '@/ui/admin/DemographicsComparison';
+import { BreachManagement } from '@/ui/admin/BreachManagement';
 
 interface AuditLog {
   id: string;
@@ -429,6 +430,16 @@ export default function Admin() {
             transition={{ delay: 0.5, duration: 0.6 }}
           >
             <DemographicsComparison />
+          </motion.div>
+
+          {/* Breach Management */}
+          <motion.div
+            className="cosmic-card p-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.6 }}
+          >
+            <BreachManagement />
           </motion.div>
         </>
       )}
