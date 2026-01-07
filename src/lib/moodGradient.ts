@@ -26,9 +26,9 @@ export function generateMoodBlend(ratios: Record<string, number>): MoodBlend {
   
   if (!hasData) {
     return {
-      gradient: 'radial-gradient(circle at 30% 30%, #2EC489, #6E8F7A, #D8AE3D)',
-      glow: 'rgba(46, 196, 137, 0.4)',
-      particles: '#2EC489',
+      gradient: 'radial-gradient(circle at 30% 30%, #147A4D, #6E8F7A, #D8AE3D)',
+      glow: 'rgba(20, 122, 77, 0.4)',
+      particles: '#147A4D',
       distribution: {},
     };
   }

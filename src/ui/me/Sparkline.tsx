@@ -88,10 +88,10 @@ export default function Sparkline({ data }: SparklineProps) {
             <Line
               type="monotone"
               dataKey="mood"
-              stroke="#2EC489"
+              stroke="#147A4D"
               strokeWidth={2}
-              dot={{ fill: '#2EC489', strokeWidth: 0, r: 3 }}
-              activeDot={{ r: 5, fill: '#2EC489', stroke: '#ffffff', strokeWidth: 2 }}
+              dot={{ fill: '#147A4D', strokeWidth: 0, r: 3 }}
+              activeDot={{ r: 5, fill: '#147A4D', stroke: '#ffffff', strokeWidth: 2 }}
             />
             <Tooltip content={<CustomTooltip />} />
           </LineChart>

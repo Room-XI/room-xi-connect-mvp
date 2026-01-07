@@ -195,8 +195,8 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
                   center={[userLocation.lat, userLocation.lng]}
                   radius={radiusKm * 1000}
                   pathOptions={{
-                    color: '#2EC489',
-                    fillColor: '#2EC489',
+                    color: '#147A4D',
+                    fillColor: '#147A4D',
                     fillOpacity: 0.1,
                     weight: 2,
                     dashArray: '5, 5'

@@ -70,8 +70,8 @@ export default {
           '50%': { transform: 'translateY(-10px)' },
         },
         glow: {
-          '0%': { boxShadow: '0 0 20px rgba(46, 196, 137, 0.3)' },
-          '100%': { boxShadow: '0 0 30px rgba(46, 196, 137, 0.6)' },
+          '0%': { boxShadow: '0 0 20px rgba(20, 122, 77, 0.3)' },
+          '100%': { boxShadow: '0 0 30px rgba(20, 122, 77, 0.6)' },
         },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
@@ -92,8 +92,8 @@ export default {
       },
       boxShadow: {
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
-        'cosmic': '0 0 30px rgba(46, 196, 137, 0.3)',
-        'glow-teal': '0 0 20px rgba(46, 196, 137, 0.4)',
+        'cosmic': '0 0 30px rgba(20, 122, 77, 0.3)',
+        'glow-teal': '0 0 20px rgba(20, 122, 77, 0.4)',
         'glow-gold': '0 0 20px rgba(216, 174, 61, 0.4)',
       },
       backdropBlur: {

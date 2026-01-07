@@ -184,7 +184,7 @@
 @layer utilities {
   /* Text gradients */
   .text-gradient-cosmic {
-    background: linear-gradient(135deg, #2EC489, #6E8F7A, #D8AE3D);
+    background: linear-gradient(135deg, #147A4D, #6E8F7A, #D8AE3D);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -214,7 +214,7 @@
   /* Cosmic gradient backgrounds */
   .bg-cosmic-gradient {
     background: linear-gradient(135deg, 
-      rgba(46, 196, 137, 0.1) 0%, 
+      rgba(20, 122, 77, 0.1) 0%, 
       rgba(110, 143, 122, 0.05) 50%, 
       rgba(216, 174, 61, 0.1) 100%
     );
@@ -223,7 +223,7 @@
   .bg-aurora-gradient {
     background: linear-gradient(135deg, 
       rgba(139, 92, 246, 0.1) 0%, 
-      rgba(46, 196, 137, 0.1) 50%, 
+      rgba(20, 122, 77, 0.1) 50%, 
       rgba(216, 174, 61, 0.1) 100%
     );
   }
