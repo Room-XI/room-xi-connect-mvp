@@ -361,24 +361,7 @@ export function consentNoticeV1(youthName, token, formNonce = '') {
     </div>
   </div>
 
-  <script>
-    const form = document.querySelector('form');
-    const submitBtn = document.getElementById('submit-btn');
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    
-    function updateButtonState() {
-      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-      submitBtn.disabled = !allChecked;
-    }
-    
-    checkboxes.forEach(cb => cb.addEventListener('change', updateButtonState));
-    updateButtonState();
-    
-    form.addEventListener('submit', function() {
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Submitting...';
-    });
-  </script>
+  <script src="/static/consent-form.js"></script>
 </body>
 </html>
 `;

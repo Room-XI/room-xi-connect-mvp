@@ -148,6 +148,13 @@ async function createServer() {
   const { default: partnerConsentRoutes } = await import('./routes/partner-consent.js');
   const { default: healthProfileRoutes } = await import('./routes/healthProfile.ts');
 
+  // Serve static files for server-rendered pages (consent forms, etc.)
+  // These are served without CSP script-src restrictions since they're external files
+  app.use('/static', express.static(path.join(__dirname, 'public'), {
+    maxAge: '1h',
+    etag: true
+  }));
+
   // Health check endpoints (no auth required for monitoring)
   app.use('/health', healthRoutes);
   app.use('/api/health', healthRoutes);
