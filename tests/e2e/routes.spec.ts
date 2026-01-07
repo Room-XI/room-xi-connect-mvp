@@ -73,33 +73,3 @@ test.describe('Route Crawl - Auth Required Routes', () => {
     });
   }
 });
-
-test.describe('API Health Check', () => {
-  test('API health endpoint should respond', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/health`);
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data.status).toBe('healthy');
-  });
-
-  test('CSRF token endpoint should respond', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/auth/csrf-token`);
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data.csrfToken).toBeTruthy();
-  });
-});
-
-test.describe('Static Assets', () => {
-  test('should serve manifest.json', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/manifest.json`);
-    expect(response.status()).toBe(200);
-  });
-
-  test('should serve robots.txt', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/robots.txt`);
-    expect([200, 404]).toContain(response.status());
-  });
-});

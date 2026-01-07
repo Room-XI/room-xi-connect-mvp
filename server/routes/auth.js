@@ -10,7 +10,7 @@ import { sendGuardianVerificationEmail, sendPasswordResetEmail } from '../servic
 import { sendVerificationEmail, verifyEmail, resendVerificationEmail } from '../services/emailVerification.ts';
 import { validateBody } from '../middleware/validate.ts';
 import { registerSchema, loginSchema, deleteAccountSchema, addGuardianSchema } from '../schemas/auth.ts';
-import { lookupCommunity, normalizePostalCode } from '../services/communityLookup.ts';
+import { lookupCommunity, lookupCommunityEnhanced, normalizePostalCode } from '../services/communityLookup.ts';
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimit.ts';
 import { getPublicUrl } from '../utils/publicUrl.ts';
 import { checkAccountLockout, recordFailedLogin, clearFailedLogin } from '../middleware/accountLockout.ts';
@@ -40,6 +40,32 @@ function calculateAge(dateOfBirth) {
   return age;
 }
 
+/**
+ * Validate password strength
+ * Mirrors frontend validation rules for security-in-depth
+ */
+function validatePasswordStrength(password) {
+  const errors = [];
+  
+  if (!password || password.length < 12) {
+    errors.push('Password must be at least 12 characters');
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('Password must contain at least one special character');
+  }
+  
+  return errors;
+}
+
 // Register (rate limited to prevent abuse)
 router.post('/register', authLimiter, validateBody(registerSchema), async (req, res) => {
   try {
@@ -48,6 +74,16 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
     // VALIDATION
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Validate password strength (mirrors frontend validation)
+    const passwordErrors = validatePasswordStrength(password);
+    if (passwordErrors.length > 0) {
+      return res.status(400).json({ 
+        error: 'Password does not meet security requirements',
+        message: passwordErrors.join('. '),
+        details: passwordErrors
+      });
     }
 
     if (!dateOfBirth) {
@@ -104,14 +140,27 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       passwordHash,
     }).returning();
 
-    // Lookup community from postal code
+    // Lookup community from postal code (try enhanced GIS lookup first, fallback to FSA)
     let communityName = null;
     let wardName = null;
     let normalizedPostal = null;
     
     if (postalCode) {
       normalizedPostal = normalizePostalCode(postalCode);
-      const communityInfo = lookupCommunity(postalCode);
+      
+      // Try enhanced GIS-based lookup first for accurate ward boundaries
+      let communityInfo = null;
+      try {
+        communityInfo = await lookupCommunityEnhanced(postalCode);
+      } catch (gisError) {
+        console.warn('GIS lookup failed, using FSA fallback:', gisError.message);
+      }
+      
+      // Fall back to FSA-based lookup if GIS returns null or failed
+      if (!communityInfo) {
+        communityInfo = lookupCommunity(postalCode);
+      }
+      
       if (communityInfo) {
         communityName = communityInfo.community;
         wardName = communityInfo.ward;

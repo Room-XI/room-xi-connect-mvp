@@ -12,6 +12,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "npx playwright test",
+    "test:e2e:api": "npx playwright test --project=api-only",
     "test:e2e:routes": "npx playwright test tests/e2e/routes.spec.ts",
     "smoke:privacy": "npx playwright test tests/e2e/smoke-privacy.spec.ts",
     "smoke:consent": "npx playwright test tests/e2e/consent-enforcement.spec.ts",

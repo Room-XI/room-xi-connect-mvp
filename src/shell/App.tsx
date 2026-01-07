@@ -7,6 +7,7 @@ import { useQueue } from '@/lib/queue';
 import { useSession } from '@/lib/session';
 import { useMatureMinorAssessment } from '@/hooks/useMatureMinorAssessment';
 import MatureMinorAssessment from '@/components/MatureMinorAssessment';
+import OfflineSyncIndicator from '@/components/OfflineSyncIndicator';
 
 export default function App() {
   const { itemCount } = useQueue();
@@ -57,6 +58,7 @@ export default function App() {
   return (
     <div className="min-h-dvh flex flex-col bg-cream text-textPrimaryLight">
       {!isAuthRoute && <Header />}
+      {!isAuthRoute && <OfflineSyncIndicator />}
       
       <main 
         id="main-content" 
