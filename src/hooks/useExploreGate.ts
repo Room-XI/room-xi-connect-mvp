@@ -106,9 +106,10 @@ export function useExploreGate() {
       return;
     }
 
-    // For youth awaiting guardian verification, skip check-in requirement
+    // For youth awaiting guardian verification OR without consent, skip check-in requirement
     // They can't access check-in endpoints anyway, so allow them to browse programs/events
-    if (needsGuardianVerification) {
+    // This allows new users to explore the app before completing their consent flow
+    if (needsGuardianVerification || !user.hasConsent) {
       setState({
         isGateOpen: true,
         needsCheckIn: false,
