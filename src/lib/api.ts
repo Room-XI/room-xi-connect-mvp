@@ -820,6 +820,27 @@ export const api = {
       }),
     validate: (token: string) => fetchApi(`/qr/validate/${token}`),
   },
+
+  // Safety Plan
+  safetyPlan: {
+    get: () => fetchApi('/safety-plan'),
+    update: (data: { planData: any; markReviewed?: boolean }) =>
+      fetchApi('/safety-plan', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    createShare: (params: { label?: string; expiresInDays?: number }) =>
+      fetchApi('/safety-plan/share', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }),
+    listShares: () => fetchApi('/safety-plan/shares'),
+    revokeShare: (id: string) =>
+      fetchApi(`/safety-plan/share/${id}`, {
+        method: 'DELETE',
+      }),
+    viewShared: (token: string) => fetchApi(`/safety-plan/view/${token}`),
+  },
 };
 
 export { fetchApi };

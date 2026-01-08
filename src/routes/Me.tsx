@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink, Shield, Eye } from 'lucide-react';
+import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink, Shield, Eye, Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sparkline from '@/ui/me/Sparkline';
 import PrivacyDashboard from '@/ui/me/PrivacyDashboard';
@@ -319,6 +319,41 @@ export default function Me() {
             </Link>
           </div>
         )}
+      </motion.div>
+
+      {/* Safety Plan Card */}
+      <motion.div
+        className="cosmic-card p-6 space-y-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35, duration: 0.6 }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Heart className="w-5 h-5 text-rose-500" />
+            <h2 className="text-lg font-semibold text-deepSage">My Safety Plan</h2>
+          </div>
+        </div>
+        
+        <p className="text-sm text-textSecondaryLight">
+          Create a personal safety plan for when you're feeling overwhelmed. Access it quickly when you need it, or share it with someone you trust.
+        </p>
+        
+        <Link
+          to="/safety-plan"
+          className="flex items-center justify-between p-4 bg-surface rounded-lg border border-borderMutedLight/50 hover:bg-rose-50/50 hover:border-rose-200 transition-colors"
+        >
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+              <Heart className="w-5 h-5 text-rose-500" />
+            </div>
+            <div>
+              <div className="font-medium text-deepSage">View or Edit My Plan</div>
+              <div className="text-sm text-textSecondaryLight">Private and secure</div>
+            </div>
+          </div>
+          <ExternalLink className="w-4 h-4 text-textSecondaryLight" />
+        </Link>
       </motion.div>
 
       {/* Privacy & Transparency Links */}

@@ -28,6 +28,8 @@ const Reset = lazy(() => import('./routes/auth/Reset'));
 const UpdatePassword = lazy(() => import('./routes/auth/UpdatePassword'));
 const SafetyProfile = lazy(() => import('./routes/SafetyProfile'));
 const SafetyResources = lazy(() => import('./routes/SafetyResources'));
+const SafetyPlan = lazy(() => import('./routes/SafetyPlan'));
+const SafetyPlanShare = lazy(() => import('./routes/SafetyPlanShare'));
 const About = lazy(() => import('./routes/About'));
 const TermsOfService = lazy(() => import('./routes/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./routes/PrivacyPolicy'));
@@ -86,6 +88,8 @@ export const router = createBrowserRouter([
       { path: 'me', element: withProtectedSuspense(Me) },
       { path: 'safety-profile', element: withProtectedSuspense(SafetyProfile) },
       { path: 'safety-resources', element: withSuspense(SafetyResources) },
+      { path: 'safety-plan', element: withProtectedSuspense(SafetyPlan) },
+      { path: 'safety-plan/share/:token', element: withSuspense(SafetyPlanShare) },
       { path: 'settings', element: withProtectedSuspense(Settings) },
       { path: 'admin', element: withProtectedSuspense(Admin) },
       { path: 'control/entrance', element: withProtectedSuspense(AdminPortal) },
