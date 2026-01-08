@@ -8,11 +8,12 @@ import logger from '../logger.ts';
 
 const router = express.Router();
 
-const SAFETY_PLAN_TOKEN_PEPPER = process.env.SAFETY_PLAN_TOKEN_PEPPER || crypto.randomBytes(32).toString('hex');
-
 if (!process.env.SAFETY_PLAN_TOKEN_PEPPER) {
-  logger.warn({ context: 'safety-plan-init' }, 'SAFETY_PLAN_TOKEN_PEPPER not set - using generated pepper (will change on restart)');
+  logger.error({ context: 'safety-plan-init' }, 'CRITICAL: SAFETY_PLAN_TOKEN_PEPPER environment variable is required for production');
+  throw new Error('SAFETY_PLAN_TOKEN_PEPPER environment variable must be set. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
 }
+
+const SAFETY_PLAN_TOKEN_PEPPER = process.env.SAFETY_PLAN_TOKEN_PEPPER;
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token + SAFETY_PLAN_TOKEN_PEPPER).digest('hex');
