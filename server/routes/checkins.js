@@ -41,10 +41,13 @@ router.get('/summary', async (req, res) => {
     const userTimezone = profile?.timezone || 'America/Edmonton';
     const streak7 = Math.min(profile?.streakCount || 0, 7);
 
-    // Calculate window (default 7 days)
-    const window = parseInt(req.query.window || '7');
+    // Calculate window (default 7 days) - ensure valid positive integer
+    let windowDays = parseInt(req.query.window, 10);
+    if (!Number.isInteger(windowDays) || windowDays <= 0) {
+      windowDays = 7;
+    }
     const now = DateTime.now().setZone(userTimezone);
-    const windowStart = now.minus({ days: window }).startOf('day');
+    const windowStart = now.minus({ days: windowDays }).startOf('day');
 
     // Get all check-ins from the window
     const allCheckins = await db.select({
@@ -108,7 +111,7 @@ router.get('/summary', async (req, res) => {
         // Convert to ratios and apply 1/7 weight to this day
         Object.keys(dayRatios).forEach(mood => {
           const dayMoodRatio = dayRatios[mood] / dayTotal;
-          ratios[mood] += dayMoodRatio / window;
+          ratios[mood] += dayMoodRatio / windowDays;
         });
       });
     }
@@ -133,7 +136,7 @@ router.get('/summary', async (req, res) => {
     }
 
     // Calculate consistency index (fraction of days checked in)
-    const consistencyIndex = daysWithData / window;
+    const consistencyIndex = daysWithData / windowDays;
 
     // Find dominant mood (only if we have data)
     const dominant = daysWithData > 0 
