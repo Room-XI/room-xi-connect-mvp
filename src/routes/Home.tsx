@@ -277,7 +277,7 @@ export default function Home() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-textSecondaryLight">Mood Level</span>
                 <span className="text-sm font-medium text-deepSage">
-                  {lastCheckIn.mood_level_1_6}/6
+                  {lastCheckIn.moodLevel16}/6
                 </span>
               </div>
               {lastCheckIn.affectTags && lastCheckIn.affectTags.length > 0 && (
