@@ -13,7 +13,7 @@ import { useQueue } from '@/lib/queue';
 interface CheckIn {
   id: string;
   timestamp: string;
-  mood_level_1_6: number;
+  moodLevel16: number;
   affectTags: string[];
   note: string | null;
 }
@@ -27,7 +27,7 @@ interface AttendanceRecord {
     id: string;
     title: string;
     organizer: string | null;
-    location_name: string | null;
+    locationName: string | null;
   } | null;
 }
 

@@ -31,7 +31,7 @@ interface Program {
   title: string;
   description: string | null;
   organizer: string | null;
-  location_name: string | null;
+  locationName: string | null;
   address: string | null;
   lat: string | null;
   lng: string | null;
@@ -227,10 +227,10 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
                         </p>
                       )}
                       
-                      {program.location_name && (
+                      {program.locationName && (
                         <p className="text-sm text-textSecondaryLight flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
-                          {program.location_name}
+                          {program.locationName}
                         </p>
                       )}
 
@@ -317,7 +317,7 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
                         {program.title}
                       </h4>
                       <p className="text-sm text-textSecondaryLight truncate">
-                        {program.location_name || program.address}
+                        {program.locationName || program.address}
                       </p>
                     </div>
                     

@@ -19,9 +19,9 @@ interface SavedProgramEntry {
     organizer: string | null;
     tags: string[];
     free: boolean;
-    cost_cents: number | null;
-    location_name: string | null;
-    next_start: string | null;
+    costCents: number | null;
+    locationName: string | null;
+    nextStart: string | null;
   };
   savedAt: string;
 }
@@ -200,18 +200,18 @@ export default function SavedPrograms() {
                   )}
 
                   <div className="flex flex-wrap items-center gap-4 text-sm">
-                    {entry.program.next_start && (
+                    {entry.program.nextStart && (
                       <div className="flex items-center gap-1.5 text-teal">
                         <Calendar className="w-4 h-4" />
-                        <span>{formatDate(entry.program.next_start)}</span>
+                        <span>{formatDate(entry.program.nextStart)}</span>
                       </div>
                     )}
                     
-                    {entry.program.location_name && (
+                    {entry.program.locationName && (
                       <div className="flex items-center gap-1.5 text-textSecondaryLight">
                         <MapPin className="w-4 h-4" />
                         <span className="truncate max-w-[200px]">
-                          {entry.program.location_name}
+                          {entry.program.locationName}
                         </span>
                       </div>
                     )}
@@ -219,7 +219,7 @@ export default function SavedPrograms() {
                     <div className="flex items-center gap-1.5 text-textSecondaryLight">
                       <DollarSign className="w-4 h-4" />
                       <span>
-                        {entry.program.free ? 'Free' : formatCost(entry.program.cost_cents) || 'Cost varies'}
+                        {entry.program.free ? 'Free' : formatCost(entry.program.costCents) || 'Cost varies'}
                       </span>
                     </div>
                   </div>

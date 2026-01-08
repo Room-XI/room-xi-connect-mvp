@@ -143,8 +143,8 @@ export default function OrbTimelapse() {
           if (dayData) {
             dailyData.push({
               date: date || '',
-              moodType: dayData.mood_type || null,
-              moodLevel: dayData.mood_level_1_6 || null,
+              moodType: dayData.moodType || null,
+              moodLevel: dayData.moodLevel16 || null,
             });
           } else {
             dailyData.push({

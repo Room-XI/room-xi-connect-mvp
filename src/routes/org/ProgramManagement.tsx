@@ -17,21 +17,21 @@ interface Program {
   id: string;
   title: string;
   description: string | null;
-  long_description: string | null;
+  longDescription: string | null;
   tags: string[];
   free: boolean;
-  cost_cents: number | null;
-  location_name: string | null;
+  costCents: number | null;
+  locationName: string | null;
   address: string | null;
   organizer: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  website_url: string | null;
-  next_start: string | null;
-  next_end: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  websiteUrl: string | null;
+  nextStart: string | null;
+  nextEnd: string | null;
   capacity: number | null;
-  age_min: number | null;
-  age_max: number | null;
+  ageMin: number | null;
+  ageMax: number | null;
   indoor: boolean | null;
   outdoor: boolean | null;
 }
@@ -185,26 +185,26 @@ export default function ProgramManagement() {
                   )}
 
                   <div className="flex flex-wrap gap-4 text-sm">
-                    {program.next_start && (
+                    {program.nextStart && (
                       <div className="flex items-center gap-1.5 text-teal">
                         <Calendar className="w-4 h-4" />
                         <span>
-                          {new Date(program.next_start).toLocaleDateString()}
+                          {new Date(program.nextStart).toLocaleDateString()}
                         </span>
                       </div>
                     )}
                     
-                    {program.location_name && (
+                    {program.locationName && (
                       <div className="flex items-center gap-1.5 text-textSecondaryLight">
                         <MapPin className="w-4 h-4" />
-                        <span>{program.location_name}</span>
+                        <span>{program.locationName}</span>
                       </div>
                     )}
                     
                     <div className="flex items-center gap-1.5 text-textSecondaryLight">
                       <DollarSign className="w-4 h-4" />
                       <span>
-                        {program.free ? 'Free' : `$${(program.cost_cents || 0) / 100}`}
+                        {program.free ? 'Free' : `$${(program.costCents || 0) / 100}`}
                       </span>
                     </div>
 
@@ -276,19 +276,19 @@ function ProgramForm({ program, onClose, onSave }: ProgramFormProps) {
   const [formData, setFormData] = useState({
     title: program?.title || '',
     description: program?.description || '',
-    long_description: program?.long_description || '',
+    long_description: program?.longDescription || '',
     organizer: program?.organizer || '',
     tags: program?.tags?.join(', ') || '',
     free: program?.free ?? true,
-    cost_cents: program?.cost_cents ? (program.cost_cents / 100).toString() : '',
-    location_name: program?.location_name || '',
+    cost_cents: program?.costCents ? (program.costCents / 100).toString() : '',
+    location_name: program?.locationName || '',
     address: program?.address || '',
-    contact_email: program?.contact_email || '',
-    contact_phone: program?.contact_phone || '',
-    website_url: program?.website_url || '',
+    contact_email: program?.contactEmail || '',
+    contact_phone: program?.contactPhone || '',
+    website_url: program?.websiteUrl || '',
     capacity: program?.capacity?.toString() || '',
-    age_min: program?.age_min?.toString() || '',
-    age_max: program?.age_max?.toString() || '',
+    age_min: program?.ageMin?.toString() || '',
+    age_max: program?.ageMax?.toString() || '',
     indoor: program?.indoor ?? false,
     outdoor: program?.outdoor ?? false,
   });

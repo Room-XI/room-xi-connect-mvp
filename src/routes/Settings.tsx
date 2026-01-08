@@ -185,7 +185,7 @@ export default function Settings() {
               {user?.email || 'User'}
             </h3>
             <p className="text-sm text-textSecondaryLight">
-              Member since {new Date(user?.created_at || Date.now()).toLocaleDateString('en-CA', {
+              Member since {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-CA', {
                 month: 'long',
                 year: 'numeric'
               })}

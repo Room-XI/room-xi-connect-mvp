@@ -3,7 +3,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 interface CheckIn {
   id: string;
   timestamp: string;
-  mood_level_1_6: number;
+  moodLevel16: number;
   affectTags: string[];
   note: string | null;
 }
@@ -19,7 +19,7 @@ export default function Sparkline({ data }: SparklineProps) {
     .reverse()
     .map((checkIn, index) => ({
       index,
-      mood: checkIn.mood_level_1_6,
+      mood: checkIn.moodLevel16,
       date: new Date(checkIn.timestamp).toLocaleDateString('en-CA', {
         month: 'short',
         day: 'numeric',
@@ -111,7 +111,7 @@ export default function Sparkline({ data }: SparklineProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-deepSage">
-                Latest: {data[0].mood_level_1_6}/6
+                Latest: {data[0].moodLevel16}/6
               </p>
               <p className="text-xs text-textSecondaryLight">
                 {new Date(data[0].timestamp).toLocaleDateString('en-CA', {

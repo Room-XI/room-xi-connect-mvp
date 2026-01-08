@@ -31,9 +31,9 @@ interface Program {
   description: string | null;
   tags: string[];
   free: boolean;
-  location_name: string | null;
+  locationName: string | null;
   organizer: string | null;
-  next_start: string | null;
+  nextStart: string | null;
 }
 
 export default function SuggestedPrograms() {
@@ -313,17 +313,17 @@ export default function SuggestedPrograms() {
 
                     <div className="flex items-center justify-between text-xs text-textSecondaryLight">
                       <div className="flex items-center space-x-4">
-                        {program.location_name && (
+                        {program.locationName && (
                           <div className="flex items-center space-x-1">
                             <MapPin className="w-3 h-3" />
-                            <span>{program.location_name}</span>
+                            <span>{program.locationName}</span>
                           </div>
                         )}
                         
-                        {program.next_start && (
+                        {program.nextStart && (
                           <div className="flex items-center space-x-1">
                             <Clock className="w-3 h-3" />
-                            <span>{formatProgramTime(program.next_start)}</span>
+                            <span>{formatProgramTime(program.nextStart)}</span>
                           </div>
                         )}
                       </div>

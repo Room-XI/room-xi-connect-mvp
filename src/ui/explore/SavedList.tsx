@@ -28,8 +28,8 @@ interface GroupedProgram {
 }
 
 interface SavedProgram {
-  program_id: string;
-  created_at: string;
+  programId: string;
+  createdAt: string;
   programs: GroupedProgram;
 }
 
@@ -59,20 +59,20 @@ export default function SavedList() {
 
       // Transform API response to match component expectations (GroupedProgram interface)
       const savedPrograms = (data || []).map((program: any) => ({
-        program_id: program.id || program.programId,
-        created_at: program.createdAt || new Date().toISOString(),
+        programId: program.id || program.programId,
+        createdAt: program.createdAt || new Date().toISOString(),
         programs: {
           programId: program.id || program.programId,
           programTitle: program.title || program.programTitle || '',
           programDescription: program.description || program.programDescription || null,
           programTags: program.tags || program.programTags || [],
           organizer: program.organizer || null,
-          locationName: program.location_name || program.locationName || null,
+          locationName: program.locationName || null,
           address: program.address || null,
-          ageMin: program.age_min || program.ageMin || null,
-          ageMax: program.age_max || program.ageMax || null,
-          costCents: program.cost_cents || program.costCents || 0,
-          isDropIn: program.is_drop_in || program.isDropIn || false,
+          ageMin: program.ageMin || null,
+          ageMax: program.ageMax || null,
+          costCents: program.costCents || 0,
+          isDropIn: program.isDropIn || false,
           weeklySchedule: program.weeklySchedule || [],
           scheduleSummary: program.scheduleSummary || ''
         } as GroupedProgram
@@ -233,7 +233,7 @@ export default function SavedList() {
         >
           {savedPrograms.map((saved, index) => (
             <motion.div
-              key={saved.program_id}
+              key={saved.programId}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05, duration: 0.4 }}

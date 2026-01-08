@@ -28,27 +28,27 @@ interface Program {
   id: string;
   title: string;
   description: string | null;
-  long_description: string | null;
+  longDescription: string | null;
   tags: string[];
   free: boolean;
   indoor: boolean | null;
   outdoor: boolean | null;
-  cost_cents: number | null;
-  location_name: string | null;
+  costCents: number | null;
+  locationName: string | null;
   address: string | null;
   lat: string | null;
   lng: string | null;
   organizer: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  website_url: string | null;
-  accessibility_notes: string | null;
-  next_start: string | null;
-  next_end: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  websiteUrl: string | null;
+  accessibilityNotes: string | null;
+  nextStart: string | null;
+  nextEnd: string | null;
   capacity: number | null;
-  age_min: number | null;
-  age_max: number | null;
-  created_at: string;
+  ageMin: number | null;
+  ageMax: number | null;
+  createdAt: string;
 }
 
 interface PeerInsights {
@@ -201,7 +201,7 @@ export default function ProgramDetail() {
     const lat = parseFloat(program.lat);
     const lng = parseFloat(program.lng);
     const destination = `${lat},${lng}`;
-    const label = encodeURIComponent(program.location_name || program.title);
+    const label = encodeURIComponent(program.locationName || program.title);
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isAndroid = /Android/.test(navigator.userAgent);
@@ -367,7 +367,7 @@ export default function ProgramDetail() {
             program.free ? 'text-teal' : 'text-textSecondaryLight'
           }`} />
           <div className="font-semibold text-deepSage">
-            {program.free ? 'Free' : formatCost(program.cost_cents) || 'Cost varies'}
+            {program.free ? 'Free' : formatCost(program.costCents) || 'Cost varies'}
           </div>
           <div className="text-sm text-textSecondaryLight">
             Cost
@@ -395,11 +395,11 @@ export default function ProgramDetail() {
         transition={{ delay: 0.3, duration: 0.6 }}
       >
         {/* Long Description */}
-        {program.long_description && (
+        {program.longDescription && (
           <div className="space-y-3">
             <h3 className="font-semibold text-deepSage">About This Program</h3>
             <div className="prose prose-sm max-w-none text-textSecondaryLight">
-              {program.long_description.split('\n').map((paragraph, index) => (
+              {program.longDescription.split('\n').map((paragraph, index) => (
                 <p key={index} className="mb-3 last:mb-0">
                   {paragraph}
                 </p>
@@ -409,15 +409,15 @@ export default function ProgramDetail() {
         )}
 
         {/* Location */}
-        {(program.location_name || program.address) && (
+        {(program.locationName || program.address) && (
           <div className="space-y-3">
             <h3 className="font-semibold text-deepSage">Location</h3>
             <div className="flex items-start space-x-3">
               <MapPin className="w-5 h-5 text-gold mt-0.5" />
               <div className="flex-1">
-                {program.location_name && (
+                {program.locationName && (
                   <p className="font-medium text-deepSage">
-                    {program.location_name}
+                    {program.locationName}
                   </p>
                 )}
                 {program.address && (
@@ -461,29 +461,29 @@ export default function ProgramDetail() {
         )}
 
         {/* Age Range */}
-        {(program.age_min || program.age_max) && (
+        {(program.ageMin || program.ageMax) && (
           <div className="space-y-3">
             <h3 className="font-semibold text-deepSage">Age Range</h3>
             <p className="text-textSecondaryLight">
-              {program.age_min && program.age_max 
-                ? `${program.age_min} - ${program.age_max} years`
-                : program.age_min 
-                ? `${program.age_min}+ years`
-                : `Up to ${program.age_max} years`
+              {program.ageMin && program.ageMax 
+                ? `${program.ageMin} - ${program.ageMax} years`
+                : program.ageMin 
+                ? `${program.ageMin}+ years`
+                : `Up to ${program.ageMax} years`
               }
             </p>
           </div>
         )}
 
         {/* Accessibility */}
-        {program.accessibility_notes && (
+        {program.accessibilityNotes && (
           <div className="space-y-3">
             <h3 className="font-semibold text-deepSage flex items-center space-x-2">
               <Accessibility className="w-5 h-5 text-teal" />
               <span>Accessibility</span>
             </h3>
             <p className="text-textSecondaryLight">
-              {program.accessibility_notes}
+              {program.accessibilityNotes}
             </p>
           </div>
         )}
@@ -614,7 +614,7 @@ export default function ProgramDetail() {
       )}
 
       {/* Contact Information */}
-      {(program.contact_email || program.contact_phone || program.website_url) && (
+      {(program.contactEmail || program.contactPhone || program.websiteUrl) && (
         <motion.div
           className="cosmic-card p-6 space-y-4"
           initial={{ opacity: 0, y: 20 }}
@@ -624,9 +624,9 @@ export default function ProgramDetail() {
           <h3 className="font-semibold text-deepSage">Contact Information</h3>
           
           <div className="space-y-3">
-            {program.contact_email && (
+            {program.contactEmail && (
               <a
-                href={`mailto:${program.contact_email}`}
+                href={`mailto:${program.contactEmail}`}
                 className="flex items-center space-x-3 p-3 rounded-lg hover:bg-sage/5 transition-colors"
               >
                 <div className="w-10 h-10 bg-teal/10 rounded-lg flex items-center justify-center">
@@ -635,15 +635,15 @@ export default function ProgramDetail() {
                 <div>
                   <p className="font-medium text-deepSage">Email</p>
                   <p className="text-sm text-textSecondaryLight">
-                    {program.contact_email}
+                    {program.contactEmail}
                   </p>
                 </div>
               </a>
             )}
             
-            {program.contact_phone && (
+            {program.contactPhone && (
               <a
-                href={`tel:${program.contact_phone}`}
+                href={`tel:${program.contactPhone}`}
                 className="flex items-center space-x-3 p-3 rounded-lg hover:bg-sage/5 transition-colors"
               >
                 <div className="w-10 h-10 bg-gold/10 rounded-lg flex items-center justify-center">
@@ -652,15 +652,15 @@ export default function ProgramDetail() {
                 <div>
                   <p className="font-medium text-deepSage">Phone</p>
                   <p className="text-sm text-textSecondaryLight">
-                    {program.contact_phone}
+                    {program.contactPhone}
                   </p>
                 </div>
               </a>
             )}
             
-            {program.website_url && (
+            {program.websiteUrl && (
               <a
-                href={program.website_url}
+                href={program.websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between p-3 rounded-lg hover:bg-sage/5 transition-colors"
