@@ -1111,3 +1111,83 @@ export const consentDelegationEvents = pgTable("consent_delegation_events", {
   delegationIdx: index("idx_consent_delegation_events_delegation").on(table.delegationId),
   eventTypeIdx: index("idx_consent_delegation_events_type").on(table.eventType),
 }));
+
+// Safety Plans - Personal safety plans for youth
+export const safetyPlans = pgTable("safety_plans", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Plan data stored as JSONB with 7 sections
+  planData: jsonb("plan_data").notNull().default(sql`'{
+    "warningSigns": [],
+    "copingSteps": [],
+    "safePlaces": [],
+    "trustedContacts": [],
+    "professionalSupport": [],
+    "escalationSteps": [],
+    "notesForOthers": {"helps": "", "notHelpful": "", "supportNotes": ""}
+  }'::jsonb`),
+  
+  // Version tracking
+  planVersion: integer("plan_version").notNull().default(1),
+  
+  // Review tracking
+  lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+  
+  // Consent linkage
+  consentVersion: text("consent_version"),
+  
+  // Audit
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  updatedIdx: index("safety_plans_updated_idx").on(table.updatedAt.desc()),
+}));
+
+// Safety Plan Shares - Secure share tokens for read-only access
+export const safetyPlanShares = pgTable("safety_plan_shares", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  
+  // Owner reference
+  planUserId: uuid("plan_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Token security - store hash only
+  tokenHash: text("token_hash").notNull().unique(),
+  
+  // Expiration and revocation
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  
+  // Optional label for identifying shares
+  label: text("label"),
+  
+  // Access tracking
+  accessCount: integer("access_count").notNull().default(0),
+  lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+  
+  // Audit
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  planUserIdx: index("safety_plan_shares_plan_user_idx").on(table.planUserId),
+  tokenHashIdx: uniqueIndex("safety_plan_shares_token_hash_idx").on(table.tokenHash),
+  expiresIdx: index("safety_plan_shares_expires_idx").on(table.expiresAt),
+}));
+
+// Safety Plan Events - Audit log for safety plan actions
+export const safetyPlanEvents = pgTable("safety_plan_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Event details
+  eventType: text("event_type").notNull(), // 'created', 'updated', 'share_created', 'share_revoked', 'share_accessed', 'deleted'
+  eventData: jsonb("event_data"),
+  
+  // Actor info for share access
+  actorIp: text("actor_ip"),
+  actorUserAgent: text("actor_user_agent"),
+  
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("safety_plan_events_user_idx").on(table.userId),
+  eventTypeIdx: index("safety_plan_events_type_idx").on(table.eventType),
+}));

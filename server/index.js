@@ -147,6 +147,7 @@ async function createServer() {
   const { default: parentPortalRoutes } = await import('./routes/parent-portal.js');
   const { default: partnerConsentRoutes } = await import('./routes/partner-consent.js');
   const { default: healthProfileRoutes } = await import('./routes/healthProfile.ts');
+  const { default: safetyPlanRoutes } = await import('./routes/safety-plan.js');
 
   // Serve static files for server-rendered pages (consent forms, etc.)
   // These are served without CSP script-src restrictions since they're external files
@@ -207,6 +208,10 @@ async function createServer() {
   app.use('/api/qr', validateCsrfToken, writeLimiter, qrRoutes);
   app.use('/api/disclosure', validateCsrfToken, writeLimiter, disclosureRoutes);
   app.use('/api/health-profile', validateCsrfToken, requireGuardianVerification, writeLimiter, healthProfileRoutes);
+  
+  // Safety plan routes - uses token-based security for public share links (like consent routes)
+  // The view/:token endpoint is public, other endpoints use requireAuth in the route handler
+  app.use('/api/safety-plan', writeLimiter, safetyPlanRoutes);
 
   // Production or development mode
   if (env.NODE_ENV === 'production') {
