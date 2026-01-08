@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../lib/api';
 import { useSession } from '../lib/session';
 
@@ -17,6 +18,8 @@ interface ExploreGateState {
 
 export function useExploreGate() {
   const { user, loading: sessionLoading, needsGuardianVerification } = useSession();
+  const location = useLocation();
+  const lastCheckRef = useRef<number>(0);
   const [state, setState] = useState<ExploreGateState>({
     isGateOpen: false,
     needsCheckIn: false,
@@ -26,12 +29,18 @@ export function useExploreGate() {
     hasSkipToken: false
   });
 
+  // Check gate status on mount, session changes, or route changes
+  // Use a debounce to avoid rapid re-checks
   useEffect(() => {
-    // Wait for session to load, then check gate status
     if (!sessionLoading) {
-      checkGateStatus();
+      const now = Date.now();
+      // Only re-check if more than 2 seconds since last check (debounce)
+      if (now - lastCheckRef.current > 2000) {
+        lastCheckRef.current = now;
+        checkGateStatus();
+      }
     }
-  }, [sessionLoading, user, needsGuardianVerification]);
+  }, [sessionLoading, user, needsGuardianVerification, location.pathname]);
 
   async function checkGateStatus() {
     const zone = 'America/Edmonton';
