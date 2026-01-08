@@ -59,6 +59,11 @@ function validateEnv() {
   const env = parsed.data;
   
   if (env.NODE_ENV === 'production') {
+    // ENCRYPTION_SECRET is required in production for health data encryption
+    if (!env.ENCRYPTION_SECRET) {
+      throw new Error('ENCRYPTION_SECRET is required in production for health data encryption (must be at least 32 characters)');
+    }
+    
     if (env.EMAIL_PROVIDER === 'gmail') {
       if (!env.GMAIL_USER || !env.GMAIL_APP_PASSWORD) {
         throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD are required in production when using gmail provider');

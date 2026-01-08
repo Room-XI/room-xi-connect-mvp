@@ -1,11 +1,49 @@
 import express from 'express';
+import { z } from 'zod';
 import { db } from '../db.js';
 import { programs, savedPrograms, profiles, orgMembers } from '../schema.js';
 import { eq, and, sql, gte, lte } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import logger from '../logger.ts';
+import { validateCsrfToken } from '../middleware/security.ts';
 
 const router = express.Router();
+
+// Zod validation schema for program creation/update
+// Using coerce for numeric fields to handle string inputs from forms
+const programSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(255, 'Title too long'),
+  description: z.string().max(1000, 'Description too long').optional().nullable(),
+  long_description: z.string().max(5000, 'Long description too long').optional().nullable(),
+  tags: z.array(z.string()).max(20, 'Too many tags').optional().default([]),
+  free: z.preprocess(val => val === 'true' || val === true, z.boolean()).optional().default(true),
+  cost_cents: z.preprocess(val => val === '' || val === null || val === undefined ? null : Number(val), z.number().int().min(0).max(1000000).nullable()).optional(),
+  location_name: z.string().max(255).optional().nullable(),
+  address: z.string().max(500).optional().nullable(),
+  organizer: z.string().max(255).optional().nullable(),
+  contact_email: z.preprocess(val => val === '' ? null : val, z.string().email('Invalid email').max(255).nullable()).optional(),
+  contact_phone: z.string().max(50).optional().nullable(),
+  website_url: z.preprocess(val => val === '' ? null : val, z.string().url('Invalid URL').max(500).nullable()).optional(),
+  capacity: z.preprocess(val => val === '' || val === null || val === undefined ? null : Number(val), z.number().int().min(0).max(10000).nullable()).optional(),
+  age_min: z.preprocess(val => val === '' || val === null || val === undefined ? null : Number(val), z.number().int().min(0).max(130).nullable()).optional(),
+  age_max: z.preprocess(val => val === '' || val === null || val === undefined ? null : Number(val), z.number().int().min(0).max(130).nullable()).optional(),
+  indoor: z.preprocess(val => val === 'true' || val === true, z.boolean()).optional().default(false),
+  outdoor: z.preprocess(val => val === 'true' || val === true, z.boolean()).optional().default(false),
+});
+
+// Validation middleware
+function validateProgram(req, res, next) {
+  const result = programSchema.safeParse(req.body);
+  if (!result.success) {
+    const errors = result.error.issues.map(issue => ({
+      field: issue.path.join('.'),
+      message: issue.message,
+    }));
+    return res.status(400).json({ error: 'Validation failed', errors });
+  }
+  req.validatedBody = result.data;
+  next();
+}
 
 // Get all programs
 router.get('/', async (req, res) => {
@@ -78,8 +116,8 @@ router.get('/saved/list', async (req, res) => {
   }
 });
 
-// Save a program
-router.post('/saved/:programId', async (req, res) => {
+// Save a program (requires CSRF)
+router.post('/saved/:programId', validateCsrfToken, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -97,8 +135,8 @@ router.post('/saved/:programId', async (req, res) => {
   }
 });
 
-// Unsave a program
-router.delete('/saved/:programId', async (req, res) => {
+// Unsave a program (requires CSRF)
+router.delete('/saved/:programId', validateCsrfToken, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -118,8 +156,8 @@ router.delete('/saved/:programId', async (req, res) => {
   }
 });
 
-// Create a program (org admin only)
-router.post('/', async (req, res) => {
+// Create a program (org admin only, requires CSRF)
+router.post('/', validateCsrfToken, validateProgram, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -142,25 +180,26 @@ router.post('/', async (req, res) => {
       return res.status(403).json({ error: 'Organization admin role required' });
     }
 
+    const data = req.validatedBody;
     const [newProgram] = await db.insert(programs).values({
-      title: req.body.title,
-      description: req.body.description || null,
-      longDescription: req.body.long_description || null,
-      tags: req.body.tags || [],
-      free: req.body.free ?? true,
-      costCents: req.body.cost_cents || null,
-      locationName: req.body.location_name || null,
-      address: req.body.address || null,
-      organizer: req.body.organizer || null,
+      title: data.title,
+      description: data.description || null,
+      longDescription: data.long_description || null,
+      tags: data.tags || [],
+      free: data.free ?? true,
+      costCents: data.cost_cents || null,
+      locationName: data.location_name || null,
+      address: data.address || null,
+      organizer: data.organizer || null,
       orgId: userOrgs[0].orgId,
-      contactEmail: req.body.contact_email || null,
-      contactPhone: req.body.contact_phone || null,
-      websiteUrl: req.body.website_url || null,
-      capacity: req.body.capacity || null,
-      ageMin: req.body.age_min || null,
-      ageMax: req.body.age_max || null,
-      indoor: req.body.indoor ?? false,
-      outdoor: req.body.outdoor ?? false,
+      contactEmail: data.contact_email || null,
+      contactPhone: data.contact_phone || null,
+      websiteUrl: data.website_url || null,
+      capacity: data.capacity || null,
+      ageMin: data.age_min || null,
+      ageMax: data.age_max || null,
+      indoor: data.indoor ?? false,
+      outdoor: data.outdoor ?? false,
     }).returning();
 
     res.status(201).json(newProgram);
@@ -170,8 +209,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update a program (org admin only)
-router.put('/:id', async (req, res) => {
+// Update a program (org admin only, requires CSRF)
+router.put('/:id', validateCsrfToken, validateProgram, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -210,25 +249,26 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Cannot modify programs from other organizations' });
     }
 
+    const data = req.validatedBody;
     const [updatedProgram] = await db.update(programs)
       .set({
-        title: req.body.title,
-        description: req.body.description || null,
-        longDescription: req.body.long_description || null,
-        tags: req.body.tags || [],
-        free: req.body.free ?? true,
-        costCents: req.body.cost_cents || null,
-        locationName: req.body.location_name || null,
-        address: req.body.address || null,
-        organizer: req.body.organizer || null,
-        contactEmail: req.body.contact_email || null,
-        contactPhone: req.body.contact_phone || null,
-        websiteUrl: req.body.website_url || null,
-        capacity: req.body.capacity || null,
-        ageMin: req.body.age_min || null,
-        ageMax: req.body.age_max || null,
-        indoor: req.body.indoor ?? false,
-        outdoor: req.body.outdoor ?? false,
+        title: data.title,
+        description: data.description || null,
+        longDescription: data.long_description || null,
+        tags: data.tags || [],
+        free: data.free ?? true,
+        costCents: data.cost_cents || null,
+        locationName: data.location_name || null,
+        address: data.address || null,
+        organizer: data.organizer || null,
+        contactEmail: data.contact_email || null,
+        contactPhone: data.contact_phone || null,
+        websiteUrl: data.website_url || null,
+        capacity: data.capacity || null,
+        ageMin: data.age_min || null,
+        ageMax: data.age_max || null,
+        indoor: data.indoor ?? false,
+        outdoor: data.outdoor ?? false,
       })
       .where(eq(programs.id, req.params.id))
       .returning();
@@ -240,8 +280,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete a program (org admin only)
-router.delete('/:id', async (req, res) => {
+// Delete a program (org admin only, requires CSRF)
+router.delete('/:id', validateCsrfToken, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });

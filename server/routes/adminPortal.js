@@ -116,8 +116,23 @@ router.post('/login', async (req, res) => {
 
     const { username, password } = req.body;
 
-    // Validate credentials
-    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+    // Validate credentials using bcrypt for password comparison
+    // ADMIN_PASSWORD should be a bcrypt hash in production
+    const isValidUsername = username === ADMIN_USERNAME;
+    let isValidPassword = false;
+    
+    // Check if ADMIN_PASSWORD is a bcrypt hash (starts with $2b$ or $2a$)
+    if (ADMIN_PASSWORD && ADMIN_PASSWORD.startsWith('$2')) {
+      isValidPassword = await bcrypt.compare(password, ADMIN_PASSWORD);
+    } else {
+      // Fallback for development: plaintext comparison (with warning)
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn({ context: 'admin-portal-login' }, 'ADMIN_PASSWORD should be a bcrypt hash in production');
+      }
+      isValidPassword = password === ADMIN_PASSWORD;
+    }
+    
+    if (!isValidUsername || !isValidPassword) {
       return res.status(401).json({ 
         message: 'Invalid credentials' 
       });

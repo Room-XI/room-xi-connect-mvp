@@ -34,8 +34,35 @@ export default defineConfig({
       },
       workbox: {
         runtimeCaching: [
+          // SECURITY: Never cache authenticated/user-specific endpoints
+          // /api/programs/saved*, /api/checkins/*, /api/auth/* must use NetworkOnly
           {
-            urlPattern: /\/api\/programs.*/,
+            urlPattern: /\/api\/programs\/saved.*/,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/api\/checkins.*/,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/api\/auth.*/,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/api\/ximi.*/,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/api\/profile.*/,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/api\/safety-plan.*/,
+            handler: 'NetworkOnly',
+          },
+          // Public programs list and individual program details (NetworkOnly rules above take precedence)
+          {
+            urlPattern: /\/api\/programs$/,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'programs-cache',
@@ -45,8 +72,21 @@ export default defineConfig({
               }
             }
           },
+          // Individual program by ID (UUID pattern)
           {
-            urlPattern: /\/api\/events.*/,
+            urlPattern: /\/api\/programs\/[0-9a-f-]{36}$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'programs-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+              }
+            }
+          },
+          // Public events endpoints only
+          {
+            urlPattern: /\/api\/events\/programs-grouped/,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'events-cache',

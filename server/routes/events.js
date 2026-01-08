@@ -226,7 +226,7 @@ router.get('/happening-now', async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'events-happening-now' }, 'Error fetching happening now events');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -292,7 +292,7 @@ router.get('/today', async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'events-today' }, 'Error fetching today events');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -365,7 +365,7 @@ router.get('/this-weekend', async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'events-this-weekend' }, 'Error fetching this weekend events');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -466,7 +466,7 @@ router.get('/later', async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'events-later' }, 'Error fetching later events');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -766,7 +766,7 @@ router.get('/programs-grouped', async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'events-programs-grouped' }, 'Error fetching grouped programs');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -830,7 +830,7 @@ router.get('/program-occurrences', async (req, res) => {
     res.json(sortedEvents);
   } catch (error) {
     logger.error({ err: error, context: 'events-program-occurrences' }, 'Error fetching program occurrences');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -903,7 +903,7 @@ router.get('/recommendations', requireResearchConsent(), async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'events-recommendations' }, 'Error fetching recommendations');
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

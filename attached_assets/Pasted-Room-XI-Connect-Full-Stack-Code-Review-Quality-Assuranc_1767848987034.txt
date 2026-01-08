@@ -1,0 +1,460 @@
+Room XI Connect — Full-Stack Code Review & Quality Assurance Report
+
+Scope: Static review based only on the attached repository artifacts in /mnt/data/room-xi-connect-mvp (zip contents).
+Method: Repo structure pass → Security → Correctness → Reliability → Performance → Maintainability → Tests → Release engineering.
+
+⸻
+
+1) Executive Summary (1 page max)
+
+Overall Scores (0–10)
+
+Dimension	Score	Notes
+Security	6.5	Good baseline headers, sessions, CSRF middleware exists, but there are a few high-impact gaps (PWA caching of user-specific API, admin portal credential handling).
+Reliability	7	Solid route structure, rate limiting, session inactivity expiry, but several routes return raw error messages and some validation is inconsistent.
+Performance	7	Sensible static caching for hashed assets, Workbox caching present, but API caching rules are too broad and can become a correctness and privacy issue.
+Maintainability	6.5	Clear separation FE/BE/routes, but mixed TS/JS import patterns and several unused or duplicated security constructs.
+Testability	6.5	Playwright + vitest tests exist, but coverage is not enforced, CI is missing, and critical flows are not fully gated.
+DX	7	README is strong, scripts are present, but missing CI workflows and production runbook items.
+
+Top 10 Risks (ranked)
+	1.	P0 Privacy leak via PWA caching broad /api/programs.* including user-specific endpoints (saved programs, etc.). vite.config.ts caches /api/programs.* using StaleWhileRevalidate. This can store user-specific responses offline and potentially expose them on shared devices. See vite.config.ts:35–47 and the saved endpoints in server/routes/programs.js:55–97.
+	2.	P1 Admin portal password handling mismatch, encourages plaintext env secrets and can break login. .env.example expects bcrypt hash but route uses plaintext comparison. See .env.example:44–52, server/routes/adminPortal.js:31–41, server/routes/adminPortal.js:148–162.
+	3.	P1 Error leakage from route handlers returning error.message in production. Several endpoints bypass the centralized error handler and return raw error.message and sometimes details. Example: server/routes/events.js:227–230.
+	4.	P1 Missing request validation on several write/admin endpoints (example: program creation updates accept raw body). This increases risk of malformed data, unexpected DB errors, and inconsistent UI behavior. See server/routes/programs.js:338–407.
+	5.	P1 ENCRYPTION_SECRET is optional at env validation level but required at runtime for health data. This can pass boot, then fail at first encrypt/decrypt call. See server/config/env.ts:36–45 and server/lib/encryption.ts:15–37.
+	6.	P1 CSRF coverage is inconsistent across state-changing endpoints. Many protected routes enforce validateCsrfToken, but /api/programs includes state-changing endpoints and is mounted without CSRF middleware. See server/index.js:172–176 and POST routes in server/routes/programs.js (for example :338+).
+	7.	P2 CORS wildcard matcher looks incorrect and may allow or deny origins unexpectedly (regex escaping behavior). See server/middleware/cors.ts:20–63.
+	8.	P2 Mixed TS/JS module import strategy (.js specifiers pointing to .ts) increases production fragility. Example server/index.js imports ./config/env.ts and ./middleware/*.ts directly in ESM. See server/index.js:11–15.
+	9.	P2 Missing CI workflows and quality gates. .github exists but no workflows are present.
+	10.	P3 Dev server host checks disabled (allowedHosts: true). Fine for Replit dev, but should be guarded or documented. See vite.config.ts:11–14.
+
+Fix first in 24–72h (shortlist)
+	•	P0: Narrow PWA runtime caching so it never caches authenticated or user-specific API responses (especially /api/programs/saved*).
+	•	P1: Fix admin portal password verification to use bcrypt compare (and align env docs).
+	•	P1: Remove raw error message leakage, route handlers should next(err) into errorHandler in production.
+	•	P1: Add validation schemas (zod) for program creation/update and other write endpoints.
+	•	P1: Require ENCRYPTION_SECRET in production boot validation.
+
+⸻
+
+2) System Overview
+
+High-level architecture diagram (described)
+	•	Client: React + Vite SPA using React Router (src/main.tsx:10–42, src/router.tsx:1–159) with session-based auth via cookies and CSRF header injection (src/lib/api.ts:1–72, src/lib/session.tsx:1–122).
+	•	PWA: vite-plugin-pwa Workbox runtime caching and offline support configured in vite.config.ts:24–71.
+	•	Server: Express app in ESM (server/index.js:1–240) providing:
+	•	Public routes: programs, events, crisis, transparency (server/index.js:172–179).
+	•	Protected routes: checkins, profile, xid, ximi, etc, gated by CSRF, guardian verification, and rate limiting (server/index.js:184–211).
+	•	Admin portal: separate route group with stricter rate limiting (server/index.js:163–165).
+	•	Data: PostgreSQL via Drizzle schema (server/schema.ts) and session store connect-pg-simple created at boot (server/index.js:47–68).
+	•	External dependencies: email provider, scheduler, push, maps, etc (startup checks in server/index.js:33–37, scheduler init via server/services/scheduler.js:1–44).
+
+Service boundaries
+	•	Single repo, single server process serving API plus static assets in production (server/index.js:216–279).
+	•	No separate worker service, background jobs appear to run in-process (scheduler).
+
+Data stores
+	•	Postgres is primary store (Drizzle tables in server/schema.ts).
+	•	Postgres session store table created on startup (server/index.js:59–67).
+
+Critical user flows
+	•	Youth onboarding and auth (register/login, session, CSRF token fetch).
+	•	Daily check-in create and fetch (CSRF protected).
+	•	Program discovery (public), saving programs (authenticated).
+	•	Parent portal and consent flows (token based and/or parent auth routes).
+	•	Admin portal login and management.
+
+⸻
+
+3) Build & Run Verification (based on README/configs)
+
+Steps to run locally (from README)
+	1.	npm install
+	2.	Create .env from .env.example (no real secrets), set DATABASE_URL, SESSION_SECRET, and required flags
+	3.	npm run db:push
+	4.	Optional npm run db:seed
+	5.	npm run dev (expects app at http://localhost:5000) (README.md: Installation section)
+
+Likely failure points
+	•	Node and ESM + TS loader assumptions: server imports TS modules directly (example server/index.js:11–15), relies on node --import tsx (package scripts) and consistent tsx behavior in all environments.
+	•	Environment prerequisites:
+	•	DATABASE_URL must be set correctly.
+	•	Production requires SESSION_SECRET and should require ENCRYPTION_SECRET (currently not enforced at env validation). See server/config/env.ts:36–45 and server/lib/encryption.ts:15–37.
+	•	CORS allowlist: Production origins must match ALLOWED_ORIGINS patterns or web app API requests will fail. corsMiddleware blocks disallowed origins (server/middleware/cors.ts:49–63).
+	•	Mobile build: README notes /ios and /android generation steps required (README.md Mobile section).
+
+Reproducibility issues
+	•	No CI workflows to ensure installs, typecheck, unit tests, and e2e tests pass on clean machines.
+	•	No pinned Node version file (.nvmrc, .tool-versions) found at repo root.
+
+⸻
+
+4) Frontend Review
+
+Architecture
+	•	Router is centralized and readable (src/router.tsx:1–159).
+	•	Auth gating uses RequireAuth with session context (src/components/RequireAuth.tsx:9–40, src/lib/session.tsx:47–122).
+
+UI reliability
+	•	Positive: RequireAuth covers loading and redirects.
+	•	Gaps to verify:
+	•	Global error boundary is not obvious at root. You use RouterProvider directly (src/main.tsx:28–41), consider React error boundaries for route crashes.
+	•	Consistent empty and error states across portal pages should be checked, but this review did not execute the UI.
+
+Accessibility basics
+	•	Not enough evidence in this pass to score WCAG compliance.
+	•	Minimum actions:
+	•	Validate form labels, keyboard navigation, focus management on modals, and contrast across the portals.
+
+Frontend security
+	•	Uses cookie-based sessions and CSRF header injection pattern (src/lib/api.ts:14–55).
+	•	Ensure no sensitive tokens are ever stored in localStorage, I did not see token storage in the reviewed session module (src/lib/session.tsx:1–122).
+
+Performance
+	•	Workbox runtime caching enabled, but it is currently too broad and introduces correctness/privacy risk. See P0 below.
+	•	Build splits vendor chunk (Vite manualChunks) which is good (vite.config.ts:86–105).
+
+⸻
+
+5) Backend Review
+
+API design, error model, validation
+	•	Route layout is clean and grouped, and global error handler exists (server/middleware/errorHandler.ts:10–55).
+	•	Problem: multiple routes catch errors and respond with raw error.message and details, bypassing the centralized production-safe error response. Example server/routes/events.js:227–230.
+
+Auth/authz correctness
+	•	Session-based auth, role checks exist in route files (example server/routes/programs.js:14–44).
+	•	CSRF middleware is applied to many protected route groups (server/index.js:184–211).
+	•	Gap: /api/programs is mounted without CSRF middleware, but it contains state-changing endpoints (admin create/update and user saved endpoints). See server/index.js:175 and POST routes in server/routes/programs.js:338–407.
+
+Reliability
+	•	Session inactivity expiry is implemented (server/index.js:86–105).
+	•	Session table is created at boot, helpful for resilience (server/index.js:59–67).
+	•	Email provider check fails gracefully (server/index.js:33–37).
+
+Performance
+	•	Many query patterns use Drizzle with joins and conditions. You need to confirm indexes on frequent access fields, and pagination on large tables.
+	•	Program list endpoints include multiple joins and user-specific logic, confirm they remain fast at scale.
+
+Logging/telemetry
+	•	Pino logger with redaction is present (server/logger.ts:15–33).
+	•	Missing: standard request id correlation, structured audit logs for sensitive actions, and a real telemetry pipeline (Sentry/OTel config not found).
+
+⸻
+
+6) Database & Data Layer
+
+Schema quality
+	•	Drizzle schema is comprehensive (server/schema.ts).
+	•	Ensure foreign keys and constraints are consistently used across tables. Many tables define references, but this should be reviewed for every relation and for on-delete behaviors.
+
+Migrations and safety
+	•	Migrations folder exists (server/migrations/*).
+	•	Session table is created at boot rather than via migrations (server/index.js:59–67). This is convenient but can lead to drift from expected DDL standards.
+
+Transaction safety and concurrency
+	•	For multi-step writes (check-in creation plus related updates, consent flows), ensure transactions are used where partial writes are harmful. This requires deeper route-by-route verification.
+
+Data retention and backups assumptions
+	•	No explicit backup or retention docs were found in repo root. For HIA-like data, define retention and deletion expectations and ensure they are enforced at DB level where possible.
+
+⸻
+
+7) Security Review (OWASP-style)
+
+Threat model summary
+
+Attackers want:
+	•	Unauthorized access to youth data, saved programs, check-in history, and any health profile info.
+	•	Session hijacking or CSRF to perform actions as a logged-in user.
+	•	Abuse admin portal.
+	•	Exfiltration via offline caches on shared devices.
+
+Likely entry points:
+	•	Browser-based API calls via cookie sessions.
+	•	Admin portal endpoints.
+	•	PWA service worker cache.
+	•	Public tokenized endpoints (consent, safety plan view links).
+
+Vulnerability findings (P0–P3)
+
+P0: PWA caches user-specific endpoints under /api/programs.*
+	•	Evidence: Workbox runtime caching caches /\/api\/programs.*/ with StaleWhileRevalidate (vite.config.ts:35–47). The backend provides user-specific endpoints under that prefix, such as GET /saved/list (server/routes/programs.js:55–97).
+	•	Risk: Sensitive or user-specific responses can be stored offline and potentially exposed on a shared device or across session changes. Also introduces correctness bugs where a user sees cached data after logout or after switching accounts.
+	•	Concrete fix:
+	•	Narrow the cache patterns to only truly public endpoints (example: /api/programs/public or /api/programs without /saved), or use NetworkOnly for any endpoint requiring session cookies.
+	•	Add cacheWillUpdate to prevent caching when Set-Cookie is present or when response is user-specific.
+	•	Acceptance criteria:
+	•	Confirm via DevTools Application tab that requests to /api/programs/saved* and other authenticated endpoints are not stored in Cache Storage.
+	•	Playwright test: login as user A, open saved list, logout, login as user B, confirm user A data is not shown offline.
+
+P1: Admin portal password handling mismatch (hash vs plaintext)
+	•	Evidence: .env.example says ADMIN_PASSWORD must be a bcrypt hash (.env.example:44–52), but login compares plaintext (server/routes/adminPortal.js:148–162) and imports bcrypt without using it (server/routes/adminPortal.js:31–41).
+	•	Risk: Encourages insecure plaintext secrets and can prevent admin login if a bcrypt hash is configured.
+	•	Concrete fix:
+	•	Switch to bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH) and rename env var accordingly.
+	•	Add rate limit and lockout messaging (adminLimiter already applied at mount, server/index.js:163–165).
+	•	Acceptance criteria:
+	•	With a bcrypt hash in env, login succeeds using the correct password and fails otherwise.
+	•	Unit test covers success and failure cases.
+
+P1: Raw error leakage in route handlers
+	•	Evidence: Example route returns details: error.message on 500 (server/routes/events.js:227–230) instead of using the centralized production-safe handler (server/middleware/errorHandler.ts:36–55).
+	•	Risk: Internal error details can leak schema info, query patterns, or stack context, useful for attackers and confusing for users.
+	•	Concrete fix:
+	•	Replace res.status(500).json({ ..., details: error.message }) with next(error) and let the error handler shape the response in production.
+	•	Acceptance criteria:
+	•	In production mode, API returns a generic message for 500s without exposing internal details.
+	•	Logs still include full error context.
+
+P1: ENCRYPTION_SECRET should be required in production at boot
+	•	Evidence: Env schema marks ENCRYPTION_SECRET optional (server/config/env.ts:36–45), but encryption throws in production if missing (server/lib/encryption.ts:15–37).
+	•	Risk: App can boot and then fail at runtime on first encryption action, causing outages and partial failures.
+	•	Concrete fix:
+	•	Enforce ENCRYPTION_SECRET required when NODE_ENV === 'production' at env parse time.
+	•	Acceptance criteria:
+	•	Server fails fast at startup with clear message when missing secret in prod.
+
+P1: Missing validation on write endpoints (example programs create/update)
+	•	Evidence: Program creation accepts raw body fields without schema validation (server/routes/programs.js:338–407).
+	•	Risk: Data integrity issues, unexpected crashes, injection of bad values, poor UX due to inconsistent server acceptance.
+	•	Concrete fix:
+	•	Add zod schema for payloads and reject invalid data with 400.
+	•	Acceptance criteria:
+	•	Invalid payloads return structured 400s with error codes, valid payloads succeed, and tests cover both.
+
+P2: CORS wildcard allowlist implementation may behave incorrectly
+	•	Evidence: Wildcard conversion escapes dots after injecting a complex group, likely breaking the intended regex (server/middleware/cors.ts:20–40).
+	•	Risk: Origins may be wrongly allowed or denied, leading to security exposure or production outages.
+	•	Concrete fix:
+	•	Use URL parsing plus a safe wildcard matcher (example: picomatch or micromatch), and compare normalized hostnames.
+	•	Acceptance criteria:
+	•	Tests show https://sub.roomxi.live is allowed when https://*.roomxi.live is configured, and disallowed for other domains.
+
+⸻
+
+8) Testing & QA
+
+Current test inventory (observed)
+	•	Backend unit/integration: server/__tests__/security.test.ts, server/__tests__/encryption.test.ts, server/__tests__/consent-auto.test.ts.
+	•	Frontend unit: src/lib/__tests__/api.test.ts, src/lib/__tests__/auth.test.ts.
+	•	E2E: e2e/auth.spec.ts, e2e/programs.spec.ts, e2e/checkins.spec.ts, e2e/parent-portal.spec.ts, e2e/admin-portal.spec.ts, configured by playwright.config.ts:1–73.
+
+Coverage gaps (by critical flow)
+	•	PWA offline behavior and cache correctness (especially authenticated endpoints).
+	•	Admin portal credential verification behavior under real env configuration.
+	•	Role-based authorization tests for admin endpoints and organization features.
+	•	Data deletion and privacy flows (account deletion, “forget me”, exports).
+
+Prioritized QA test plan (concrete cases)
+	1.	Auth and session
+	•	Register → login → refresh → session persists → inactivity expiry works (server/index.js:86–105).
+	•	CSRF token fetch then POST check-in succeeds, missing token fails.
+	2.	Programs
+	•	Public browse works logged out.
+	•	Save program requires auth.
+	•	Confirm /api/programs/saved/list is not cached by service worker (P0).
+	3.	Admin portal
+	•	Login with bcrypt-hashed env secret.
+	•	Rate limiting triggers under repeated failed logins (server/index.js:163–165, server/middleware/rateLimit.ts:60–76).
+	4.	Parent portal
+	•	Parent auth flow, viewing child data, permissions.
+	5.	Privacy and safety
+	•	Account deletion removes user data as expected.
+	•	Safety plan share link only shows intended fields.
+
+CI quality gates recommendations
+	•	Lint + typecheck + unit tests + e2e smoke test on PR.
+	•	Require minimum coverage thresholds (start modest, increase over time).
+	•	Block merge if security checks fail (dependency audit).
+
+⸻
+
+9) CI/CD & Release Engineering
+
+Pipeline correctness
+	•	Missing GitHub Actions workflows. Repo has .github/ISSUE_TEMPLATE only.
+	•	Add workflows:
+	•	ci.yml: install, lint, typecheck, unit tests.
+	•	e2e.yml: Playwright against built app with test DB.
+	•	security.yml: npm audit (plus optional Snyk or OSV scanner).
+
+Versioning and rollback
+	•	Add release tags and a changelog strategy.
+	•	For deploys, add a rollback plan that includes DB migration rollback guidance.
+
+Deploy safety
+	•	Ensure migrations are applied in a controlled step.
+	•	Add feature flags for risky new features.
+
+⸻
+
+10) Maintainability & Code Health
+
+Complexity hot spots
+	•	server/routes/events.js is large and contains substantial query logic and date handling. Keep but consider extracting query builders.
+	•	server/routes/programs.js mixes public listing, user saves, and admin CRUD in one module.
+
+Duplication and dead code
+	•	Security middleware includes multiple unused helpers (example: wildcard CORS logic should be tested or replaced).
+	•	Some “security middleware” functions exist but are not applied globally, prefer one consistent pattern.
+
+Refactor plan
+	•	Small: Add zod validators per route, standardize error handling, add request id middleware.
+	•	Medium: Split large routes into sub-routers, isolate DB access in services/repositories.
+	•	Large: Introduce OpenAPI schema and generate typed client, adopt a consistent monorepo structure if needed.
+
+⸻
+
+11) Observability & Operations
+
+Logging
+	•	Pino with redaction exists (server/logger.ts:15–33).
+	•	Add request correlation id and propagate to logs.
+
+Metrics and traces
+	•	No metrics/tracing pipeline found. Add OpenTelemetry for key endpoints and DB spans.
+
+Alerting readiness
+	•	Add alerts for:
+	•	Error rate spikes
+	•	Auth failures and admin portal brute force attempts
+	•	DB connection pool saturation
+	•	Scheduler failures
+
+Runbook gaps
+	•	Add RUNBOOK.md including:
+	•	Required env vars
+	•	DB migration procedure
+	•	Incident steps for privacy breaches (your product claims 72-hour notifications)
+
+⸻
+
+12) Prioritized Backlog (table)
+
+Priority	Area	Finding	Risk/Impact	Recommended Fix (1–3 bullets)	Acceptance Criteria (testable)	Est. Effort	Owner Type	File(s)/Module(s)
+P0	FE/Ops	PWA caches /api/programs.* including user-specific endpoints	Privacy leak, stale or cross-account data	Narrow cache patterns, NetworkOnly for authed routes, add cache guards	Saved programs never appear in Cache Storage, cross-user test passes	M	FE	vite.config.ts, server/routes/programs.js
+P1	Sec/Ops	Admin portal password hash mismatch	Weak secret handling, admin lockout	Use bcrypt.compare, rename env var, add tests	Hash-based env works, plaintext not required	S	BE	.env.example, server/routes/adminPortal.js
+P1	BE/Sec	Route handlers leak raw error messages	Info disclosure, noisy UX	Replace local 500 responses with next(err)	Production 500 returns generic message	M	BE	server/routes/events.js, other routes
+P1	BE/DB	Missing validation on program create/update	Bad data, crashes	Add zod schemas, reject invalid payload	400 on invalid, tests cover	M	BE	server/routes/programs.js
+P1	Ops/Sec	ENCRYPTION_SECRET not required at boot	Runtime failures in prod	Enforce required in prod in env parsing	Server fails fast without secret	S	BE/DevOps	server/config/env.ts, server/lib/encryption.ts
+P1	Sec	CSRF not applied to /api/programs state changes	CSRF risk if cookie policy changes	Apply validateCsrfToken to /api/programs writes or whole router	POST/PUT/DELETE require CSRF	S	BE	server/index.js, server/routes/programs.js
+P2	Sec/Ops	CORS wildcard regex conversion likely incorrect	Wrong allow/deny, outage risk	Replace with hostname matcher library, add unit tests	Wildcard origins behave correctly	M	BE	server/middleware/cors.ts
+P2	BE	Mixed TS/JS import conventions	Prod fragility	Standardize build output or consistent TS loader strategy	Build works without path hacks	M	BE/DevOps	server/index.js and imports
+P2	CI	Missing CI workflows and gates	Regressions ship	Add GitHub Actions for lint/typecheck/tests/e2e	PR blocked on failures	M	DevOps	.github/workflows/*
+P3	FE	Dev host checks disabled	Dev-only security	Gate allowedHosts: true to dev/Replit only	Documented, no impact to prod	S	FE	vite.config.ts
+
+
+⸻
+
+13) Patch Suggestions (optional but preferred)
+
+Patch 1 (P0): Stop caching user-specific /api/programs/saved*
+
+Target: vite.config.ts:35–47
+Approach: Replace broad regex with explicit patterns, and force NetworkOnly for authenticated endpoints.
+
+// vite.config.ts (inside VitePWA workbox.runtimeCaching)
+runtimeCaching: [
+  // Public programs list only (example: /api/programs or /api/programs/public)
+  {
+    urlPattern: ({ url }) => url.pathname === '/api/programs',
+    handler: 'StaleWhileRevalidate',
+    options: { /* keep current options */ }
+  },
+
+  // Explicitly exclude saved and other user-specific endpoints
+  {
+    urlPattern: ({ url }) => url.pathname.startsWith('/api/programs/saved'),
+    handler: 'NetworkOnly'
+  },
+]
+
+Acceptance: Cache Storage does not contain any /api/programs/saved* entries after visiting those pages.
+
+⸻
+
+Patch 2 (P1): Admin portal password hash verification
+
+Target: server/routes/adminPortal.js:148–162 and .env.example:44–52
+
+// server/routes/adminPortal.js
+router.post('/login', /* ... */, async (req, res) => {
+  const { password } = req.body;
+
+  const hash = process.env.ADMIN_PASSWORD; // rename to ADMIN_PASSWORD_HASH ideally
+  if (!hash) return res.status(500).json({ error: 'Admin password not configured' });
+
+  const ok = await bcrypt.compare(password, hash);
+  if (!ok) return res.status(401).json({ error: 'Invalid admin password' });
+
+  req.session.adminPortalAuthenticated = true;
+  req.session.save(() => res.json({ success: true }));
+});
+
+Acceptance: bcrypt-hashed env works, plaintext env is not required.
+
+⸻
+
+Patch 3 (P1): Route error leakage, use centralized handler
+
+Target: Example server/routes/events.js:227–230
+
+router.get('/happening-now', async (req, res, next) => {
+  try {
+    // ...
+  } catch (err) {
+    next(err);
+  }
+});
+
+Acceptance: In production, 500 responses are generic (per server/middleware/errorHandler.ts:51–55).
+
+⸻
+
+Patch 4 (P1): Add zod validation for program create/update
+
+Target: server/routes/programs.js:338–407
+
+import { z } from 'zod';
+
+const ProgramCreateSchema = z.object({
+  title: z.string().min(1),
+  organizer: z.string().min(1),
+  description: z.string().optional(),
+  free: z.boolean().default(true),
+  // add remaining fields with constraints
+});
+
+router.post('/', requireAdmin, async (req, res, next) => {
+  try {
+    const payload = ProgramCreateSchema.parse(req.body);
+    // use payload only
+  } catch (err) {
+    return res.status(400).json({ error: 'INVALID_INPUT' });
+  }
+});
+
+Acceptance: Invalid payload returns 400, tests added.
+
+⸻
+
+Patch 5 (P1): Require ENCRYPTION_SECRET in production env parsing
+
+Target: server/config/env.ts:36–45
+
+const schema = z.object({
+  // ...
+  ENCRYPTION_SECRET: z.string().optional(),
+}).superRefine((val, ctx) => {
+  if (val.NODE_ENV === 'production' && !val.ENCRYPTION_SECRET) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'ENCRYPTION_SECRET is required in production' });
+  }
+});
+
+Acceptance: Server fails fast on boot in production without the secret.
+
+⸻
+
+If you want, I can generate a second artifact: a “QA Execution Checklist” you can hand to testers (youth portal, parent portal, admin portal) that maps directly to your Playwright specs and adds missing edge cases.

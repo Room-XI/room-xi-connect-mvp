@@ -172,6 +172,7 @@ async function createServer() {
   // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
   // Note: authLimiter is applied per-route in auth.js for login/register only (not session checks)
   app.use('/api/auth', authRoutes);
+  // Programs route - CSRF applied per-route for write operations only (GET is public for guests)
   app.use('/api/programs', programRoutes);
   app.use('/api/events', eventsRoutes);
   app.use('/api/crisis', crisisRoutes);
