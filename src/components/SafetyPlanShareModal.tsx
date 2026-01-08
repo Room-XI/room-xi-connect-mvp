@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Link as LinkIcon, Copy, Check, Trash2, Loader, Clock, Eye } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, Trash2, Loader, Clock, Eye, AlertCircle } from 'lucide-react';
 import QRCodeStyling from 'qr-code-styling';
 import api from '@/lib/api';
 import useFocusTrap from '@/hooks/useFocusTrap';
@@ -28,9 +28,12 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [clipboardFallback, setClipboardFallback] = useState(false);
+  const [qrError, setQrError] = useState(false);
   
   const qrRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
+  const linkInputRef = useRef<HTMLInputElement>(null);
   const focusTrapRef = useFocusTrap(open);
 
   const handleEscapeKey = useCallback((event: KeyboardEvent) => {
@@ -57,37 +60,44 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
         qrRef.current.innerHTML = '';
       }
       qrCodeRef.current = null;
+      setQrError(false);
       return;
     }
 
-    if (!qrCodeRef.current) {
-      qrCodeRef.current = new QRCodeStyling({
-        width: 200,
-        height: 200,
-        data: generatedLink,
-        dotsOptions: {
-          color: '#5FA8A3',
-          type: 'rounded',
-        },
-        backgroundOptions: {
-          color: '#FFFAF5',
-        },
-        cornersSquareOptions: {
-          color: '#2C4A3E',
-          type: 'extra-rounded',
-        },
-        cornersDotOptions: {
-          color: '#D4A574',
-          type: 'dot',
-        },
-      });
+    try {
+      if (!qrCodeRef.current) {
+        qrCodeRef.current = new QRCodeStyling({
+          width: 200,
+          height: 200,
+          data: generatedLink,
+          dotsOptions: {
+            color: '#5FA8A3',
+            type: 'rounded',
+          },
+          backgroundOptions: {
+            color: '#FFFAF5',
+          },
+          cornersSquareOptions: {
+            color: '#2C4A3E',
+            type: 'extra-rounded',
+          },
+          cornersDotOptions: {
+            color: '#D4A574',
+            type: 'dot',
+          },
+        });
 
-      if (qrRef.current) {
-        qrRef.current.innerHTML = '';
-        qrCodeRef.current.append(qrRef.current);
+        if (qrRef.current) {
+          qrRef.current.innerHTML = '';
+          qrCodeRef.current.append(qrRef.current);
+        }
+      } else {
+        qrCodeRef.current.update({ data: generatedLink });
       }
-    } else {
-      qrCodeRef.current.update({ data: generatedLink });
+      setQrError(false);
+    } catch (error) {
+      console.error('Failed to generate QR code:', error);
+      setQrError(true);
     }
   }, [generatedLink]);
 
@@ -136,12 +146,22 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
   const handleCopy = async () => {
     if (!generatedLink) return;
     
-    try {
-      await navigator.clipboard.writeText(generatedLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(generatedLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        setClipboardFallback(false);
+        return;
+      } catch (err) {
+        console.error('Clipboard API failed:', err);
+      }
+    }
+    
+    setClipboardFallback(true);
+    if (linkInputRef.current) {
+      linkInputRef.current.select();
+      linkInputRef.current.setSelectionRange(0, 99999);
     }
   };
 
@@ -222,9 +242,11 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
                   
                   <div className="flex items-center space-x-2">
                     <input
+                      ref={linkInputRef}
                       type="text"
                       value={generatedLink}
                       readOnly
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
                       className="flex-1 px-3 py-2 bg-surface border border-borderMutedLight rounded-lg text-sm text-deepSage"
                     />
                     <button
@@ -249,12 +271,26 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
                     </button>
                   </div>
 
-                  <div className="flex justify-center">
-                    <div ref={qrRef} className="bg-cream p-3 rounded-lg" />
-                  </div>
+                  {clipboardFallback && (
+                    <div className="flex items-start space-x-2 text-sm text-gold bg-gold/10 p-3 rounded-lg">
+                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <span>Clipboard not available. Please select and copy the link manually using Ctrl+C (or Cmd+C on Mac).</span>
+                    </div>
+                  )}
+
+                  {qrError ? (
+                    <div className="flex items-center justify-center space-x-2 text-sm text-coral bg-coral/10 p-4 rounded-lg">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>QR code could not be generated. Please share the link above.</span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-center">
+                      <div ref={qrRef} className="bg-cream p-3 rounded-lg" />
+                    </div>
+                  )}
 
                   <p className="text-xs text-textSecondaryLight text-center">
-                    Scan this QR code or share the link above
+                    {qrError ? 'Share the link above' : 'Scan this QR code or share the link above'}
                   </p>
                 </div>
 

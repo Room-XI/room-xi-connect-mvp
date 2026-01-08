@@ -177,6 +177,12 @@ export default function SafetyPlan() {
 
   useEffect(() => {
     loadSafetyPlan();
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, []);
 
   const loadSafetyPlan = async () => {

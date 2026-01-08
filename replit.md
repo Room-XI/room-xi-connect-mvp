@@ -26,6 +26,8 @@ An Offline Sync Indicator (`src/components/OfflineSyncIndicator.tsx`) shows user
 
 A global ErrorBoundary component wraps the entire app in `src/main.tsx`, catching React render errors and displaying a user-friendly recovery UI instead of blank screens. Session hydration now works correctly with httpOnly cookies by always fetching `/api/auth/user` on app load. The PWA service worker (Workbox) caches `/api/programs`, `/api/events`, `/api/crisis`, and `/api/quotes` endpoints for offline availability.
 
+A Personal Safety Plan feature (`src/routes/SafetyPlan.tsx`) allows youth to create structured crisis support plans with 7 guided sections: Warning Signs, Coping Steps, Safe Places, Trusted Contacts, Professional Support, Escalation Steps, and Notes for Others. Plans are stored as JSONB in the `safety_plans` table with version tracking. Users can share plans via secure links using SHA256-hashed tokens with configurable expiration (7-90 days). Share links support QR codes and can be revoked. All actions are logged to `safety_plan_events` for PIPA audit compliance. The public view (`src/routes/SafetyPlanShare.tsx`) shows read-only plan content with crisis resources always visible.
+
 ## External Dependencies
 - **Neon PostgreSQL:** Primary database backend.
 - **Replit AI (OpenAI-compatible API):** Powers the Ximi AI companion (gpt-4o-mini).

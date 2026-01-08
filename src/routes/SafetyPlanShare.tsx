@@ -290,31 +290,45 @@ export default function SafetyPlanShare() {
           </div>
         </ReadOnlySection>
 
-        <ReadOnlySection 
-          title="Professional Support" 
-          icon={<Phone className="w-5 h-5 text-teal" />}
-          isEmpty={!planData.professionalSupport?.length}
-        >
-          <div className="space-y-3">
-            {planData.professionalSupport?.map((support, i) => (
-              <div key={i} className="p-3 bg-surface rounded-lg border border-borderMutedLight/50">
-                <div className="font-medium text-deepSage">{support.name}</div>
-                {support.notes && (
-                  <div className="text-sm text-textSecondaryLight mb-2">{support.notes}</div>
-                )}
-                {support.phone && (
-                  <button
-                    onClick={() => handleCall(support.phone)}
-                    className="flex items-center space-x-2 px-3 py-2 bg-teal/10 text-teal rounded-lg hover:bg-teal/20 transition-colors text-sm font-medium"
-                  >
-                    <Phone className="w-4 h-4" />
-                    <span>Call {support.phone}</span>
-                  </button>
-                )}
-              </div>
-            ))}
+        <div className="cosmic-card p-4 space-y-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-lg bg-teal/10 flex items-center justify-center">
+              <Phone className="w-5 h-5 text-teal" />
+            </div>
+            <h3 className="font-semibold text-deepSage">Professional Support</h3>
           </div>
-        </ReadOnlySection>
+          <div className="pl-13 space-y-3">
+            <button
+              onClick={() => setShowCrisisSheet(true)}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-coral/10 text-coral rounded-lg hover:bg-coral/20 transition-colors font-medium"
+            >
+              <Phone className="w-5 h-5" />
+              <span>View Crisis Support Lines</span>
+            </button>
+            
+            {planData.professionalSupport?.length > 0 && (
+              <div className="pt-2 border-t border-borderMutedLight/50 space-y-3">
+                {planData.professionalSupport.map((support, i) => (
+                  <div key={i} className="p-3 bg-surface rounded-lg border border-borderMutedLight/50">
+                    <div className="font-medium text-deepSage">{support.name}</div>
+                    {support.notes && (
+                      <div className="text-sm text-textSecondaryLight mb-2">{support.notes}</div>
+                    )}
+                    {support.phone && (
+                      <button
+                        onClick={() => handleCall(support.phone)}
+                        className="flex items-center space-x-2 px-3 py-2 bg-teal/10 text-teal rounded-lg hover:bg-teal/20 transition-colors text-sm font-medium"
+                      >
+                        <Phone className="w-4 h-4" />
+                        <span>Call {support.phone}</span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <ReadOnlySection 
           title="Escalation Steps" 

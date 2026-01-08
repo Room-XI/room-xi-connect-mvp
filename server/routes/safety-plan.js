@@ -1,11 +1,37 @@
 import express from 'express';
 import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { db } from '../db.js';
 import { safetyPlans, safetyPlanShares, safetyPlanEvents, profiles } from '../schema.ts';
 import { eq, and, isNull, gt } from 'drizzle-orm';
 import logger from '../logger.ts';
 
 const router = express.Router();
+
+const SAFETY_PLAN_TOKEN_PEPPER = process.env.SAFETY_PLAN_TOKEN_PEPPER || crypto.randomBytes(32).toString('hex');
+
+if (!process.env.SAFETY_PLAN_TOKEN_PEPPER) {
+  logger.warn({ context: 'safety-plan-init' }, 'SAFETY_PLAN_TOKEN_PEPPER not set - using generated pepper (will change on restart)');
+}
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token + SAFETY_PLAN_TOKEN_PEPPER).digest('hex');
+}
+
+const publicViewRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  },
+  handler: (req, res) => {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+    logger.warn({ ip, context: 'safety-plan-rate-limit' }, 'Rate limit exceeded for safety plan public view');
+    res.status(429).json({ error: 'Too many requests. Please try again in a minute.' });
+  },
+});
 
 const requireAuth = (req, res, next) => {
   if (!req.session?.userId) {
@@ -20,11 +46,32 @@ async function logEvent(userId, eventType, eventData, req) {
       userId,
       eventType,
       eventData,
-      actorIp: req.headers['x-forwarded-for'] || req.socket?.remoteAddress,
+      actorIp: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress,
       actorUserAgent: req.headers['user-agent'],
     });
   } catch (error) {
     logger.error({ err: error, context: 'safety-plan-event-log' }, 'Failed to log safety plan event');
+  }
+}
+
+async function logPublicViewAttempt(eventType, eventData, req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+  const userAgent = req.headers['user-agent'];
+  
+  try {
+    await db.insert(safetyPlanEvents).values({
+      userId: eventData.planUserId || null,
+      eventType,
+      eventData: { ...eventData, ip },
+      actorIp: ip,
+      actorUserAgent: userAgent,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'safety-plan-public-view-log' }, 'Failed to log public view attempt');
+  }
+  
+  if (eventType === 'public_view_invalid_token' || eventType === 'public_view_failed') {
+    logger.warn({ ip, eventType, ...eventData, context: 'safety-plan-security' }, 'Suspicious public view attempt');
   }
 }
 
@@ -132,7 +179,7 @@ router.post('/share', requireAuth, async (req, res) => {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenHash = hashToken(token);
 
     const days = expiresInDays && expiresInDays > 0 && expiresInDays <= 90 ? expiresInDays : 7;
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
@@ -223,7 +270,11 @@ router.delete('/share/:id', requireAuth, async (req, res) => {
       .set({ revokedAt: new Date() })
       .where(eq(safetyPlanShares.id, id));
 
-    await logEvent(userId, 'share_revoked', { shareId: id }, req);
+    await logEvent(userId, 'share_revoked', { 
+      shareId: id,
+      label: share.label,
+      accessCountAtRevoke: share.accessCount,
+    }, req);
 
     res.json({ ok: true });
   } catch (error) {
@@ -232,11 +283,19 @@ router.delete('/share/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/view/:token', async (req, res) => {
+router.get('/view/:token', publicViewRateLimiter, async (req, res) => {
   try {
     const { token } = req.params;
 
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    if (!token || token.length !== 64) {
+      await logPublicViewAttempt('public_view_invalid_token', { 
+        reason: 'invalid_format',
+        tokenLength: token?.length,
+      }, req);
+      return res.status(404).json({ error: 'Invalid or expired share link' });
+    }
+
+    const tokenHash = hashToken(token);
 
     const [share] = await db
       .select()
@@ -245,14 +304,27 @@ router.get('/view/:token', async (req, res) => {
       .limit(1);
 
     if (!share) {
+      await logPublicViewAttempt('public_view_invalid_token', { 
+        reason: 'token_not_found',
+      }, req);
       return res.status(404).json({ error: 'Invalid or expired share link' });
     }
 
     if (share.revokedAt) {
+      await logPublicViewAttempt('public_view_failed', { 
+        reason: 'revoked',
+        shareId: share.id,
+        planUserId: share.planUserId,
+      }, req);
       return res.status(410).json({ error: 'This share link has been revoked' });
     }
 
     if (new Date() > new Date(share.expiresAt)) {
+      await logPublicViewAttempt('public_view_failed', { 
+        reason: 'expired',
+        shareId: share.id,
+        planUserId: share.planUserId,
+      }, req);
       return res.status(410).json({ error: 'This share link has expired' });
     }
 
@@ -263,6 +335,11 @@ router.get('/view/:token', async (req, res) => {
       .limit(1);
 
     if (!plan) {
+      await logPublicViewAttempt('public_view_failed', { 
+        reason: 'plan_not_found',
+        shareId: share.id,
+        planUserId: share.planUserId,
+      }, req);
       return res.status(404).json({ error: 'Safety plan not found' });
     }
 
@@ -280,8 +357,9 @@ router.get('/view/:token', async (req, res) => {
       })
       .where(eq(safetyPlanShares.id, share.id));
 
-    await logEvent(share.planUserId, 'share_accessed', { 
+    await logPublicViewAttempt('public_view_success', { 
       shareId: share.id,
+      planUserId: share.planUserId,
       accessCount: share.accessCount + 1,
     }, req);
 
