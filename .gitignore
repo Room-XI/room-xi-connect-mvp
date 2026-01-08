@@ -121,13 +121,6 @@ coverage/
 # Misc
 *.tsbuildinfo
 
-# Archive files
-*.zip
-*.tar.gz
-
-# Test results
-test-results/
-
 # Capacitor
 /ios
 /android

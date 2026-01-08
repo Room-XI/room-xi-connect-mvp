@@ -1,0 +1,508 @@
+1. Quick take on Replit’s suggestions
+What I agree with
+
+✅ Universal consent system as the core MVP
+
+Yes: this is your “Sign in with Google” moment for youth programs.
+
+Scopes (“consent packages” like registration, health_data, photo_consent) are a good pattern.
+
+Re-using consents and consent_events as the immutable audit log is perfect.
+
+✅ Lightweight one-page parent portal
+
+100% aligned with what you want:
+
+Linked youth
+
+Consent requests
+
+Basic intake/safety info
+
+No analytics, no journals, no noise. Just consent + safety.
+
+✅ Minimal demographics at first
+
+Start with just:
+
+Name, DOB
+
+Emergency contacts
+
+Accessibility/health needs
+
+A small number of funder-required fields (e.g. Indigenous identity where relevant).
+
+Add deeper “who am I” stuff later, once consent + flows are rock solid.
+
+✅ Age-tiered consent logic
+
+Good idea and matches your goals:
+
+16–25: self-consent (youth signs).
+
+13–15: co-sign (youth sees everything + guardian signs).
+
+Under 13: guardian-only.
+
+Make the exact ages configurable, but the structure is right.
+
+✅ Defer heavy stuff
+
+Mood “tasks” system: okay to defer.
+
+Journal: keep code but hide in UI.
+
+Multi-org federation / API keys: later.
+
+What I’d tweak (my additions/subtractions)
+
+Don’t create a totally separate “parents” universe if you don’t need to.
+
+Instead of new parents table, I’d:
+
+Keep a single users table.
+
+Use user_type (or roles) to distinguish youth vs guardian.
+
+Add a guardian_links table to connect them.
+
+This keeps your auth system simple and reuses everything you already have.
+
+Reuse your existing guardian verification for “parent invites”.
+
+Replit suggests parentInvites. You already have:
+
+guardian_verifications + /consent/guardian/request-verification.
+
+So:
+
+Use guardian_verifications as the invite mechanism.
+
+When a guardian verifies, then:
+
+Create guardian user (if needed).
+
+Create guardian_links.
+
+Grant app-level consent.
+
+No need for a new parentInvites table for MVP.
+
+Keep pre/post mood check-ins, but make them super simple.
+
+Replit says to defer moodTasks. I agree on deferring a complex mood-task system, but:
+
+You really want:
+
+Pre-program mood check when they scan in.
+
+Post-program check-in later.
+
+That’s a tiny addition and a big part of your value.
+
+So: keep simple pre/post check-ins in MVP, but not a full “task workflow”.
+
+Consent receipts / PDFs can be Phase 2.
+
+For MVP, it’s enough to:
+
+Store consent events properly.
+
+Show them in the parent portal.
+
+Downloadable PDFs and email receipts are nice-to-have, not MVP-critical.
+
+Universal Consent API: design it now, but don’t worry about external orgs yet.
+
+Keep a route like POST /api/consent-auto/program-request internally.
+
+Phase 1: use it only from your own backend + org dashboard.
+
+Phase 2: open it for external programs with API keys.
+
+2. Final MVP architecture (combined plan)
+2.1. Data model (what to actually build)
+
+Use existing tables:
+
+users — add user_type ('youth' | 'guardian' | 'staff').
+
+profiles — basic youth info (name, DOB, etc.).
+
+health_profiles — allergies, conditions, meds, accessibility.
+
+consents + consent_events — store actual consent values + immutable history.
+
+guardian_verifications — used as the invite/verification mechanism.
+
+programs + program_events — your program catalog.
+
+xids + attendance — anonymous IDs + check-ins.
+
+Add new tables (minimal set):
+
+guardian_links
+
+id
+
+youth_user_id
+
+guardian_user_id
+
+relationship
+
+primary_contact
+
+created_at
+
+program_consent_requests
+
+id
+
+youth_user_id
+
+guardian_user_id
+
+program_id (and/or program_event_id)
+
+status ('pending' | 'approved' | 'declined' | 'revoked')
+
+requested_scopes (text[])
+
+created_at
+
+responded_at
+
+Optional for MVP-but-nice: youth_demographics & guardian_demographics
+For now, keep them very small:
+
+youth_demographics:
+
+user_id (PK)
+
+gender_identity (free text or short list)
+
+sexual_orientation (optional)
+
+race_ethnicity (multi-select)
+
+language_at_home
+
+guardian_demographics:
+
+youth_user_id (PK)
+
+guardian_user_id
+
+perceived_gender_identity
+
+perceived_race_ethnicity
+
+household_income_band
+
+household_structure
+
+But: only build the fields you actually need now. You can add others later.
+
+2.2. Consent “packages” / scopes
+
+Define a small, fixed set of scopes:
+
+registration – name, DOB, basic contact.
+
+health_data – allergies, meds, emergency plan.
+
+photo_consent – OK to be in photos/videos.
+
+emergency_contact – contacts and permissions to act in emergencies.
+
+Programs choose which scopes they need. Store those in:
+
+programs.requested_scopes (text[]).
+
+program_consent_requests.requested_scopes.
+
+This is your “OAuth-like” consent model.
+
+3. Flows (how it actually works for youth, parents, and orgs)
+3.1. Youth signup & app-level consent
+
+Youth flow:
+
+Youth downloads/open app ➜ Signup.
+
+They go through steps:
+
+Name, age, location, basic info.
+
+Age-based logic:
+
+If age >= SELF_CONSENT_AGE (say 16):
+
+Youth can accept app-level consent themselves.
+
+If 13–15:
+
+Youth sees consent, but guardian must co-sign.
+
+If <13:
+
+Guardian-only.
+
+They provide guardian email/phone (if guardian needed).
+
+After account creation:
+
+Backend calls existing guardian_verifications logic:
+
+Creates a guardian verification record.
+
+Sends email with link: /guardian/accept?token=....
+
+App-level consent:
+
+When youth self-consents (16+):
+
+Insert into consents:
+
+consent_type = 'platform_app_use'
+
+value = true
+
+granted_by = 'self'.
+
+When guardian completes verification:
+
+Create guardian user (if not exists).
+
+Create guardian_links row.
+
+Insert consents:
+
+consent_type = 'platform_app_use', value = true, granted_by = 'guardian'.
+
+Insert corresponding consent_events.
+
+3.2. Parent portal (one page)
+
+Route: /guardian or /parent
+
+Sections on the page:
+
+Linked Youth
+
+Cards with:
+
+Youth name / age
+
+“App consent: Granted / Pending”
+
+“Emergency info: Complete / Incomplete”
+
+Link: “Update safety & contact info” ➜ shows a form for:
+
+Emergency contacts
+
+Health / accessibility needs.
+
+Consent Requests
+
+List pulled from program_consent_requests where:
+
+guardian_user_id = current_user
+
+status = 'pending'.
+
+Each row shows:
+
+Youth name
+
+Program name + org
+
+Requested scopes (badges: Registration, Health, Photos, etc.).
+
+Buttons:
+
+Approve ➜ sets status = 'approved', logs consent_events.
+
+Decline ➜ sets status = 'declined'.
+
+Revoke on already-approved ones.
+
+Activity & Mood Snapshot
+
+For each youth:
+
+Basic attendance timeline (program names and dates).
+
+Very high-level mood summary (no raw notes):
+
+“Mostly: okay 😐, calm 🙂”.
+
+No detailed message logs or journals.
+
+MVP: no PDFs yet.
+Phase 2: add download/email of “consent receipts”.
+
+3.3. Program RSVP / QR check-in + consent request
+
+When youth RSVPs / checks into a program:
+
+Backend looks up program.requires_guardian_consent and requested_scopes.
+
+If consent is required:
+
+Find primary guardian via guardian_links.
+
+Check program_consent_requests for existing row:
+
+If approved ➜ all good.
+
+If pending / declined / revoked ➜ handle accordingly.
+
+If no request exists or is revoked/declined:
+
+Insert a new program_consent_requests row with status = 'pending'.
+
+Notify guardian (email/push) to visit the portal.
+
+Youth side:
+
+Show a small banner: “Consent requested from your parent/guardian for [Program].”
+
+Org side (later, in org dashboard):
+
+They only see full intake if status = 'approved'.
+
+3.4. Mood check-ins: ultra-light integration
+
+Pre-program:
+
+After xid.recordAttendance succeeds (QR scan success):
+
+Show a modal:
+
+“How are you feeling before [Program]?”
+
+Save to your existing checkins table with context = 'pre_program' + program_event_id.
+
+Post-program:
+
+When attendance is created:
+
+Create a pending_followup_checkin entry with:
+
+user_id, program_event_id, type = 'post_program', due_at = program_end_time.
+
+On app open after due_at:
+
+Check for pending_followup_checkin.
+
+If present, show:
+
+“How are you feeling after [Program]?”
+
+Save to checkins with context = 'post_program'.
+
+This gives you the “before and after” data you care about, without a whole “MoodTasks system”.
+
+3.5. Ximi floating AI: keep as-is, focus its role
+
+For MVP:
+
+Keep Ximi’s personality and warmth exactly as you planned.
+
+Limit capabilities to:
+
+Program navigator:
+
+“What’s near me today?” → calls program recommendations.
+
+Support navigator:
+
+Notices crisis keywords → opens crisis/safety resources, not therapy.
+
+Check-in buddy:
+
+Light reflection on moods, suggests appropriate programs or supports.
+
+Everything else (resume-builder, deep journaling, etc.) can sit in the backlog.
+
+4. Phased build plan (finalized with tweaks)
+
+Based on Replit’s phases, adjusted:
+
+Phase 1 – Consent foundation (backend + small UI)
+
+Add tables:
+
+guardian_links
+
+program_consent_requests
+
+(Optional minimal youth_demographics & guardian_demographics)
+
+Wire youth signup:
+
+Age-tiered consent logic.
+
+Guardian invite via existing guardian_verifications.
+
+On guardian verify:
+
+Create guardian user.
+
+Create guardian_links.
+
+Insert platform_app_use consent.
+
+Implement basic /api/program-consent/request route (internal version of consent-auto/program-request).
+
+Phase 2 – One-page parent portal
+
+Build /guardian UI:
+
+Linked youth cards with consent/safety indicators.
+
+Consent requests list with approve/decline/revoke.
+
+Simple safety/intake form.
+
+Wire to:
+
+PROGRAM_CONSENT_REQUESTS endpoints.
+
+profiles / health_profiles updates.
+
+Phase 3 – Youth integration
+
+After youth login:
+
+Show consent status: “App consent: Pending/Granted”.
+
+Program RSVP / QR scan:
+
+Call program-consent request logic.
+
+Show banner in app if guardian consent is pending.
+
+Add simple pre/post program mood prompts tied to attendance.
+
+Phase 4 – Polish & guardrails
+
+Test:
+
+Youth → guardian invite → guardian accepts → signs consent → youth can RSVP / check in.
+
+Consent revocation and how it affects program views.
+
+Age-tier behavior (youth who self-consent vs. guardian-consent).
+
+Ensure:
+
+Consent events are logged.
+
+No youth-only demographics leak to parents.
+
+Crisis flows and Ximi are functioning and safe.

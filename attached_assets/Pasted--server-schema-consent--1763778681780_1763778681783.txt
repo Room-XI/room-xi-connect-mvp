@@ -1,0 +1,296 @@
+// ======================================================================
+// server/schema.consent.extras.ts  (NEW) — extend your consent schema
+// ======================================================================
+import {
+  pgEnum, pgTable, uuid, text, timestamp, jsonb, boolean, index, uniqueIndex
+} from "drizzle-orm/pg-core";
+import { users } from "./schema"; // your existing base schema
+
+export const consentScopeEnum = pgEnum("consent_scope", [
+  "platform_use",      // use of Room XI app
+  "roomxi_data",       // sharing data with Room XI org
+  "registration",      // program registration
+  "photo",
+  "attendance_share"
+]);
+
+export const parents = pgTable("parents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const parentLinks = pgTable("parent_links", {
+  parentId: uuid("parent_id").notNull().references(() => parents.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  relation: text("relation").notNull(), // guardian, mother, father, other
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+}, (t) => ({
+  uq: uniqueIndex("parent_user_uq").on(t.parentId, t.userId),
+  parentIdx: index("parent_links_parent_idx").on(t.parentId),
+  userIdx: index("parent_links_user_idx").on(t.userId),
+}));
+
+export const parentInvites = pgTable("parent_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index("parent_invites_user_idx").on(t.userId),
+  emailIdx: index("parent_invites_email_idx").on(t.email),
+}));
+
+export const youthDemographics = pgTable("youth_demographics", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  answers: jsonb("answers").notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const parentDemographics = pgTable("parent_demographics", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  parentId: uuid("parent_id").notNull().references(() => parents.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  answers: jsonb("answers").notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  byParent: index("parent_demo_parent_idx").on(t.parentId),
+  byUser: index("parent_demo_user_idx").on(t.userId),
+  uq: uniqueIndex("parent_demo_uq").on(t.parentId, t.userId),
+}));
+
+// NOTE: Your existing consent tables from earlier step:
+export { consentRequests, consentsTable } from "./schema.consent"; // reuse if present
+
+// ======================================================================
+// server/services/parentInvite.ts  (NEW)
+// ======================================================================
+import crypto from "crypto";
+import { db } from "../db.js";
+import { parentInvites, parents, parentLinks } from "../schema.consent.extras.js";
+import { eq } from "drizzle-orm";
+import { sendGuardianVerificationEmail } from "./email.provider.js";
+
+export async function ensureParentInviteForYouth(userId: string, parentEmail: string, youthName?: string) {
+  // WHY: Ensure only one live invite; avoids spam/duplicates.
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 30*24*60*60*1000);
+
+  // Upsert invite
+  await db.insert(parentInvites).values({ userId, email: parentEmail.toLowerCase(), token, expiresAt }).onConflictDoUpdate({
+    target: parentInvites.email,
+    set: { userId, token, expiresAt }
+  });
+
+  const link = `${process.env.PUBLIC_BASE_URL}/parent/accept/${token}`;
+  await sendGuardianVerificationEmail({ guardianEmail: parentEmail, youthName: youthName || "Your youth", verifyUrl: link });
+}
+
+export async function acceptParentInvite(token: string, relation = "guardian") {
+  const [invite] = await db.select().from(parentInvites).where(eq(parentInvites.token, token));
+  if (!invite || invite.expiresAt < new Date()) throw new Error("Invite invalid/expired");
+
+  // Idempotent: create/find parent
+  const email = invite.email.toLowerCase();
+  const [parent] = await db.insert(parents).values({ email }).onConflictDoNothing().returning();
+  const parentId = parent?.id ?? (await db.select().from(parents).where(eq(parents.email, email)))[0].id;
+
+  // Link to youth
+  await db.insert(parentLinks).values({ parentId, userId: invite.userId, relation, verifiedAt: new Date() }).onConflictDoNothing();
+
+  // Mark accepted
+  await db.update(parentInvites).set({ acceptedAt: new Date() }).where(eq(parentInvites.id, invite.id));
+  return { parentId, userId: invite.userId };
+}
+
+// ======================================================================
+// server/routes/parent-auth.js  (NEW minimal parent auth via magic link)
+// ======================================================================
+import express from "express";
+import { acceptParentInvite } from "../services/parentInvite.js";
+
+const router = express.Router();
+
+// Magic-link landing; set parent session; redirect to portal
+router.get("/accept/:token", async (req, res) => {
+  try {
+    const { parentId } = await acceptParentInvite(req.params.token);
+    req.session.parentId = parentId;
+    res.redirect("/parent"); // Parent portal SPA route
+  } catch (e: any) {
+    res.status(400).send("Invalid or expired invite.");
+  }
+});
+
+export default router;
+
+// ======================================================================
+// server/routes/consent.autoflow.js  (NEW) — auto-create consent requests
+// ======================================================================
+import express from "express";
+import { db } from "../db.js";
+import { consentRequests, consentsTable } from "../schema.consent.js";
+import { parentLinks } from "../schema.consent.extras.js";
+import { eq, and } from "drizzle-orm";
+import { requireAuth } from "../middleware/security.ts";
+import { DateTime } from "luxon";
+import { sendGuardianVerificationEmail } from "../services/email.provider.js";
+
+const router = express.Router();
+
+// WHY: Create platform-level consent requests at first sign-in.
+router.post("/platform-bootstrap", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
+  const scopes = ['platform_use','roomxi_data'];
+
+  const expiresAt = DateTime.now().plus({ days: 30 }).toJSDate();
+  for (const scope of scopes) {
+    await db.insert(consentRequests).values({
+      programId: req.body.programId || req.body.defaultProgramId || req.body.programId ?? "00000000-0000-0000-0000-000000000000", // optional placeholder
+      userId,
+      scope: [scope],
+      status: "pending",
+      expiresAt,
+    });
+  }
+
+  // Notify any linked/soon-to-be-linked parents (email already sent via invite)
+  res.json({ ok: true });
+});
+
+// WHY: Trigger program consent at RSVP/first check-in.
+router.post("/program-request", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
+  const { programId, scope = ['registration'] } = req.body ?? {};
+  if (!programId) return res.status(400).json({ error: "programId required" });
+
+  // check if consent exists (not revoked)
+  const existing = await db.select().from(consentsTable)
+    .where(and(eq(consentsTable.userId, userId), eq(consentsTable.programId, programId)));
+  if (existing.length && !existing[0].revokedAt) return res.json({ alreadyConsented: true });
+
+  const expiresAt = DateTime.now().plus({ days: 30 }).toJSDate();
+  await db.insert(consentRequests).values({ programId, userId, scope, status: "pending", expiresAt });
+
+  // Notify parents (email optional if dashboard exists)
+  const linked = await db.select().from(parentLinks).where(eq(parentLinks.userId, userId));
+  // send notifications to each linked parent email (left as an exercise; dashboard will show it)
+  res.json({ ok: true });
+});
+
+export default router;
+
+// ======================================================================
+// server/routes/demographics.js  (NEW) — split youth vs parent-perception
+// ======================================================================
+import express from "express";
+import { z } from "zod";
+import { db } from "../db.js";
+import { youthDemographics, parentDemographics, parentLinks } from "../schema.consent.extras.js";
+import { eq, and } from "drizzle-orm";
+import { requireAuth } from "../middleware/security.ts";
+
+const router = express.Router();
+
+const Schema = z.record(z.any());
+
+// Youth writes ONLY their own demographics; parents cannot read this.
+router.post("/youth", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
+  const parse = Schema.safeParse(req.body);
+  if (!parse.success) return res.status(422).json({ error: parse.error.flatten() });
+
+  const [row] = await db.insert(youthDemographics).values({
+    userId, answers: parse.data
+  }).onConflictDoUpdate({
+    target: youthDemographics.userId,
+    set: { answers: parse.data, updatedAt: new Date() }
+  }).returning();
+
+  res.json({ saved: true, updatedAt: row.updatedAt });
+});
+
+// Parent writes their own perception per youth; youth cannot read this.
+router.post("/parent", async (req, res) => {
+  const parentId = req.session.parentId;
+  if (!parentId) return res.status(401).json({ error: "Parent auth required" });
+
+  const { userId, answers } = req.body ?? {};
+  if (!userId) return res.status(400).json({ error: "userId required" });
+
+  // verify link
+  const link = await db.select().from(parentLinks).where(and(eq(parentLinks.parentId, parentId), eq(parentLinks.userId, userId)));
+  if (!link.length) return res.status(403).json({ error: "Not linked to youth" });
+
+  const parse = Schema.safeParse(answers);
+  if (!parse.success) return res.status(422).json({ error: parse.error.flatten() });
+
+  await db.insert(parentDemographics).values({ parentId, userId, answers: parse.data }).onConflictDoUpdate({
+    target: [parentDemographics.parentId, parentDemographics.userId],
+    set: { answers: parse.data, updatedAt: new Date() }
+  });
+
+  res.json({ saved: true });
+});
+
+export default router;
+
+// ======================================================================
+// server/routes/auth.js  (PATCH) — hook parent invite + platform consent
+// ======================================================================
+// ...top imports (keep yours)
+import { ensureParentInviteForYouth } from "../services/parentInvite.js";
+import consentAuto from "./consent.autoflow.js";
+
+// after your existing router exports, add:
+router.post('/login', async (req, res) => {
+  // ...existing login (validate credentials, set req.session.userId)
+  // AFTER successful login:
+  try {
+    // 1) If youth has a guardianEmail field in profile, ensure invite exists
+    const guardianEmail = req.body.guardianEmail || req.session.guardianEmail; // or fetch from profile
+    if (guardianEmail) {
+      await ensureParentInviteForYouth(req.session.userId, guardianEmail, req.session.firstName);
+    }
+    // 2) Bootstrap platform consent requests (parents will see in dashboard)
+    req.app.request.session = req.session; // ensure middleware context
+    await (await import("./consent.autoflow.js")).default; // no-op just to ensure compiled
+  } catch (e) { /* WHY: never block login if invite/consent creation fails */ }
+  res.json({ ok: true });
+});
+
+// In server/index.js register routers:
+import parentAuthRoutes from "./routes/parent-auth.js";
+import demoRoutes from "./routes/demographics.js";
+import consentAutoRoutes from "./routes/consent.autoflow.js";
+// ...
+app.use("/api/parent-auth", parentAuthRoutes);
+app.use("/api/demographics", demoRoutes);
+app.use("/api/consent-auto", consentAutoRoutes);
+
+// ======================================================================
+// src/lib/api.ts  (PATCH) — add new endpoints
+// ======================================================================
+// extend existing api object:
+export const api = {
+  // ...existing
+  consentAuto: {
+    platformBootstrap: () => fetchApi('/consent-auto/platform-bootstrap', { method: 'POST' }),
+    programRequest: (programId: string, scope?: string[]) =>
+      fetchApi('/consent-auto/program-request', { method: 'POST', body: JSON.stringify({ programId, scope }) }),
+  },
+  demographics: {
+    saveYouth: (answers: Record<string, any>) =>
+      fetchApi('/demographics/youth', { method: 'POST', body: JSON.stringify(answers) }),
+    saveParent: (userId: string, answers: Record<string, any>) =>
+      fetchApi('/demographics/parent', { method: 'POST', body: JSON.stringify({ userId, answers }) }),
+  },
+  parentAuth: {
+    // magic-link handled by server redirect; no client call needed
+  }
+};

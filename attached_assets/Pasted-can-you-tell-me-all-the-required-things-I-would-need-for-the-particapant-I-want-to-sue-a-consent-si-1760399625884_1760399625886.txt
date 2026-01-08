@@ -1,0 +1,184 @@
+can you tell me all the required things I would need for the particapant? I want to sue a consent similar to the one below. But i dont want to overwhelm them in the beginning at sign up. Maybe them to the minimal amount and consent first. and when they log in, On there me pages, there's a complete registration page progress tracker. and they can click it and complete their registration with other things. and if they complete the registration they get extra xp points.
+
+What is strictly required, and when
+Layer 1, create account and request consent, 60 seconds, youth-facing
+Required for everyone at sign up
+Name or nickname
+Date of birth, or age band, to decide if guardian consent is required
+City or postal code, to localize programs
+Login contact, email or mobile number
+Accept Terms of Use and Privacy Notice
+Required for minors to unlock features
+One guardian contact, email or mobile, to send the verify link
+Nothing else at this step. Save, then drop them at Home. A banner explains what is available while consent is pending.
+Layer 2, before attending any in-person program, safety gate
+
+Required once per youth before first in-person session
+
+Legal first and last name
+Emergency contact, not the same as the guardian, name and phone
+Allergies and relevant medical or accessibility needs, free text field
+Photo and media consent, separate yes or no
+Emergency first aid and transport consent, yes or no
+If a program involves physical activity of moderate intensity, add
+PAR-Q+ screen and referral flag if indicated
+
+Consent model, matches your flow
+
+A. Youth requests guardian verify
+
+Input: guardian email or phone
+
+Server stores ConsentToken { user_id, contact_hash, token, expires_at }
+
+Upsert ParentContact { user_id, email or phone, verified_at null }
+
+Return verify link the youth can share, and optionally send email or SMS
+
+B. Guardian verifies without an account
+
+Guardian opens link, re-enters the same email or phone
+
+Server checks token validity and hash match
+
+If valid, set User.consent_status = granted, ParentContact.verified_at = now
+
+Insert consent_events row with actor = guardian and event = granted
+
+C. Gating rules in the app
+
+Unauthenticated, browse only
+
+Authenticated with consent pending, browse and view details, Save and RSVP blocked, banner shows Guardian approval required
+
+Granted or not_required, full features
+
+Revoked, block writes, keep read, show banner
+
+Consent center on Me screen
+
+Shows consent_status, last verified time, resend link action
+
+Toggles, analyticsOptIn, aiPersonalizationOptIn, crashOptIn, each change logs to consent_events
+
+History drawer with the last 100 events
+
+Progress tracker and XP
+
+Progress bar on Me, steps: Account 20 percent, Consent 30 percent, Safety 30 percent, Program profile 20 percent
+
+Award XP when a step flips to complete, example, 50 XP for guardian verified, 30 XP for safety info, 20 XP for first program registration
+
+Lock any XP tied to guardian consent behind granted or not_required
+
+Data dictionary, keys you can use now
+
+people
+
+person_id UUID, xid hash(person_id + APP_SECRET)
+
+first_name, last_name, nickname, dob, age_band, pronouns optional
+
+city, province, postal_code
+
+email, phone
+
+guardians
+
+guardian_id UUID, person_id, contact_type email or phone, contact_value, verified_at timestamp
+
+consents
+
+consent_id UUID, person_id, type participation, medical, media, privacy, marketing, value boolean, text_version, obtained_at, method ui, link, paper, ip, user_agent
+
+consent_events
+
+event_id UUID, person_id, actor youth or guardian or staff, key consent_status or toggle key, value, occurred_at, ip, user_agent, evidence_ref optional
+
+health_profiles
+
+health_id UUID, person_id, allergies text, conditions text, medications text, accessibility_needs text, parq_status clear or refer, parq_date
+
+programs
+
+program_id UUID, name, site, address, schedule_json, fee numeric, funder_tag jumpstart or other
+
+registrations
+
+reg_id UUID, person_id, program_id, status pending or active or waitlist, start_date, end_date, subsidy_source text
+
+attendance
+
+attn_id UUID, xid, program_id, session_id, ts timestamptz, device_id, staff_id
+
+marketing_consents
+
+person_id, channel email or sms, consent_true, consent_date, evidence_ref
+
+What not to collect at onboarding
+
+Income documents or proofs, direct parents to the Individual Child Grant path if needed
+
+Health card numbers, unless your emergency policy requires it
+
+Full address, postal code is enough for discovery and reporting
+
+Copy and UI details you can paste
+
+Onboarding step order
+
+Name or nickname
+
+Age question, buttons, 13 to 15, 16 to 18, 19 to 21, 22 to 25, or enter full date of birth
+
+City or postal code
+
+Email or mobile to sign in
+
+If under 18, Ask a parent or guardian to approve, enter their email or phone, we will send them a quick link. You can still browse now.
+
+Banner while consent pending
+
+Title, You are almost set
+
+Body, Your guardian needs to tap a link to approve your account. You can browse programs today. Saving and RSVP will unlock after approval.
+
+Actions, Re-send link, Change contact
+
+Safety pack prompt before first in-person check-in
+
+Card on Home and on first RSVP, To keep you safe at programs, we ask about allergies, emergency contacts, and media consent. Takes about one minute.
+
+Enforcement rules in code
+
+requireConsent(user): return true if user.age < 18 and user.consent_status not in granted or not_required
+
+canRSVP(user): return false if requireConsent or safety_profile_missing
+
+canCheckIn(user): return false if requireConsent or safety_profile_missing
+
+Show soft nudges, never hard walls on simple browsing
+
+Operational notes
+
+Consent token TTL 15 minutes, allow resend after 2 minutes, rate limit to 5 sends per day
+
+Store the guardian contact hash only until verified, then keep normalized contact plus verified_at, you can delete the token row after use
+
+Log every consent state change to consent_events for audit
+
+Allow guardian to revoke consent by a signed link, set consent_status = revoked, and log the event
+
+Create a paper consent fallback, add evidence_ref pointing to a scanned PDF stored in a private bucket
+
+Quick Supabase column adds, ready to paste later
+
+users table, consent_status text, not_required, pending, granted, revoked
+
+parent_contacts table as above
+
+consent_events table as above
+
+triggers to set users.consent_status on parent_contacts.verified_at update
+
+If you want, I can turn this into a one-page intake, the Supabase SQL for the new tables, and the Me screen progress tracker checklist.

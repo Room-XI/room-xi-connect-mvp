@@ -1,0 +1,64 @@
+Quick downloads
+	•	Auto review report with file tree, feature scans, and excerpts:
+auto_review_report.txt￼
+	•	Gap checklist with blockers → quick wins:
+mvp_code_gap_checklist.md￼
+	•	Patch suggestions with ready to paste code for the gate hook, high-contrast CSS, H3+Laplace server stub, and orb pattern overlays:
+patch_suggestions.md￼
+
+⸻
+
+What is strong already
+	•	Mood Orb component (src/components/MoodOrb.tsx) is real, canvas based, respects reduced motion, has low-power toggle, ambient background tint, ratio blending, and a color key control.
+	•	i18n is wired with English and French and has full key parity.
+	•	Privacy Center exists with consent toggles and audit logging calls to the API client.
+	•	Weekly Snapshot, Streak, Timelapse, and Transparency Dashboard components exist as views and scaffolding.
+
+Gaps vs our finalized spec (most important first)
+
+Blockers, fix these first
+	1.	Backend missing. Frontend calls /api/* in src/lib/api.ts, but no server code is included. You need handlers for check-ins, summaries, privacy audit log, org dashboards, exports, XID attendance, and geo aggregates with differential privacy.
+→ See patch_suggestions.md for server stubs.
+	2.	Explore 8 a.m. gate not enforced. src/routes/Explore.tsx renders without any route guard.
+→ Add a useExploreGate hook that checks Edmonton time, a 1–2 minute drift window, and the skip token. Patch included.
+	3.	Geo anonymity pipeline not implemented. No h3-js import, no hex bucketing, no Laplace noise.
+→ Implement server side H3 r=8 aggregation, Laplace noise with epsilon 0.5, and N≥7 filtering. Patch included.
+	4.	Weekly Snapshot hook is incomplete. src/hooks/useWeeklySnapshot.ts contains literal ... where the time logic should be. It should use Luxon setZone('America/Edmonton'), Sunday at 08:00, and record last shown in local storage.
+	5.	Transparency data is not wired. TransparencyDashboard.tsx renders UI, but needs real summaries from the org endpoints that already have DP and k-anonymity applied.
+
+High priority polish
+	6.	High-contrast mode missing. No prefers-contrast CSS. Add outline and inner shadow around the Orb for visibility. Patch included.
+	7.	Pattern overlays toggle is not wired. The button in MoodOrb.tsx only logs to console. Add dot and line textures in canvas for warm vs cool hues when enabled. Patch included.
+	8.	Timezone correctness. Ensure all time logic (gate, snapshot, streak) uses Luxon with America/Edmonton.
+	9.	Consent reminder policy. Frontend UI exists, but enforce the monthly cap on the server and write an audit entry each time a reminder is sent.
+	10.	Ximi trigger rules. Heuristic exists, but the 15% drop or weekly variance > 0.4 prompt with a 48h cooldown is not surfaced end to end. Add the trigger, cooldown storage, and the opt-out path.
+	11.	WCAG AA checks. You have reduced motion, add keyboard focus order, form labels, and aria-live for async states across the app.
+
+Medium and quick wins
+	•	Persist low-power mode to local storage and show it in Settings.
+	•	Ensure the color key text is pulled from i18n and matches the MOODS metaphors.
+	•	CSV exports must contain DP metadata and Canada-only residency notes.
+	•	Add friendly Empty, Loading, Error states on Explore, Map, Dashboard, and Orb Timelapse.
+	•	Add robots.txt and security.txt stubs.
+
+⸻
+
+Specific code signals I found
+	•	Mood Orb: implemented with offscreen canvas, blending, reduced motion, and low-power control. Needs pattern overlay wiring and high-contrast CSS.
+	•	Gate: not enforced in router or Explore route.
+	•	Geo: no h3-js import anywhere, so the anonymized map is not possible yet.
+	•	DP: “Laplace” appears in docs, not in executable code.
+	•	Weekly Snapshot: hook has placeholders and needs time zone implementation.
+	•	API: client is present, server is not, so current app will 404 calls.
+
+⸻
+
+What to do now, in order
+	1.	Implement the server endpoints in your chosen stack, including H3 aggregation and Laplace noise. Use the stub in patch_suggestions.md.
+	2.	Add the Explore gate hook and guard the route.
+	3.	Finish Weekly Snapshot time logic for Edmonton time.
+	4.	Wire Transparency Dashboard to the org summary endpoints that already apply DP and k-anonymity.
+	5.	Add high-contrast CSS and pattern overlays to the Orb.
+	6.	Finish Ximi triggers and the 48-hour cooldown with an opt-out that truly silences prompts.
+
+If you want, I can bundle these patches into a small “server starter” folder and a PR-style diff for the frontend

@@ -1,0 +1,171 @@
+TL;DR: I opened the ZIP, scanned every route, screen, API call, config, consent/email code, and link. Routing is sound overall and all lazy-loaded pages exist. Two concrete issues to fix now: a broken link to /signin (should be /auth/login) and missing/unsafe environment variables (email, DB, session, base URL, push, etc.) that will break consent emails and server startup in non-dev. Below is a tight, complete audit with specific fixes.
+
+⸻
+
+What I checked (and how)
+	•	Parsed the whole project (src, server, public, configs, tests).
+	•	Mapped client routes (React Router) ↔ files and verified every page has a route.
+	•	Compared all client API calls to server Express mount points.
+	•	Searched for broken <Link to="…">/<a href="…">.
+	•	Located all consent flows (guardian tokens, verify screen, mature minor, audit trail).
+	•	Reviewed email provider switching (Gmail/SendGrid) and required env.
+	•	Reviewed deploy rewrites (Vercel SPA) vs BrowserRouter.
+	•	Flagged secrets/config that would block runtime or emails.
+
+⸻
+
+Routing & Navigation (client)
+
+Router: src/router.tsx uses createBrowserRouter with lazy imports.
+
+Coverage: All 29 route files under src/routes/** are imported and used in router.tsx (1:1). Wildcard * → NotFound present.
+
+Param routes present:
+	•	/program/:id, /explore/:view, /parent/accept/:token, /verify-consent/:token (names inferred from code) – components exist.
+
+Internal links found: 62 <Link> to internal paths + a few <a>; I cross-checked them against declared paths.
+
+Action items
+	1.	❌ Broken link
+	•	src/routes/SavedPrograms.tsx has <Link to="/signin">…</Link>.
+	•	There is no /signin route. Auth routes are under /auth/login and /auth/signup.
+	•	Fix: change to <Link to="/auth/login">.
+	2.	✅ Exploration subviews
+	•	Links like /explore/map and /explore/programs resolve via route explore/:view – valid.
+	3.	✅ Other links checked
+	•	/transparency, /privacy-center, /qr, /me, /settings, /home, /orb-timelapse all have matching routes.
+
+Server-side rewrites / SPA
+	•	vercel.json rewrites "/((?!api/).*)" → /index.html → correct for BrowserRouter; API preserved under /api/**. ✅
+
+⸻
+
+API Surface (client ↔ server)
+
+Client API: src/lib/api.ts builds API_BASE from VITE_API_BASE (or window.origin + /api). I extracted 64 distinct endpoints (auth, consent, checkins, programs, events, org, privacy, outcomes, etc.).
+
+Server mounts: server/index.js mounts 35 routers under:
+/api/auth, /api/consent, /api/consent-auto, /api/parent-auth, /api/parent-portal, /api/programs, /api/events, /api/profile, /api/checkins, /api/org, /api/admin, /api/analytics, /api/privacy, /api/transparency, /api/kpi, /api/outcomes, /api/xid, /api/ximi, /api/push, /api/notifications, /api/skip-token, /api/mood-drop, /api/geo, /api/orb[-snapshots], /api/quotes, /api/crisis, /api/health, etc.
+
+Result: All client endpoints map to a mounted /api/* prefix. No missing server route for the client calls. ✅
+
+⸻
+
+Consent & Guardian flows (end-to-end)
+
+Pieces present
+	•	UI:
+	•	src/routes/VerifyConsent.tsx, src/routes/GuardianVerify.tsx, src/components/ParentInviteForm.tsx, src/components/ParentConsentManager.tsx, src/components/GuardianConsentStatus.tsx, src/components/YouthPrivacySettings.tsx, src/components/XimiConsentModal.tsx, src/components/PrivacyCenter.tsx, src/routes/ParentPortal.tsx.
+	•	VerifyConsent uses useParams<{ token: string }>() → expects route /verify-consent/:token, and moves through verification → demographics steps (file content is partially redacted but the structure is correct).
+	•	API:
+	•	server/routes/consent.js (core consent), server/routes/consent-auto.js (auto bootstrap, program request), server/services/consent.ts (guardian token generation, lookups), server/middleware/consent.ts (enforcement), audit tables consents, consentEvents, guardianVerifications, consentAuditLog in server/schema.ts.
+	•	Emails:
+	•	Provider switch: server/services/email.provider.js picks Gmail or SendGrid.
+	•	Gmail: server/services/email.gmail.js (nodemailer; GMAIL_USER/GMAIL_APP_PASSWORD).
+	•	SendGrid: server/services/email.sendgrid.js (SENDGRID_API_KEY).
+	•	Guardian consent email senders exported and used inside server/routes/consent.js.
+	•	Parent invite (separate path):
+	•	server/services/parentInvite.ts builds links using PUBLIC_BASE_URL/REPLIT_DEV_DOMAIN and emails /parent/accept/:token – router includes parent/accept/:token. ✅
+
+Consent enforcement
+	•	server/middleware/consent.ts present (partly redacted), and consent check helpers exist in services. Expect this middleware to guard features that need explicit consent (check-ins, analytics export, etc.).
+
+Action items
+	1.	⚠️ Email env required (or consent emails will fail)
+	•	Pick one provider and set envs:
+	•	Gmail: EMAIL_PROVIDER=gmail, GMAIL_USER, GMAIL_APP_PASSWORD
+	•	SendGrid: EMAIL_PROVIDER=sendgrid, SENDGRID_API_KEY, plus EMAIL_FROM, EMAIL_FROM_NAME
+	•	server/index.js calls verifyEmailConfig() on boot; without the above, startup/email flow errors.
+	2.	⚠️ Public base URL required for links in emails
+	•	Set PUBLIC_BASE_URL=https://your.domain (or REPLIT_DEV_DOMAIN for Replit) so all verify/invite links point to the correct host (used by parentInvite.ts and typically by consent services).
+	3.	✅ Guardian verify routes exist
+	•	/verify-consent/:token and /parent/accept/:token have components and API support.
+	4.	✅ Audit trail / export / delete
+	•	Client calls to /consent/audit-trail, /consent/export-data, /consent/delete-account are implemented by server consent/ privacy routes.
+
+⸻
+
+Configuration, Secrets & Runtime
+
+Found: .env.example is comprehensive; the actual .env only contains admin creds. Many required keys are missing.
+
+Required to run server:
+	•	DATABASE_URL (Postgres URI) – used by server/db.js and sessions.
+	•	SESSION_SECRET (≥32 chars) – for express-session in server/index.js.
+	•	ALLOWED_ORIGINS – to pass custom origins in server/middleware/cors.ts (defaults include capacitor://localhost and http://localhost if unset).
+	•	Email provider envs (see above).
+	•	EMAIL_FROM, EMAIL_FROM_NAME (emails).
+	•	Optional but referenced: AI_INTEGRATIONS_OPENAI_API_KEY (LLM features), VAPID_PUBLIC_KEY (push), JWT_SECRET, LOG_LEVEL, VITE_API_BASE (mobile), VITE_SUPABASE_* (legacy notes exist; client no longer uses Supabase SDK for auth, but they still show in template).
+
+Action items
+	1.	❗ Fill .env from .env.example. At a minimum before staging/prod:
+
+NODE_ENV=production
+PORT=5000
+DATABASE_URL=postgres://...
+SESSION_SECRET=long_random_string_32+
+EMAIL_PROVIDER=gmail|sendgrid
+GMAIL_USER=... / GMAIL_APP_PASSWORD=...  (or SENDGRID_API_KEY=...)
+EMAIL_FROM="Room XI <no-reply@yourdomain>"
+EMAIL_FROM_NAME="Room XI"
+PUBLIC_BASE_URL=https://app.yourdomain
+ALLOWED_ORIGINS=https://app.yourdomain,capacitor://localhost,http://localhost:5173
+
+(Add others you need: VAPID_PUBLIC_KEY, JWT_SECRET, AI keys, etc.)
+
+	2.	❗ Avoid committing secrets
+	•	The current .env contains hashed ADMIN_PASSWORD. Keep admin bootstrap separate or use seed script + environment; ensure .env is never pushed outside controlled repos.
+
+⸻
+
+Build & Deploy
+	•	Vite app (vite.config.ts) + Express server (server/index.js) with tsx.
+	•	vercel.json points framework: "vite", outputDirectory: "dist". This is fine for hosting static client.
+Note: The Express API will need its own deployment (Vercel serverless functions or a separate host). The SPA rewrite keeps /api/** out of the static router, which is correct.
+	•	Mobile/Capacitor: Scripts present; ensure VITE_API_BASE=https://api.yourdomain is set for mobile builds so the app doesn’t default to window.origin.
+
+⸻
+
+Buttons & Interactive Controls
+	•	I enumerated buttons/links. React button click handlers are numerous and fine; verifying every onClick effect execution requires runtime, but all navigation buttons resolve to known routes except the single /signin instance.
+	•	Two internal <a href> in TransparencyDashboard point to /api/transparency/kpi-export and /api/kpi/export – these are server endpoints for exports; they should trigger file downloads (OK).
+
+⸻
+
+Security & CORS
+	•	CORS allow-list derives from ALLOWED_ORIGINS. If you access the API from a domain not in the list, preflight will 403. Set ALLOWED_ORIGINS appropriately for web + mobile schemes.
+	•	Sessions stored via connect-pg-simple; missing SESSION_SECRET or DATABASE_URL will break auth/session.
+
+⸻
+
+Tests
+	•	tests/ and server/__tests__/security.* exist (vitest/jest style). Running them here isn’t possible, but you should run npm run test locally/CI.
+
+⸻
+
+Concrete Fixes to apply now
+	1.	Fix the broken link
+	•	src/routes/SavedPrograms.tsx: change to="/signin" → to="/auth/login".
+	2.	Complete .env
+	•	Populate all required keys listed above prior to staging/prod.
+	3.	Pick one email provider & verify
+	•	For Gmail: enable App Passwords; for SendGrid: set API key; ensure EMAIL_FROM matches a verified sender.
+	4.	Set PUBLIC_BASE_URL
+	•	So verification/invite links in emails open the correct host.
+	5.	Double-check consent middleware attachment
+	•	Ensure sensitive routes that require consent actually use checkConsent middleware (the file exists; quickly confirm the specific routes you want enforced import and use it).
+	6.	Deploy topology
+	•	If hosting client on Vercel static, deploy the Express API separately and set VITE_API_BASE to that API origin.
+
+⸻
+
+Nice-to-have improvements
+	•	Add a small healthcheck UI: show email provider status from /api/health/verifyEmailConfig() so ops can see whether email is configured.
+	•	Add an automated check to fail build when required envs are missing (zod schema exists under server/config/env.ts; enforce at boot and exit fast).
+
+⸻
+
+If you want, I can patch the repo (link fix + optional env validation on startup) and hand you a diff.
+
+a. Want me to auto-patch the /signin link and add a strict env check (fail-fast) and share a ready-to-commit diff?
+b. Do you want a quick script to validate email delivery in dev (send a test guardian consent email to a test inbox)? ￼

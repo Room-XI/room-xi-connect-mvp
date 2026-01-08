@@ -1,0 +1,87 @@
+Oversights and red flags
+
+Missing migrations and RLS policies in repo
+You reference a rich schema and RLS-secured design in code, but the repo does not include the actual SQL migration files and policies. I only found SEED_DATA.sql. You will need a canonical schema.sql and policies.sql (or a folder of migrations) that can fully recreate the DB and RLS for profiles, checkins, attendance, consents, guardian_verifications, crisis_supports, breach_events, xids, and programs.
+
+No ESLint or Prettier configs
+There are no ESLint or Prettier config files in the root or the extracted source folder. This will make consistency and CI quality gates harder.
+
+Type looseness in key spots
+I found 12 instances of : any in files like lib/crypto.ts, lib/queue.ts, lib/supabase.ts, routes/Admin.tsx, routes/SafetyProfile.tsx, and others. These should be tightened to avoid runtime surprises, especially around encryption and queue payloads.
+
+Missing test coverage
+You have Vitest in devDependencies, but I did not find any .test or .spec files. No smoke tests for routing, queue, or QR parsing. That is risky before a pilot.
+
+No Content Security Policy
+Vercel headers are present, but I did not find a CSP header. Given youth and consent flows, you should set a strict CSP with nonces or hashes and block mixed content.
+
+No license file
+Add a LICENSE so collaborators and partners know how they can use or contribute.
+
+Token persistence assumptions
+Supabase uses its own storage by default. That is fine, but ensure privacy-mode and session persistence align with your youth privacy posture. Consider an option to disable persistence or to purge on logout for shared devices.
+
+Missing pieces for production
+
+Canonical SQL migrations and RLS policies for all referenced tables, plus a repeatable seed for Edmonton programs.
+
+Crisis and breach workflow glue. You have breach_events in types, but no frontend path to emit and review them, and no ops runbook.
+
+Consent flows that actually write to consents and consent_events with timestamps and scopes. The UI hints are there, the data writes and RLS constraints need to be real.
+
+Admin guardrails. Admin route exists, but no role gate or server-side enforcement. Add role checks at query boundaries in the app, and strict RLS on the tables.
+
+Accessibility checks. Add Axe CI and address keyboard focus, landmarks, and color contrast. Your visual system is strong, make the a11y guarantees explicit.
+
+Observability. No Sentry or similar with PII scrubbing. Add client error tracking with a redaction policy, or self-hosted alternative.
+
+High-value upgrades next
+
+Ship DB migrations and policies
+Create supabase/migrations/YYYYMMDD_init.sql to define all 12 tables you typed. Include indexes, foreign keys, and full RLS. Add supabase/policies.sql with role-scoped access. Keep SEED_DATA.sql for Edmonton programs.
+
+Add ESLint, Prettier, and CI
+
+.eslintrc.cjs, prettier.config.cjs, and a GitHub Action that runs typecheck, lint, build, and vitest.
+
+Block merges on failures.
+
+Lock security headers
+In vercel.json add strict headers:
+
+Content-Security-Policy with nonces or hashes
+
+Referrer-Policy: no-referrer
+
+Permissions-Policy: camera, geolocation, microphone set to self or none as needed
+
+X-Content-Type-Options: nosniff
+
+Cross-Origin-Opener-Policy: same-origin
+
+Cross-Origin-Embedder-Policy: require-corp, if possible with your libs
+
+Tests that matter
+
+Unit: parseProgramId, queue encrypt/decrypt, attendance recorder, crisis keyword detector.
+
+Integration: route smoke test to render Home, Explore, ProgramDetail, QRScan.
+
+E2E: one happy path for check-in and saving a program.
+
+Ximi toggle and journaling handoff
+You already have ximi/heuristic.ts and a dock component. Add a toggle in Settings that switches between local heuristic and Gemini-backed responses, with a clear consent line and an “always local” option. Route “Talk with Ximi” from the end of a mood check-in.
+
+Admin hardening
+
+Add a roles table or extend profiles with role.
+
+Gate Admin route by role in router and in data queries.
+
+Provide a minimal Admin view to approve programs, review crisis_supports entries, and export attendance.
+
+A11y pass
+Wire @axe-core/react in development and fix any landmarks, labels, or focus trap issues in modals and sheets.
+
+Analytics with dignity
+If you need engagement metrics, use a privacy-first tool like Plausible with no personal data, or a self-hosted equivalent. Otherwise skip analytics for the youth build.
