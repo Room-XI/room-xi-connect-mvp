@@ -77,20 +77,33 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
   // Check for fallback states
   const hasNoData = summary && summary.daysWithData === 0;
   
+  // Check if ratios have any meaningful data (at least one mood with non-zero value)
+  const ratiosHaveData = ratios && Object.values(ratios).some(v => v > 0);
+  // Use ratios if: override provided (always use), OR hook returned data with meaningful values
+  const shouldUseRatios = overrideRatios ? Object.values(overrideRatios).some(v => v > 0) : (ratiosHaveData && !hasNoData);
+  
   // Track animation state
   const isFirstRender = useRef(true);
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const [showColorLegend, setShowColorLegend] = useState(false);
   
   // Calculate dominant mood for glow effects
-  const dominantMoodData = getDominantMoodColor(ratios as Record<MoodKey, number>);
+  // Default to a neutral gray when no data, else use calculated dominant
+  const defaultGlow = { h: 220, s: 10, l: 45 }; // Neutral gray-blue for no-data state
+  const dominantMoodData = shouldUseRatios 
+    ? getDominantMoodColor(ratios as Record<MoodKey, number>)
+    : { ...defaultGlow, mood: 'clear' as MoodKey };
   const glowColor = `hsla(${dominantMoodData.h}, ${dominantMoodData.s}%, ${dominantMoodData.l}%, 0.4)`;
   const particleColor = `hsl(${dominantMoodData.h}, ${dominantMoodData.s}%, ${Math.min(dominantMoodData.l + 15, 95)}%)`;
+  
+  // Check if override ratios have meaningful data (at least one non-zero value)
+  const hasOverrideData = overrideRatios && Object.values(overrideRatios).some(v => v > 0);
   
   // Render canvas gradient
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || loading) return;
+    // Skip if no canvas, OR loading without meaningful override data (wait for hook data)
+    if (!canvas || (loading && !hasOverrideData)) return;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -103,8 +116,8 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Handle no data state with muted gray gradient
-    if (hasNoData) {
+    // Handle no data state with muted gray gradient (only if no meaningful override data)
+    if (hasNoData && !hasOverrideData) {
       // Set transform for logical coordinate system
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       
@@ -140,7 +153,7 @@ const GradientMoodOrb = forwardRef<HTMLDivElement, GradientMoodOrbProps>(({
       drawPatternOverlay(ctx, size, colorStops);
     }
     
-  }, [size, ratios, loading, hasNoData, settings.highVisibility, settings.patternOverlay, summary]);
+  }, [size, ratios, loading, hasNoData, hasOverrideData, settings.highVisibility, settings.patternOverlay, summary]);
   
   // On mount, check if we have a saved state that matches current state
   useEffect(() => {

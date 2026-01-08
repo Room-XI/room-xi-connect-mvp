@@ -108,7 +108,9 @@ router.get('/summary', async (req, res) => {
           dayRatios[mood] = (dayRatios[mood] || 0) + 1;
         });
         
-        // Convert to ratios and apply 1/7 weight to this day
+        // Convert to ratios with 1/windowDays weight per day
+        // Sparse weeks intentionally show dimmer orbs (1 of 7 days = 1/7 intensity)
+        // Frontend normalizes with EPSILON for visual display
         Object.keys(dayRatios).forEach(mood => {
           const dayMoodRatio = dayRatios[mood] / dayTotal;
           ratios[mood] += dayMoodRatio / windowDays;
@@ -239,6 +241,7 @@ router.get('/summary-range', async (req, res) => {
           dayRatios[mood] = (dayRatios[mood] || 0) + 1;
         });
         
+        // Weight by windowDays (1/N per day, sparse ranges show proportionally)
         Object.keys(dayRatios).forEach(mood => {
           const dayMoodRatio = dayRatios[mood] / dayTotal;
           ratios[mood] += dayMoodRatio / windowDays;
