@@ -21,8 +21,9 @@ import html2canvas from 'html2canvas';
 interface CheckIn {
   id: string;
   timestamp: string;
-  mood_level_1_6: number;
-  affectTags: string[];
+  moodLevel16: number;
+  moodType: string | null;
+  affectTags: string[] | null;
   note: string | null;
 }
 
