@@ -24,6 +24,12 @@ async function createServer() {
   // Trust proxy - Required for Replit deployment to get real client IPs for rate limiting
   app.set('trust proxy', 1);
   
+  // Health check endpoint - must be before all other middleware for fast response
+  // This is required for Replit/Cloud Run deployment health checks
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+  
   // HTTP request logging
   app.use(httpLogger);
   
