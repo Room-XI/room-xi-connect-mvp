@@ -48,7 +48,7 @@ function validateProgram(req, res, next) {
 // Get all programs
 router.get('/', async (req, res) => {
   try {
-    const isAuthenticated = !!req.session.userId;
+    const isAuthenticated = !!(req.session && req.session.userId);
     
     let allPrograms;
     
@@ -97,7 +97,7 @@ router.get('/:id', async (req, res) => {
 // Get saved programs for user
 router.get('/saved/list', async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (!req.session || !req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -119,7 +119,7 @@ router.get('/saved/list', async (req, res) => {
 // Save a program (requires CSRF)
 router.post('/saved/:programId', validateCsrfToken, async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (!req.session || !req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -138,7 +138,7 @@ router.post('/saved/:programId', validateCsrfToken, async (req, res) => {
 // Unsave a program (requires CSRF)
 router.delete('/saved/:programId', validateCsrfToken, async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (!req.session || !req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -159,7 +159,7 @@ router.delete('/saved/:programId', validateCsrfToken, async (req, res) => {
 // Create a program (org admin only, requires CSRF)
 router.post('/', validateCsrfToken, validateProgram, async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (!req.session || !req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -212,7 +212,7 @@ router.post('/', validateCsrfToken, validateProgram, async (req, res) => {
 // Update a program (org admin only, requires CSRF)
 router.put('/:id', validateCsrfToken, validateProgram, async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (!req.session || !req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
@@ -283,7 +283,7 @@ router.put('/:id', validateCsrfToken, validateProgram, async (req, res) => {
 // Delete a program (org admin only, requires CSRF)
 router.delete('/:id', validateCsrfToken, async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (!req.session || !req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 

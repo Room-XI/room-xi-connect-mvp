@@ -76,39 +76,56 @@ async function createServer() {
     logger.error({ err }, 'Failed to verify session table');
   }
   
-  app.use(session({
-    store: sessionStore,
-    secret: env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: env.NODE_ENV === 'production',
-      httpOnly: true,
-      sameSite: 'strict', // CSRF protection
-      maxAge: 1000 * 60 * 60 * 4, // 4 hours (reduced from 7 days for security)
-    }
-  }));
-  
-  // Session activity tracking middleware
-  app.use((req, res, next) => {
-    if (req.session && req.session.userId) {
-      const now = Date.now();
-      const lastActivity = req.session.lastActivity || now;
-      const inactivityLimit = 30 * 60 * 1000; // 30 minutes
-      
-      if (now - lastActivity > inactivityLimit) {
-        // Session inactive for too long - destroy it
-        return req.session.destroy((err) => {
-          if (err) logger.error({ err }, 'Failed to destroy inactive session');
-          res.clearCookie('connect.sid');
-          return res.status(401).json({ error: 'Session expired due to inactivity' });
-        });
+  // Session factory function to create session middleware with custom cookie name
+  function createSessionMiddleware(cookieName) {
+    return session({
+      store: sessionStore,
+      name: cookieName,
+      secret: env.SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'strict',
+        maxAge: 1000 * 60 * 60 * 4, // 4 hours
       }
+    });
+  }
+  
+  // Create separate session middleware instances for each portal
+  const userSession = createSessionMiddleware('user.sid');
+  const parentSession = createSessionMiddleware('parent.sid');
+  const adminSession = createSessionMiddleware('admin.sid');
+  
+  // Session activity tracking middleware factory
+  function createInactivityMiddleware(cookieName) {
+    return (req, res, next) => {
+      // Check for user session (userId) or parent session (parentId) or admin session (isAdminSession)
+      const hasActiveSession = req.session && (
+        req.session.userId || 
+        req.session.parentId || 
+        req.session.isAdminSession
+      );
       
-      req.session.lastActivity = now;
-    }
-    next();
-  });
+      if (hasActiveSession) {
+        const now = Date.now();
+        const lastActivity = req.session.lastActivity || now;
+        const inactivityLimit = 30 * 60 * 1000; // 30 minutes
+        
+        if (now - lastActivity > inactivityLimit) {
+          return req.session.destroy((err) => {
+            if (err) logger.error({ err }, 'Failed to destroy inactive session');
+            res.clearCookie(cookieName);
+            return res.status(401).json({ error: 'Session expired due to inactivity' });
+          });
+        }
+        
+        req.session.lastActivity = now;
+      }
+      next();
+    };
+  }
 
   // Import security middleware
   const { validateCsrfToken, requireGuardianVerification } = await import('./middleware/security.ts');
@@ -146,7 +163,6 @@ async function createServer() {
   const { default: demographicsRoutes } = await import('./routes/demographics.js');
   const { default: moodTasksRoutes } = await import('./routes/mood-tasks.js');
   const { default: qrRoutes } = await import('./routes/qr.js');
-  const { default: adminPortalRoutes } = await import('./routes/adminPortal.js');
   const { default: disclosureRoutes } = await import('./routes/disclosure.js');
   const { default: healthRoutes } = await import('./routes/health.js');
   const { default: analyticsRoutes } = await import('./routes/analytics.ts');
@@ -166,59 +182,84 @@ async function createServer() {
   app.use('/health', healthRoutes);
   app.use('/api/health', healthRoutes);
 
-  // Admin Portal routes (separate CSRF handling, stricter rate limiting)
-  app.use('/api/admin-portal', adminLimiter, adminPortalRoutes);
+  // ==================== ADMIN PORTAL ROUTES (admin.sid session) ====================
+  // Apply admin session middleware and inactivity tracking to /api/admin routes
+  app.use('/api/admin', adminSession, createInactivityMiddleware('admin.sid'), validateCsrfToken, writeLimiter, adminRoutes);
   
-  // Privacy-safe analytics (admin only)
-  app.use('/api/analytics', adminLimiter, analyticsRoutes);
+  // Privacy-safe analytics (admin only) - uses admin session
+  app.use('/api/analytics', adminSession, createInactivityMiddleware('admin.sid'), adminLimiter, analyticsRoutes);
 
-  // Partner Consent API (uses Bearer token auth, no CSRF needed)
-  app.use('/api/partners', writeLimiter, partnerConsentRoutes);
+  // ==================== PARENT PORTAL ROUTES (parent.sid session) ====================
+  // Apply parent session middleware and inactivity tracking to parent routes
+  app.use('/api/parent-auth', parentSession, createInactivityMiddleware('parent.sid'), writeLimiter, parentAuthRoutes);
+  app.use('/api/parent-portal', parentSession, createInactivityMiddleware('parent.sid'), validateCsrfToken, writeLimiter, parentPortalRoutes);
 
-  // API routes (public - no CSRF protection needed for GET, but POST/PUT/DELETE will be validated)
-  // Note: authLimiter is applied per-route in auth.js for login/register only (not session checks)
-  app.use('/api/auth', authRoutes);
-  // Programs route - CSRF applied per-route for write operations only (GET is public for guests)
-  app.use('/api/programs', programRoutes);
-  app.use('/api/events', eventsRoutes);
+  // ==================== PUBLIC/GUEST ROUTES (stateless, no session) ====================
+  // These routes are publicly accessible without authentication
+  // Session middleware is NOT applied to avoid unnecessary overhead and keep stateless
+  
+  // Stateless public routes (no session needed at all)
   app.use('/api/crisis', crisisRoutes);
   app.use('/api/transparency', transparencyRoutes);
   
-  // Consent routes - no CSRF needed, uses token-based security via email links
+  // Consent routes - uses token-based security via email links (not session-based)
   // Parents access these via unique consent tokens, not from the React app
   app.use('/api/consent', writeLimiter, consentRoutes);
   
+  // ==================== PUBLIC ROUTES WITH OPTIONAL SESSION ====================
+  // These routes support both anonymous and authenticated access
+  // Session is parsed (for logged-in users) but NO inactivity check
+  // This ensures:
+  // - Anonymous users: session object exists but empty, no cookies saved (saveUninitialized: false)
+  // - Logged-in users: session populated from cookie, authenticated features work
+  // Route handlers check req.session.userId to distinguish between guest/authenticated
+  
+  // Programs route - public GET, authenticated features (saved programs, write ops) need session
+  app.use('/api/programs', userSession, programRoutes);
+  // Events route - public GET, recommendations need session for personalization
+  app.use('/api/events', userSession, eventsRoutes);
+  
+  // ==================== QUOTES ROUTES (user.sid session) ====================
+  // All quote endpoints require authentication
+  app.use('/api/quotes', userSession, createInactivityMiddleware('user.sid'), quotesRoutes);
+  
+  // ==================== USER/YOUTH ROUTES (user.sid session) ====================
+  // Apply user session only to routes that require authentication
+  
+  // Partner Consent API (uses Bearer token auth, no CSRF needed)
+  app.use('/api/partners', userSession, createInactivityMiddleware('user.sid'), writeLimiter, partnerConsentRoutes);
+
+  // Auth routes - session needed for login/logout/session checks
+  // Note: authLimiter is applied per-route in auth.js for login/register only
+  app.use('/api/auth', userSession, createInactivityMiddleware('user.sid'), authRoutes);
+  
   // Protected routes requiring CSRF token with rate limiting
-  app.use('/api/checkins', validateCsrfToken, requireGuardianVerification, writeLimiter, checkinRoutes);
-  app.use('/api/profile', validateCsrfToken, requireGuardianVerification, writeLimiter, profileRoutes);
-  app.use('/api/xid', validateCsrfToken, requireGuardianVerification, writeLimiter, xidRoutes);
-  app.use('/api/ximi', validateCsrfToken, requireGuardianVerification, writeLimiter, ximiRoutes);
-  app.use('/api/admin', validateCsrfToken, writeLimiter, adminRoutes);
-  app.use('/api/org', validateCsrfToken, writeLimiter, orgRoutes);
-  app.use('/api/privacy', validateCsrfToken, requireGuardianVerification, writeLimiter, privacyRoutes);
-  app.use('/api/achievements', validateCsrfToken, writeLimiter, achievementsRoutes);
-  app.use('/api/kpi', validateCsrfToken, kpiRoutes);
-  app.use('/api/orb-snapshots', validateCsrfToken, requireGuardianVerification, writeLimiter, orbSnapshotsRoutes);
-  app.use('/api/quotes', validateCsrfToken, writeLimiter, quotesRoutes);
-  app.use('/api/notifications', validateCsrfToken, writeLimiter, notificationsRoutes);
-  app.use('/api/push', validateCsrfToken, writeLimiter, pushRoutes);
-  app.use('/api/orb', validateCsrfToken, writeLimiter, orbRoutes);
-  app.use('/api/skip-token', validateCsrfToken, writeLimiter, skipTokenRoutes);
-  app.use('/api/mood-drop', validateCsrfToken, writeLimiter, moodDropRoutes);
-  app.use('/api/geo', validateCsrfToken, writeLimiter, geoRoutes);
-  app.use('/api/outcomes', validateCsrfToken, requireGuardianVerification, writeLimiter, outcomesRoutes);
-  app.use('/api/parent-auth', writeLimiter, parentAuthRoutes);
-  app.use('/api/parent-portal', validateCsrfToken, writeLimiter, parentPortalRoutes);
-  app.use('/api/consent-auto', validateCsrfToken, writeLimiter, consentAutoRoutes);
-  app.use('/api/demographics', validateCsrfToken, requireGuardianVerification, writeLimiter, demographicsRoutes);
-  app.use('/api/mood-tasks', validateCsrfToken, requireGuardianVerification, writeLimiter, moodTasksRoutes);
-  app.use('/api/qr', validateCsrfToken, writeLimiter, qrRoutes);
-  app.use('/api/disclosure', validateCsrfToken, writeLimiter, disclosureRoutes);
-  app.use('/api/health-profile', validateCsrfToken, requireGuardianVerification, writeLimiter, healthProfileRoutes);
+  app.use('/api/checkins', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, checkinRoutes);
+  app.use('/api/profile', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, profileRoutes);
+  app.use('/api/xid', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, xidRoutes);
+  app.use('/api/ximi', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, ximiRoutes);
+  app.use('/api/org', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, orgRoutes);
+  app.use('/api/privacy', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, privacyRoutes);
+  app.use('/api/achievements', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, achievementsRoutes);
+  app.use('/api/kpi', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, kpiRoutes);
+  app.use('/api/orb-snapshots', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, orbSnapshotsRoutes);
+  app.use('/api/notifications', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, notificationsRoutes);
+  app.use('/api/push', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, pushRoutes);
+  app.use('/api/orb', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, orbRoutes);
+  app.use('/api/skip-token', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, skipTokenRoutes);
+  app.use('/api/mood-drop', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, moodDropRoutes);
+  app.use('/api/geo', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, geoRoutes);
+  app.use('/api/outcomes', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, outcomesRoutes);
+  app.use('/api/consent-auto', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, consentAutoRoutes);
+  app.use('/api/demographics', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, demographicsRoutes);
+  app.use('/api/mood-tasks', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, moodTasksRoutes);
+  app.use('/api/qr', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, qrRoutes);
+  app.use('/api/disclosure', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, disclosureRoutes);
+  app.use('/api/health-profile', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, requireGuardianVerification, writeLimiter, healthProfileRoutes);
   
   // Safety plan routes - uses token-based security for public share links (like consent routes)
   // The view/:token endpoint is public, other endpoints use requireAuth in the route handler
-  app.use('/api/safety-plan', writeLimiter, safetyPlanRoutes);
+  app.use('/api/safety-plan', userSession, createInactivityMiddleware('user.sid'), writeLimiter, safetyPlanRoutes);
 
   // Production or development mode
   if (env.NODE_ENV === 'production') {

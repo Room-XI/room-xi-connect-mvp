@@ -44,6 +44,7 @@ function calculateAge(dateOfBirth) {
 /**
  * Validate password strength
  * Mirrors frontend validation rules for security-in-depth
+ * PIPA/PIPEDA compliant: 12+ chars with complexity requirements
  */
 function validatePasswordStrength(password) {
   const errors = [];
@@ -51,15 +52,19 @@ function validatePasswordStrength(password) {
   if (!password || password.length < 12) {
     errors.push('Password must be at least 12 characters');
   }
+  
   if (!/[A-Z]/.test(password)) {
     errors.push('Password must contain at least one uppercase letter');
   }
+  
   if (!/[a-z]/.test(password)) {
     errors.push('Password must contain at least one lowercase letter');
   }
+  
   if (!/[0-9]/.test(password)) {
     errors.push('Password must contain at least one number');
   }
+  
   if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
@@ -371,7 +376,7 @@ router.post('/logout', (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to logout' });
     }
-    res.clearCookie('connect.sid');
+    res.clearCookie('user.sid');
     res.json({ message: 'Logged out successfully' });
   });
 });
@@ -523,7 +528,7 @@ router.delete('/account', validateBody(deleteAccountSchema), async (req, res) =>
     await db.delete(users).where(eq(users.id, req.session.userId));
 
     req.session.destroy(() => {
-      res.clearCookie('connect.sid');
+      res.clearCookie('user.sid');
       res.json({ message: 'Account deleted successfully' });
     });
   } catch (error) {

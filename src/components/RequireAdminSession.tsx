@@ -14,7 +14,7 @@ export default function RequireAdminSession({ children }: RequireAdminSessionPro
   useEffect(() => {
     const checkAdminSession = async () => {
       try {
-        const response = await fetch('/api/admin-portal/status', {
+        const response = await fetch('/api/admin/status', {
           credentials: 'include',
         });
         

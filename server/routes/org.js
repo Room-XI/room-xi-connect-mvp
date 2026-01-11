@@ -337,6 +337,7 @@ router.post('/programs/:id/attendance', verifyOrgAccess, async (req, res) => {
 router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
   try {
     const { id: programId } = req.params;
+    const { timeRange } = req.query;
 
     // Verify program belongs to user's organization
     if (!req.isGlobalAdmin) {
@@ -355,6 +356,20 @@ router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
     }
 
     const K_ANONYMITY = 5;
+    const edmontonNow = DateTime.now().setZone('America/Edmonton');
+    let startDate = null;
+
+    if (timeRange === '7days') {
+      startDate = edmontonNow.minus({ days: 7 }).startOf('day').toJSDate();
+    } else if (timeRange === '30days') {
+      startDate = edmontonNow.minus({ days: 30 }).startOf('day').toJSDate();
+    } else if (timeRange === '90days') {
+      startDate = edmontonNow.minus({ days: 90 }).startOf('day').toJSDate();
+    }
+
+    const dateFilter = startDate 
+      ? and(eq(outcomeEvents.programId, programId), eq(outcomeEvents.attended, true), gte(outcomeEvents.createdAt, startDate))
+      : and(eq(outcomeEvents.programId, programId), eq(outcomeEvents.attended, true));
 
     // Get aggregated outcome data
     const [stats] = await db
@@ -364,10 +379,7 @@ router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
         recommendCount: sql`COUNT(*) FILTER (WHERE ${outcomeEvents.wouldRecommend} = true)`
       })
       .from(outcomeEvents)
-      .where(and(
-        eq(outcomeEvents.programId, programId),
-        eq(outcomeEvents.attended, true)
-      ));
+      .where(dateFilter);
 
     const totalResponses = Number(stats?.totalResponses || 0);
 
@@ -377,7 +389,8 @@ router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
         anonymized: true,
         message: `Privacy protection: Data suppressed until at least ${K_ANONYMITY} responses are collected.`,
         averageHelpfulness: null,
-        wouldRecommendPercentage: null
+        wouldRecommendPercentage: null,
+        outcomesTimeline: []
       });
     }
 
@@ -386,15 +399,418 @@ router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
       ? Math.round((Number(stats.recommendCount) / totalResponses) * 100) 
       : 0;
 
+    // Get timeline data for trend chart
+    const timelineData = await db
+      .select({
+        date: sql`DATE(${outcomeEvents.createdAt})`,
+        count: count(outcomeEvents.id),
+        avgHelpfulness: sql`AVG(${outcomeEvents.helpfulnessRating})`
+      })
+      .from(outcomeEvents)
+      .where(dateFilter)
+      .groupBy(sql`DATE(${outcomeEvents.createdAt})`)
+      .orderBy(sql`DATE(${outcomeEvents.createdAt})`);
+
+    const outcomesTimeline = timelineData.map(row => ({
+      date: row.date,
+      responses: Number(row.count),
+      avgHelpfulness: row.avgHelpfulness ? Math.round(Number(row.avgHelpfulness) * 10) / 10 : 0
+    }));
+
     res.json({
       totalResponses,
       anonymized: false,
       averageHelpfulness,
-      wouldRecommendPercentage
+      wouldRecommendPercentage,
+      outcomesTimeline
     });
   } catch (error) {
     logger.error({ err: error, context: 'org-program-outcomes' }, 'Error fetching program outcomes');
     res.status(500).json({ error: 'Failed to fetch program outcomes' });
+  }
+});
+
+// Create org-scoped program
+router.post('/programs', verifyOrgAccess, async (req, res) => {
+  try {
+    if (req.userOrgIds.length === 0 && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const orgId = req.userOrgIds[0]; // Use first org for now
+    const {
+      title,
+      description,
+      long_description,
+      tags,
+      free,
+      cost_cents,
+      location_name,
+      address,
+      organizer,
+      contact_email,
+      contact_phone,
+      website_url,
+      capacity,
+      age_min,
+      age_max,
+      indoor,
+      outdoor
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    const [program] = await db
+      .insert(programs)
+      .values({
+        title,
+        description: description || null,
+        tags: tags || [],
+        free: free ?? true,
+        costCents: cost_cents || null,
+        locationName: location_name || null,
+        address: address || null,
+        organizer: organizer || null,
+        orgId,
+        contactEmail: contact_email || null,
+        contactPhone: contact_phone || null,
+        website: website_url || null,
+        ageMin: age_min || null,
+        ageMax: age_max || null,
+        indoor: indoor || null,
+        outdoor: outdoor || null
+      })
+      .returning();
+
+    logger.info({ programId: program.id, orgId }, 'Created org-scoped program');
+    res.status(201).json(program);
+  } catch (error) {
+    logger.error({ err: error, context: 'org-create-program' }, 'Error creating program');
+    res.status(500).json({ error: 'Failed to create program' });
+  }
+});
+
+// Update org-scoped program
+router.put('/programs/:id', verifyOrgAccess, async (req, res) => {
+  try {
+    const { id: programId } = req.params;
+
+    // Verify program belongs to user's organization
+    if (!req.isGlobalAdmin) {
+      const [program] = await db
+        .select()
+        .from(programs)
+        .where(and(
+          eq(programs.id, programId),
+          sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`
+        ))
+        .limit(1);
+
+      if (!program) {
+        return res.status(403).json({ error: 'Program not found or access denied' });
+      }
+    }
+
+    const {
+      title,
+      description,
+      long_description,
+      tags,
+      free,
+      cost_cents,
+      location_name,
+      address,
+      organizer,
+      contact_email,
+      contact_phone,
+      website_url,
+      capacity,
+      age_min,
+      age_max,
+      indoor,
+      outdoor
+    } = req.body;
+
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (tags !== undefined) updateData.tags = tags;
+    if (free !== undefined) updateData.free = free;
+    if (cost_cents !== undefined) updateData.costCents = cost_cents;
+    if (location_name !== undefined) updateData.locationName = location_name;
+    if (address !== undefined) updateData.address = address;
+    if (organizer !== undefined) updateData.organizer = organizer;
+    if (contact_email !== undefined) updateData.contactEmail = contact_email;
+    if (contact_phone !== undefined) updateData.contactPhone = contact_phone;
+    if (website_url !== undefined) updateData.website = website_url;
+    if (age_min !== undefined) updateData.ageMin = age_min;
+    if (age_max !== undefined) updateData.ageMax = age_max;
+    if (indoor !== undefined) updateData.indoor = indoor;
+    if (outdoor !== undefined) updateData.outdoor = outdoor;
+    updateData.updatedAt = new Date();
+
+    const [updated] = await db
+      .update(programs)
+      .set(updateData)
+      .where(eq(programs.id, programId))
+      .returning();
+
+    logger.info({ programId }, 'Updated org-scoped program');
+    res.json(updated);
+  } catch (error) {
+    logger.error({ err: error, context: 'org-update-program' }, 'Error updating program');
+    res.status(500).json({ error: 'Failed to update program' });
+  }
+});
+
+// Delete org-scoped program
+router.delete('/programs/:id', verifyOrgAccess, async (req, res) => {
+  try {
+    const { id: programId } = req.params;
+
+    // Verify program belongs to user's organization
+    if (!req.isGlobalAdmin) {
+      const [program] = await db
+        .select()
+        .from(programs)
+        .where(and(
+          eq(programs.id, programId),
+          sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`
+        ))
+        .limit(1);
+
+      if (!program) {
+        return res.status(403).json({ error: 'Program not found or access denied' });
+      }
+    }
+
+    await db.delete(programs).where(eq(programs.id, programId));
+
+    logger.info({ programId }, 'Deleted org-scoped program');
+    res.json({ success: true });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-delete-program' }, 'Error deleting program');
+    res.status(500).json({ error: 'Failed to delete program' });
+  }
+});
+
+// Get org members
+router.get('/members', verifyOrgAccess, async (req, res) => {
+  try {
+    if (req.userOrgIds.length === 0 && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const orgId = req.userOrgIds[0];
+
+    const members = await db
+      .select({
+        id: orgMembers.userId,
+        email: users.email,
+        role: orgMembers.role,
+        active: orgMembers.active,
+        createdAt: orgMembers.createdAt,
+        firstName: profiles.firstName,
+        lastName: profiles.lastName
+      })
+      .from(orgMembers)
+      .innerJoin(users, eq(orgMembers.userId, users.id))
+      .leftJoin(profiles, eq(orgMembers.userId, profiles.userId))
+      .where(eq(orgMembers.orgId, orgId))
+      .orderBy(orgMembers.createdAt);
+
+    res.json(members);
+  } catch (error) {
+    logger.error({ err: error, context: 'org-members-list' }, 'Error fetching org members');
+    res.status(500).json({ error: 'Failed to fetch members' });
+  }
+});
+
+// Invite new staff member
+router.post('/members/invite', verifyOrgAccess, async (req, res) => {
+  try {
+    if (req.userOrgIds.length === 0 && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const orgId = req.userOrgIds[0];
+    const { email, role } = req.body;
+
+    if (!email || !role) {
+      return res.status(400).json({ error: 'Email and role are required' });
+    }
+
+    const validRoles = ['admin', 'facilitator', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin, facilitator, or viewer' });
+    }
+
+    // Check if user exists
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found. They must register first.' });
+    }
+
+    // Check if already a member
+    const [existingMember] = await db
+      .select()
+      .from(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, existingUser.id),
+        eq(orgMembers.orgId, orgId)
+      ))
+      .limit(1);
+
+    if (existingMember) {
+      return res.status(409).json({ error: 'User is already a member of this organization' });
+    }
+
+    // Add as member
+    const [member] = await db
+      .insert(orgMembers)
+      .values({
+        userId: existingUser.id,
+        orgId,
+        role,
+        active: true
+      })
+      .returning();
+
+    logger.info({ userId: existingUser.id, orgId, role }, 'Added new org member');
+    res.status(201).json({
+      id: existingUser.id,
+      email: existingUser.email,
+      role: member.role,
+      active: member.active,
+      createdAt: member.createdAt
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-member-invite' }, 'Error inviting member');
+    res.status(500).json({ error: 'Failed to invite member' });
+  }
+});
+
+// Update member role
+router.put('/members/:id/role', verifyOrgAccess, async (req, res) => {
+  try {
+    if (req.userOrgIds.length === 0 && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const orgId = req.userOrgIds[0];
+    const { id: userId } = req.params;
+    const { role } = req.body;
+
+    const validRoles = ['admin', 'facilitator', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin, facilitator, or viewer' });
+    }
+
+    // Verify member exists in this org
+    const [existingMember] = await db
+      .select()
+      .from(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, userId),
+        eq(orgMembers.orgId, orgId)
+      ))
+      .limit(1);
+
+    if (!existingMember) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    // Can't demote yourself if you're the only admin
+    if (existingMember.role === 'admin' && role !== 'admin' && userId === req.session.userId) {
+      const [adminCount] = await db
+        .select({ count: count() })
+        .from(orgMembers)
+        .where(and(
+          eq(orgMembers.orgId, orgId),
+          eq(orgMembers.role, 'admin'),
+          eq(orgMembers.active, true)
+        ));
+
+      if (Number(adminCount.count) <= 1) {
+        return res.status(400).json({ error: 'Cannot remove the last admin. Promote another member first.' });
+      }
+    }
+
+    await db
+      .update(orgMembers)
+      .set({ role })
+      .where(and(
+        eq(orgMembers.userId, userId),
+        eq(orgMembers.orgId, orgId)
+      ));
+
+    logger.info({ userId, orgId, role }, 'Updated org member role');
+    res.json({ success: true, role });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-member-role-update' }, 'Error updating member role');
+    res.status(500).json({ error: 'Failed to update member role' });
+  }
+});
+
+// Remove member from org
+router.delete('/members/:id', verifyOrgAccess, async (req, res) => {
+  try {
+    if (req.userOrgIds.length === 0 && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const orgId = req.userOrgIds[0];
+    const { id: userId } = req.params;
+
+    // Verify member exists
+    const [existingMember] = await db
+      .select()
+      .from(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, userId),
+        eq(orgMembers.orgId, orgId)
+      ))
+      .limit(1);
+
+    if (!existingMember) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    // Can't remove yourself if you're the only admin
+    if (existingMember.role === 'admin' && userId === req.session.userId) {
+      const [adminCount] = await db
+        .select({ count: count() })
+        .from(orgMembers)
+        .where(and(
+          eq(orgMembers.orgId, orgId),
+          eq(orgMembers.role, 'admin'),
+          eq(orgMembers.active, true)
+        ));
+
+      if (Number(adminCount.count) <= 1) {
+        return res.status(400).json({ error: 'Cannot remove the last admin. Promote another member first.' });
+      }
+    }
+
+    await db
+      .delete(orgMembers)
+      .where(and(
+        eq(orgMembers.userId, userId),
+        eq(orgMembers.orgId, orgId)
+      ));
+
+    logger.info({ userId, orgId }, 'Removed org member');
+    res.json({ success: true });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-member-remove' }, 'Error removing member');
+    res.status(500).json({ error: 'Failed to remove member' });
   }
 });
 

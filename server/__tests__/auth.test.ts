@@ -83,21 +83,29 @@ describe('Authentication - Password Hashing', () => {
 });
 
 describe('Authentication - Password Validation', () => {
+  /**
+   * Validate password strength - PIPA/PIPEDA compliant
+   * Requires 12+ chars with uppercase, lowercase, number, and special character
+   */
   function validatePasswordStrength(password: string): string[] {
     const errors: string[] = [];
     
     if (!password || password.length < 12) {
       errors.push('Password must be at least 12 characters');
     }
+    
     if (!/[A-Z]/.test(password)) {
       errors.push('Password must contain at least one uppercase letter');
     }
+    
     if (!/[a-z]/.test(password)) {
       errors.push('Password must contain at least one lowercase letter');
     }
+    
     if (!/[0-9]/.test(password)) {
       errors.push('Password must contain at least one number');
     }
+    
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
       errors.push('Password must contain at least one special character');
     }
@@ -109,57 +117,81 @@ describe('Authentication - Password Validation', () => {
     vi.clearAllMocks();
   });
 
-  it('should accept valid password meeting all requirements', () => {
+  it('should accept valid password meeting all complexity requirements', () => {
     const validPassword = 'SecurePass123!';
     const errors = validatePasswordStrength(validPassword);
     
     expect(errors).toHaveLength(0);
   });
 
+  it('should reject simple password like "password"', () => {
+    const weakPassword = 'password';
+    const errors = validatePasswordStrength(weakPassword);
+    
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors).toContain('Password must be at least 12 characters');
+    expect(errors).toContain('Password must contain at least one uppercase letter');
+    expect(errors).toContain('Password must contain at least one number');
+    expect(errors).toContain('Password must contain at least one special character');
+  });
+
   it('should reject password shorter than 12 characters', () => {
-    const shortPassword = 'Short1!';
+    const shortPassword = 'Short1!Aa';
     const errors = validatePasswordStrength(shortPassword);
     
     expect(errors).toContain('Password must be at least 12 characters');
   });
 
   it('should reject password without uppercase letter', () => {
-    const noUppercase = 'lowercase123!password';
+    const noUppercase = 'securepass123!';
     const errors = validatePasswordStrength(noUppercase);
     
     expect(errors).toContain('Password must contain at least one uppercase letter');
   });
 
   it('should reject password without lowercase letter', () => {
-    const noLowercase = 'UPPERCASE123!PASSWORD';
+    const noLowercase = 'SECUREPASS123!';
     const errors = validatePasswordStrength(noLowercase);
     
     expect(errors).toContain('Password must contain at least one lowercase letter');
   });
 
   it('should reject password without number', () => {
-    const noNumber = 'NoNumberHere!Pass';
+    const noNumber = 'SecurePassword!';
     const errors = validatePasswordStrength(noNumber);
     
     expect(errors).toContain('Password must contain at least one number');
   });
 
   it('should reject password without special character', () => {
-    const noSpecial = 'NoSpecialChar123';
+    const noSpecial = 'SecurePass1234';
     const errors = validatePasswordStrength(noSpecial);
     
     expect(errors).toContain('Password must contain at least one special character');
   });
 
-  it('should return multiple errors for completely invalid password', () => {
-    const badPassword = 'abc';
-    const errors = validatePasswordStrength(badPassword);
+  it('should accept password with exactly 12 characters and all requirements', () => {
+    const exactPassword = 'SecurePas1!a';
+    const errors = validatePasswordStrength(exactPassword);
     
-    expect(errors.length).toBeGreaterThan(1);
-    expect(errors).toContain('Password must be at least 12 characters');
-    expect(errors).toContain('Password must contain at least one uppercase letter');
-    expect(errors).toContain('Password must contain at least one number');
-    expect(errors).toContain('Password must contain at least one special character');
+    expect(errors).toHaveLength(0);
+  });
+
+  it('should accept long complex passwords', () => {
+    const longPassword = 'ThisIsAVeryLongAndSecurePassword123!@#';
+    const errors = validatePasswordStrength(longPassword);
+    
+    expect(errors).toHaveLength(0);
+  });
+
+  it('should accept passwords with various special characters', () => {
+    const specialChars = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '='];
+    
+    for (const char of specialChars) {
+      const password = `SecurePass12${char}`;
+      const errors = validatePasswordStrength(password);
+      expect(errors).toHaveLength(0);
+    }
   });
 });
 

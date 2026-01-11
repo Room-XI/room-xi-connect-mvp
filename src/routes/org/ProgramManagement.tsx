@@ -11,7 +11,7 @@ import {
   Save,
   X
 } from 'lucide-react';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 
 interface Program {
   id: string;
@@ -49,7 +49,7 @@ export default function ProgramManagement() {
   const loadPrograms = async () => {
     try {
       setLoading(true);
-      const { data, error } = await api.programs.list();
+      const { data, error } = await api.org.getPrograms();
       if (error) {
         console.error('Error loading programs:', error);
         return;
@@ -68,7 +68,7 @@ export default function ProgramManagement() {
     }
 
     try {
-      const { error } = await api.programs.delete(id);
+      const { error } = await api.org.deleteProgram(id);
       if (error) {
         throw new Error('Failed to delete program');
       }
@@ -320,8 +320,8 @@ function ProgramForm({ program, onClose, onSave }: ProgramFormProps) {
       };
 
       const result = program 
-        ? await api.programs.update(program.id, payload)
-        : await api.programs.create(payload);
+        ? await api.org.updateProgram(program.id, payload)
+        : await api.org.createProgram(payload);
 
       if (result.error) {
         throw new Error('Failed to save program');

@@ -19,7 +19,7 @@ export default function AdminPortal() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin-portal/verify-access', {
+      const response = await fetch('/api/admin/verify-access', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -52,7 +52,7 @@ export default function AdminPortal() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin-portal/login', {
+      const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

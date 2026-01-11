@@ -55,23 +55,23 @@ export default function ParentSetPassword() {
       setError('Password must be at least 12 characters');
       return;
     }
-
-    if (!/(?=.*[a-z])/.test(password)) {
-      setError('Password must contain at least one lowercase letter');
-      return;
-    }
-
-    if (!/(?=.*[A-Z])/.test(password)) {
+    
+    if (!/[A-Z]/.test(password)) {
       setError('Password must contain at least one uppercase letter');
       return;
     }
-
-    if (!/(?=.*\d)/.test(password)) {
+    
+    if (!/[a-z]/.test(password)) {
+      setError('Password must contain at least one lowercase letter');
+      return;
+    }
+    
+    if (!/[0-9]/.test(password)) {
       setError('Password must contain at least one number');
       return;
     }
-
-    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
+    
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
       setError('Password must contain at least one special character');
       return;
     }
@@ -231,9 +231,9 @@ export default function ParentSetPassword() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={8}
+                minLength={12}
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-transparent pr-12"
-                placeholder="At least 8 characters"
+                placeholder="12+ chars with uppercase, lowercase, number & special"
               />
               <button
                 type="button"

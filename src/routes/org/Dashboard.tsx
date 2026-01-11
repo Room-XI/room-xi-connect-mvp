@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Users, FileText, ArrowRight, TrendingUp, Calendar, Activity, Heart, ChevronDown, BarChart3, Repeat } from 'lucide-react';
+import { Users, FileText, ArrowRight, TrendingUp, Calendar, Activity, Heart, ChevronDown, BarChart3, Repeat, Download, UserPlus, ClipboardList, ThumbsUp } from 'lucide-react';
 import { useSession } from '@/lib/session';
+import { api } from '@/lib/api';
 import { LineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashboardStats {
@@ -19,15 +20,24 @@ interface Program {
 }
 
 interface ProgramOutcomes {
-  uniqueParticipants: number;
-  attendanceRate: number;
-  avgMoodBefore: number | null;
-  avgMoodAfter: number | null;
-  moodImprovement: number | null;
-  retentionRate: number;
-  attendanceTimeline: Array<{ date: string; attendees: number }>;
-  sessionsTimeline: Array<{ week: string; sessions: number }>;
+  totalResponses: number;
+  anonymized: boolean;
+  message?: string;
+  averageHelpfulness: number | null;
+  wouldRecommendPercentage: number | null;
+  outcomesTimeline: Array<{ date: string; responses: number; avgHelpfulness: number }>;
 }
+
+interface AttendanceRecord {
+  id: string;
+  programId: string;
+  xidHash: string;
+  method: string;
+  site: string | null;
+  createdAt: string;
+}
+
+type TimeRange = '7days' | '30days' | '90days' | 'all';
 
 interface RecentActivity {
   id: string;
@@ -47,6 +57,14 @@ export default function OrgDashboard() {
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<ProgramOutcomes | null>(null);
   const [outcomesLoading, setOutcomesLoading] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>('30days');
+  
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [showAttendanceForm, setShowAttendanceForm] = useState(false);
+  const [attendanceForm, setAttendanceForm] = useState({ xidId: '', method: 'manual' });
+  const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -55,9 +73,10 @@ export default function OrgDashboard() {
 
   useEffect(() => {
     if (selectedProgram) {
-      loadOutcomes(selectedProgram);
+      loadOutcomes(selectedProgram, timeRange);
+      loadAttendance(selectedProgram);
     }
-  }, [selectedProgram]);
+  }, [selectedProgram, timeRange]);
 
   async function loadDashboard() {
     try {
@@ -109,21 +128,87 @@ export default function OrgDashboard() {
     }
   }
 
-  async function loadOutcomes(programId: string) {
+  async function loadOutcomes(programId: string, range: TimeRange) {
     try {
       setOutcomesLoading(true);
-      const response = await fetch(`/api/org/programs/${programId}/outcomes`, {
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      const { data, error } = await api.org.getProgramOutcomes(programId, range);
+      if (!error && data) {
         setOutcomes(data);
       }
     } catch (err) {
       console.error('Error loading outcomes:', err);
     } finally {
       setOutcomesLoading(false);
+    }
+  }
+
+  async function loadAttendance(programId: string) {
+    try {
+      setAttendanceLoading(true);
+      const { data, error } = await api.org.getProgramAttendance(programId);
+      if (!error && data) {
+        setAttendance(data);
+      }
+    } catch (err) {
+      console.error('Error loading attendance:', err);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  }
+
+  async function handleRecordAttendance(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedProgram || !attendanceForm.xidId) return;
+
+    try {
+      setAttendanceSubmitting(true);
+      const { error } = await api.org.recordProgramAttendance(selectedProgram, {
+        xidId: attendanceForm.xidId,
+        method: attendanceForm.method
+      });
+
+      if (error) {
+        alert(error);
+        return;
+      }
+
+      setAttendanceForm({ xidId: '', method: 'manual' });
+      setShowAttendanceForm(false);
+      loadAttendance(selectedProgram);
+    } catch (err) {
+      console.error('Error recording attendance:', err);
+      alert('Failed to record attendance');
+    } finally {
+      setAttendanceSubmitting(false);
+    }
+  }
+
+  async function handleExportAttendance() {
+    try {
+      setExportLoading(true);
+      const { data, error } = await api.org.exportAttendance(timeRange === 'all' ? 'all' : timeRange === '7days' ? '7days' : '30days');
+      
+      if (error) {
+        alert('Failed to export attendance');
+        return;
+      }
+
+      if (data?.csv) {
+        const blob = new Blob([data.csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance-export-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Error exporting attendance:', err);
+      alert('Failed to export attendance');
+    } finally {
+      setExportLoading(false);
     }
   }
 
@@ -211,23 +296,40 @@ export default function OrgDashboard() {
             <BarChart3 className="w-5 h-5" />
             Program Outcome Dashboard
           </h2>
-          <div className="relative">
-            <select
-              value={selectedProgram || ''}
-              onChange={(e) => setSelectedProgram(e.target.value)}
-              className="appearance-none bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-cosmic-teal focus:border-transparent min-w-[200px]"
-            >
-              {programs.length === 0 ? (
-                <option value="">No programs available</option>
-              ) : (
-                programs.map((program) => (
-                  <option key={program.id} value={program.id}>
-                    {program.title}
-                  </option>
-                ))
-              )}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+              {(['7days', '30days', '90days', 'all'] as TimeRange[]).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-3 py-1 text-sm rounded-md transition ${
+                    timeRange === range
+                      ? 'bg-white text-cosmic-teal shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {range === '7days' ? '7 Days' : range === '30days' ? '30 Days' : range === '90days' ? '90 Days' : 'All Time'}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <select
+                value={selectedProgram || ''}
+                onChange={(e) => setSelectedProgram(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-cosmic-teal focus:border-transparent min-w-[200px]"
+              >
+                {programs.length === 0 ? (
+                  <option value="">No programs available</option>
+                ) : (
+                  programs.map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.title}
+                    </option>
+                  ))
+                )}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            </div>
           </div>
         </div>
 
@@ -242,117 +344,91 @@ export default function OrgDashboard() {
           </div>
         ) : outcomes ? (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <MetricCard
-                icon={<Users className="w-5 h-5" />}
-                label="Unique Participants"
-                value={outcomes.uniqueParticipants}
-                color="text-blue-600"
-                bgColor="bg-blue-50"
-              />
-              <MetricCard
-                icon={<Activity className="w-5 h-5" />}
-                label="Attendance Rate"
-                value={`${outcomes.attendanceRate}%`}
-                color="text-emerald-600"
-                bgColor="bg-emerald-50"
-              />
-              <MetricCard
-                icon={<Heart className="w-5 h-5" />}
-                label="Mood Improvement"
-                value={outcomes.moodImprovement !== null ? `${outcomes.moodImprovement > 0 ? '+' : ''}${outcomes.moodImprovement}` : 'N/A'}
-                subtitle={outcomes.avgMoodBefore !== null && outcomes.avgMoodAfter !== null 
-                  ? `${outcomes.avgMoodBefore} → ${outcomes.avgMoodAfter}` 
-                  : undefined}
-                color={outcomes.moodImprovement !== null && outcomes.moodImprovement > 0 ? "text-green-600" : "text-amber-600"}
-                bgColor={outcomes.moodImprovement !== null && outcomes.moodImprovement > 0 ? "bg-green-50" : "bg-amber-50"}
-              />
-              <MetricCard
-                icon={<Repeat className="w-5 h-5" />}
-                label="Retention Rate"
-                value={`${outcomes.retentionRate}%`}
-                color="text-purple-600"
-                bgColor="bg-purple-50"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-gray-50 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-cosmic-midnight mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Attendance Over Time (Last 3 Months)
-                </h3>
-                {outcomes.attendanceTimeline.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={outcomes.attendanceTimeline}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
-                      <XAxis 
-                        dataKey="date" 
-                        stroke="#7D8471"
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => {
-                          const date = new Date(value);
-                          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                        }}
-                      />
-                      <YAxis stroke="#7D8471" tick={{ fontSize: 12 }} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#FFFAF5', border: '1px solid #E8E5DE', borderRadius: '8px' }}
-                        labelFormatter={(value) => {
-                          const date = new Date(value);
-                          return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                        }}
-                        formatter={(value: number) => [`${value} attendees`, 'Attendees']}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="attendees" 
-                        stroke="#5FA8A3" 
-                        strokeWidth={2} 
-                        dot={{ fill: '#5FA8A3' }} 
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[250px] flex items-center justify-center text-gray-500">
-                    No attendance data available
-                  </div>
-                )}
+            {outcomes.anonymized ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center mb-6">
+                <p className="text-amber-700">{outcomes.message}</p>
+                <p className="text-sm text-amber-600 mt-2">
+                  {outcomes.totalResponses} response(s) collected so far
+                </p>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                  <MetricCard
+                    icon={<ClipboardList className="w-5 h-5" />}
+                    label="Total Responses"
+                    value={outcomes.totalResponses}
+                    color="text-blue-600"
+                    bgColor="bg-blue-50"
+                  />
+                  <MetricCard
+                    icon={<Heart className="w-5 h-5" />}
+                    label="Avg Helpfulness"
+                    value={outcomes.averageHelpfulness !== null ? `${outcomes.averageHelpfulness}/5` : 'N/A'}
+                    color="text-emerald-600"
+                    bgColor="bg-emerald-50"
+                  />
+                  <MetricCard
+                    icon={<ThumbsUp className="w-5 h-5" />}
+                    label="Would Recommend"
+                    value={outcomes.wouldRecommendPercentage !== null ? `${outcomes.wouldRecommendPercentage}%` : 'N/A'}
+                    color="text-purple-600"
+                    bgColor="bg-purple-50"
+                  />
+                </div>
 
-              <div className="bg-gray-50 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-cosmic-midnight mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Sessions Per Week
-                </h3>
-                {outcomes.sessionsTimeline.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <RechartsBarChart data={outcomes.sessionsTimeline}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
-                      <XAxis 
-                        dataKey="week" 
-                        stroke="#7D8471"
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis stroke="#7D8471" tick={{ fontSize: 12 }} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#FFFAF5', border: '1px solid #E8E5DE', borderRadius: '8px' }}
-                        formatter={(value: number) => [`${value} sessions`, 'Sessions']}
-                      />
-                      <Bar 
-                        dataKey="sessions" 
-                        fill="#D9A962" 
-                        radius={[4, 4, 0, 0]} 
-                      />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[250px] flex items-center justify-center text-gray-500">
-                    No session data available
-                  </div>
-                )}
-              </div>
-            </div>
+                <div className="bg-gray-50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-cosmic-midnight mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Outcomes Trend
+                  </h3>
+                  {outcomes.outcomesTimeline && outcomes.outcomesTimeline.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={outcomes.outcomesTimeline}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                        <XAxis 
+                          dataKey="date" 
+                          stroke="#7D8471"
+                          tick={{ fontSize: 12 }}
+                          tickFormatter={(value) => {
+                            const date = new Date(value);
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          }}
+                        />
+                        <YAxis stroke="#7D8471" tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#FFFAF5', border: '1px solid #E8E5DE', borderRadius: '8px' }}
+                          labelFormatter={(value) => {
+                            const date = new Date(value);
+                            return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                          }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="responses" 
+                          stroke="#5FA8A3" 
+                          strokeWidth={2} 
+                          dot={{ fill: '#5FA8A3' }}
+                          name="Responses"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="avgHelpfulness" 
+                          stroke="#D9A962" 
+                          strokeWidth={2} 
+                          dot={{ fill: '#D9A962' }}
+                          name="Avg Helpfulness"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[250px] flex items-center justify-center text-gray-500">
+                      No outcome data available for this time range
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="text-center py-12 text-gray-500">
@@ -360,6 +436,129 @@ export default function OrgDashboard() {
           </div>
         )}
       </div>
+
+      {selectedProgram && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-cosmic-midnight flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Attendance Operations
+            </h2>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAttendanceForm(!showAttendanceForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-cosmic-teal text-white rounded-lg hover:bg-cosmic-teal/90 transition"
+              >
+                <UserPlus className="w-4 h-4" />
+                Record Attendance
+              </button>
+              <button
+                onClick={handleExportAttendance}
+                disabled={exportLoading}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                {exportLoading ? (
+                  <div className="w-4 h-4 border-2 border-cosmic-teal border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          {showAttendanceForm && (
+            <form onSubmit={handleRecordAttendance} className="bg-gray-50 rounded-xl p-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">XID Hash</label>
+                  <input
+                    type="text"
+                    value={attendanceForm.xidId}
+                    onChange={(e) => setAttendanceForm({ ...attendanceForm, xidId: e.target.value })}
+                    placeholder="Enter XID or scan QR"
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-teal focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
+                  <select
+                    value={attendanceForm.method}
+                    onChange={(e) => setAttendanceForm({ ...attendanceForm, method: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cosmic-teal focus:border-transparent"
+                  >
+                    <option value="manual">Manual Entry</option>
+                    <option value="qr_scan">QR Scan</option>
+                    <option value="check_in">Check-in Kiosk</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={attendanceSubmitting}
+                    className="w-full px-4 py-2 bg-cosmic-teal text-white rounded-lg hover:bg-cosmic-teal/90 transition disabled:opacity-50"
+                  >
+                    {attendanceSubmitting ? 'Recording...' : 'Record'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {attendanceLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : attendance.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">No attendance records for this program yet</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">XID (Hashed)</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Method</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Site</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Recorded At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendance.slice(0, 10).map((record) => (
+                    <tr key={record.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 text-sm font-mono text-gray-600">
+                        {record.xidHash.slice(0, 12)}...
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                          record.method === 'qr_scan' ? 'bg-green-100 text-green-700' :
+                          record.method === 'manual' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {record.method.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        {record.site || '-'}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        {new Date(record.createdAt).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {attendance.length > 10 && (
+                <p className="text-sm text-gray-500 text-center py-3">
+                  Showing 10 of {attendance.length} records. Export CSV for full list.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-xl font-semibold text-cosmic-midnight mb-4 flex items-center gap-2">
@@ -385,16 +584,21 @@ export default function OrgDashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-        <QuickAction
-          title="Create Referral"
-          description="Refer a youth to another organization"
-          href="/org/referrals/new"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
         <QuickAction
           title="Manage Programs"
           description="View and edit your programs"
           href="/org/programs"
+        />
+        <QuickAction
+          title="Staff Management"
+          description="Manage team members and roles"
+          href="/org/staff"
+        />
+        <QuickAction
+          title="Create Referral"
+          description="Refer a youth to another organization"
+          href="/org/referrals/new"
         />
         <QuickAction
           title="View Reports"

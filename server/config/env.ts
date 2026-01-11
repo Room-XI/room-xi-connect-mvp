@@ -8,6 +8,7 @@ const envSchema = z.object({
   
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   ENCRYPTION_SECRET: z.string().min(32, 'ENCRYPTION_SECRET must be at least 32 characters for AES-256').optional(),
+  SAFETY_PLAN_TOKEN_PEPPER: z.string().optional(),
   
   EMAIL_PROVIDER: z.enum(['sendgrid', 'gmail']).default('gmail'),
   GMAIL_USER: z.string().optional(),
@@ -62,6 +63,11 @@ function validateEnv() {
     // ENCRYPTION_SECRET is required in production for health data encryption
     if (!env.ENCRYPTION_SECRET) {
       throw new Error('ENCRYPTION_SECRET is required in production for health data encryption (must be at least 32 characters)');
+    }
+    
+    // SAFETY_PLAN_TOKEN_PEPPER is required in production for safety plan share token hashing
+    if (!env.SAFETY_PLAN_TOKEN_PEPPER) {
+      throw new Error('SAFETY_PLAN_TOKEN_PEPPER is required in production for safety plan share link security (must be at least 32 characters)');
     }
     
     if (env.EMAIL_PROVIDER === 'gmail') {

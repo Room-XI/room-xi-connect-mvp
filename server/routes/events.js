@@ -575,7 +575,7 @@ router.get('/programs-grouped', async (req, res) => {
   try {
     const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
     const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
-    const isAuthenticated = !!req.session.userId;
+    const isAuthenticated = !!(req.session && req.session.userId);
 
     const now = DateTime.now().setZone('America/Edmonton');
     const currentDate = now.toFormat('yyyy-MM-dd');
@@ -774,7 +774,7 @@ router.get('/programs-grouped', async (req, res) => {
 // Returns all active program events for browsing (used in Programs tab)
 router.get('/program-occurrences', async (req, res) => {
   try {
-    const isAuthenticated = !!req.session.userId;
+    const isAuthenticated = !!(req.session && req.session.userId);
     const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
     const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
 
@@ -839,7 +839,7 @@ router.get('/program-occurrences', async (req, res) => {
 // Requires research participation consent
 router.get('/recommendations', requireResearchConsent(), async (req, res) => {
   try {
-    if (!req.session.userId) {
+    if (!req.session || !req.session.userId) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 

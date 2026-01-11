@@ -1,4 +1,6 @@
 import express from 'express';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { db } from '../db.js';
 import { 
   checkins, 
@@ -7,58 +9,163 @@ import {
   attendance, 
   adminLogs, 
   ximiConversations,
-  users 
+  users,
+  organizations,
+  orgMembers,
+  consentEvents
 } from '../schema.js';
-import { eq, sql, desc, and, gte, lte } from 'drizzle-orm';
+import { eq, sql, desc, and, gte, lte, ilike, or } from 'drizzle-orm';
 import { authLimiter } from '../middleware/rateLimit.js';
 import logger from '../logger.ts';
 
 const router = express.Router();
 
+// Admin credentials from environment (required in production)
+const ACCESS_CODE = process.env.ADMIN_ACCESS_CODE;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+// Log warning if credentials are not set
+if (!ACCESS_CODE || !ADMIN_USERNAME || !ADMIN_PASSWORD) {
+  logger.warn({ context: 'admin-init' }, 'ADMIN_ACCESS_CODE, ADMIN_USERNAME, and ADMIN_PASSWORD must be set for admin portal access');
+}
+
+// Rate limiting for access attempts
+const accessAttempts = new Map();
+
+// ==================== TWO-LAYER AUTH ENDPOINTS ====================
+
+// Verify access code (first layer of auth)
+router.post('/verify-access', async (req, res) => {
+  try {
+    if (!ACCESS_CODE || !ADMIN_USERNAME || !ADMIN_PASSWORD) {
+      return res.status(503).json({ 
+        message: 'Admin portal is not configured. Please set ADMIN_ACCESS_CODE, ADMIN_USERNAME, and ADMIN_PASSWORD environment variables.' 
+      });
+    }
+
+    const { code } = req.body;
+    const ip = req.ip;
+
+    const attempts = accessAttempts.get(ip) || 0;
+    if (attempts > 5) {
+      return res.status(429).json({ 
+        message: 'Too many attempts. Please try again later.' 
+      });
+    }
+
+    if (code !== ACCESS_CODE) {
+      accessAttempts.set(ip, attempts + 1);
+      setTimeout(() => accessAttempts.delete(ip), 300000);
+      return res.status(401).json({ 
+        message: 'Invalid access code' 
+      });
+    }
+
+    accessAttempts.delete(ip);
+    req.session.adminAccessGranted = true;
+    
+    const adminCsrfToken = crypto.randomBytes(32).toString('hex');
+    req.session.adminCsrfToken = adminCsrfToken;
+
+    res.json({ 
+      success: true,
+      csrfToken: adminCsrfToken 
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-verify-access' }, 'Access verification error');
+    res.status(500).json({ 
+      message: 'Access verification failed' 
+    });
+  }
+});
+
+// Get admin CSRF token (only if access granted)
+router.get('/csrf-token', (req, res) => {
+  if (!req.session.adminAccessGranted) {
+    return res.status(401).json({ 
+      message: 'Access not granted' 
+    });
+  }
+
+  if (!req.session.adminCsrfToken) {
+    req.session.adminCsrfToken = crypto.randomBytes(32).toString('hex');
+  }
+
+  res.json({ 
+    csrfToken: req.session.adminCsrfToken 
+  });
+});
+
+// Admin login (requires access granted - second layer of auth)
 router.post('/login', authLimiter, async (req, res) => {
   try {
+    if (!ACCESS_CODE || !ADMIN_USERNAME || !ADMIN_PASSWORD) {
+      return res.status(503).json({ 
+        message: 'Admin portal is not configured.' 
+      });
+    }
+
+    if (!req.session.adminAccessGranted) {
+      return res.status(401).json({ 
+        message: 'Access not granted. Please enter access code first.' 
+      });
+    }
+
+    const csrfToken = req.headers['x-csrf-token'];
+    if (!csrfToken || csrfToken !== req.session.adminCsrfToken) {
+      return res.status(403).json({ 
+        message: 'Invalid or missing CSRF token' 
+      });
+    }
+
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      return res.status(400).json({ message: 'Username and password are required' });
     }
 
-    const adminUsername = process.env.ADMIN_USERNAME;
-    const adminPasswordHash = process.env.ADMIN_PASSWORD;
-
-    if (!adminUsername || !adminPasswordHash) {
-      logger.error({ context: 'admin-login' }, 'Admin credentials not configured in environment variables');
-      return res.status(500).json({ error: 'Admin login not configured' });
+    const isValidUsername = username === ADMIN_USERNAME;
+    let isValidPassword = false;
+    
+    if (ADMIN_PASSWORD && ADMIN_PASSWORD.startsWith('$2')) {
+      isValidPassword = await bcrypt.compare(password, ADMIN_PASSWORD);
+    } else {
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn({ context: 'admin-login' }, 'ADMIN_PASSWORD should be a bcrypt hash in production');
+      }
+      isValidPassword = password === ADMIN_PASSWORD;
     }
-
-    if (username !== adminUsername) {
-      return res.status(401).json({ error: 'Invalid admin credentials' });
-    }
-
-    const bcrypt = await import('bcrypt');
-    const validPassword = await bcrypt.compare(password, adminPasswordHash);
-
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid admin credentials' });
+    
+    if (!isValidUsername || !isValidPassword) {
+      return res.status(401).json({ 
+        message: 'Invalid credentials' 
+      });
     }
 
     req.session.regenerate((err) => {
       if (err) {
-        logger.error({ err, context: 'admin-login-session' }, 'Session regeneration error');
-        return res.status(500).json({ error: 'Session error' });
+        logger.error({ err, context: 'admin-login' }, 'Session regeneration error');
+        return res.status(500).json({ 
+          message: 'Session error' 
+        });
       }
 
       req.session.isAdminSession = true;
+      req.session.adminAccessGranted = true;
       req.session.adminUsername = username;
+      req.session.adminCsrfToken = crypto.randomBytes(32).toString('hex');
 
       req.session.save((saveErr) => {
         if (saveErr) {
           logger.error({ err: saveErr, context: 'admin-login-session-save' }, 'Session save error');
-          return res.status(500).json({ error: 'Session error' });
+          return res.status(500).json({ message: 'Session error' });
         }
 
         res.json({
           success: true,
+          message: 'Admin login successful',
+          csrfToken: req.session.adminCsrfToken,
           admin: {
             username: username,
           }
@@ -67,10 +174,21 @@ router.post('/login', authLimiter, async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'admin-login' }, 'Admin login error');
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      message: 'Login failed' 
+    });
   }
 });
 
+// Check admin status
+router.get('/status', (req, res) => {
+  res.json({
+    isAdmin: req.session.isAdminSession === true,
+    hasAccess: req.session.adminAccessGranted === true
+  });
+});
+
+// Admin logout
 router.post('/logout', async (req, res) => {
   try {
     if (!req.session.isAdminSession) {
@@ -83,7 +201,7 @@ router.post('/logout', async (req, res) => {
         return res.status(500).json({ error: 'Logout failed' });
       }
 
-      res.clearCookie('connect.sid');
+      res.clearCookie('admin.sid');
       res.json({ success: true });
     });
   } catch (error) {
@@ -92,10 +210,206 @@ router.post('/logout', async (req, res) => {
   }
 });
 
+// Middleware to require admin session
+const requireAdminSession = (req, res, next) => {
+  if (!req.session.isAdminSession) {
+    return res.status(401).json({ message: 'Admin session required' });
+  }
+  const csrfToken = req.headers['x-csrf-token'];
+  if (!csrfToken || csrfToken !== req.session.adminCsrfToken) {
+    return res.status(403).json({ message: 'Invalid CSRF token' });
+  }
+  next();
+};
+
+// ==================== ORGANIZATION MANAGEMENT ====================
+
+router.get('/organizations', requireAdminSession, async (req, res) => {
+  try {
+    const orgs = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        description: organizations.description,
+        contactEmail: organizations.contactEmail,
+        website: organizations.website,
+        createdAt: organizations.createdAt,
+        memberCount: sql`(SELECT COUNT(*) FROM org_members WHERE org_id = ${organizations.id})::int`,
+      })
+      .from(organizations)
+      .orderBy(desc(organizations.createdAt));
+
+    res.json({ organizations: orgs });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-list-orgs' }, 'List organizations error');
+    res.status(500).json({ message: 'Failed to list organizations' });
+  }
+});
+
+router.post('/organizations', requireAdminSession, async (req, res) => {
+  try {
+    const { name, description, contactEmail, website } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: 'Organization name is required' });
+    }
+
+    const [org] = await db
+      .insert(organizations)
+      .values({ name, description, contactEmail, website })
+      .returning();
+
+    res.status(201).json({ organization: org });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-create-org' }, 'Create organization error');
+    res.status(500).json({ message: 'Failed to create organization' });
+  }
+});
+
+router.put('/organizations/:id', requireAdminSession, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, contactEmail, website } = req.body;
+
+    const [org] = await db
+      .update(organizations)
+      .set({ name, description, contactEmail, website, updatedAt: new Date() })
+      .where(eq(organizations.id, id))
+      .returning();
+
+    if (!org) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    res.json({ organization: org });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-update-org' }, 'Update organization error');
+    res.status(500).json({ message: 'Failed to update organization' });
+  }
+});
+
+// ==================== USER MANAGEMENT ====================
+
+router.get('/users', requireAdminSession, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+
+    let query = db
+      .select({
+        id: users.id,
+        email: users.email,
+        emailVerified: users.emailVerified,
+        createdAt: users.createdAt,
+        firstName: profiles.firstName,
+        preferredName: profiles.preferredName,
+        age: profiles.age,
+        isAdmin: profiles.isAdmin,
+      })
+      .from(users)
+      .leftJoin(profiles, eq(users.id, profiles.userId));
+
+    if (search) {
+      query = query.where(
+        or(
+          ilike(users.email, `%${search}%`),
+          ilike(profiles.firstName, `%${search}%`),
+          ilike(profiles.preferredName, `%${search}%`)
+        )
+      );
+    }
+
+    const userList = await query
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(users);
+
+    res.json({
+      users: userList,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        pages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-list-users' }, 'List users error');
+    res.status(500).json({ message: 'Failed to list users' });
+  }
+});
+
+router.get('/users/:id', requireAdminSession, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        emailVerified: users.emailVerified,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        firstName: profiles.firstName,
+        preferredName: profiles.preferredName,
+        age: profiles.age,
+        city: profiles.city,
+        isAdmin: profiles.isAdmin,
+        streakCount: profiles.streakCount,
+        lastCheckinDate: profiles.lastCheckinDate,
+      })
+      .from(users)
+      .leftJoin(profiles, eq(users.id, profiles.userId))
+      .where(eq(users.id, id))
+      .limit(1);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-get-user' }, 'Get user error');
+    res.status(500).json({ message: 'Failed to get user' });
+  }
+});
+
+router.put('/users/:id/role', requireAdminSession, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAdmin } = req.body;
+
+    if (typeof isAdmin !== 'boolean') {
+      return res.status(400).json({ message: 'isAdmin must be a boolean' });
+    }
+
+    const [profile] = await db
+      .update(profiles)
+      .set({ isAdmin, updatedAt: new Date() })
+      .where(eq(profiles.userId, id))
+      .returning();
+
+    if (!profile) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    res.json({ success: true, isAdmin: profile.isAdmin });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-update-user-role' }, 'Update user role error');
+    res.status(500).json({ message: 'Failed to update user role' });
+  }
+});
+
+// ==================== AUDIT LOGS ====================
+
 router.get('/audit-logs', async (req, res) => {
   try {
     if (req.session.isAdminSession) {
-      // Admin session - skip user checks
     } else if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     } else {
@@ -170,10 +484,66 @@ router.get('/audit-logs', async (req, res) => {
   }
 });
 
+// Consent audit logs (from consent events table)
+router.get('/consent-audit-logs', requireAdminSession, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = (page - 1) * limit;
+    const actionType = req.query.actionType || null;
+
+    let query = db
+      .select({
+        id: consentEvents.id,
+        userId: consentEvents.userId,
+        action: consentEvents.action,
+        consentType: consentEvents.consentType,
+        timestamp: consentEvents.timestamp,
+        ipAddress: consentEvents.ipAddress,
+        userAgent: consentEvents.userAgent,
+      })
+      .from(consentEvents);
+
+    if (actionType) {
+      query = query.where(eq(consentEvents.action, actionType));
+    }
+
+    const logs = await query
+      .orderBy(desc(consentEvents.timestamp))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count }] = await db
+      .select({ count: sql`count(*)::int` })
+      .from(consentEvents);
+
+    res.json({
+      logs: logs.map(log => ({
+        id: log.id,
+        userId: log.userId,
+        actionType: log.action,
+        description: `${log.action} - ${log.consentType || 'N/A'}`,
+        timestamp: log.timestamp,
+        metadata: { ipAddress: log.ipAddress, userAgent: log.userAgent },
+      })),
+      pagination: {
+        page,
+        limit,
+        total: count,
+        pages: Math.ceil(count / limit),
+      },
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'admin-consent-audit-logs' }, 'Get consent audit logs error');
+    res.status(500).json({ message: 'Failed to get consent audit logs' });
+  }
+});
+
+// ==================== STATS ====================
+
 router.get('/stats', async (req, res) => {
   try {
     if (req.session.isAdminSession) {
-      // Admin session - skip user checks
     } else if (!req.session.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     } else {

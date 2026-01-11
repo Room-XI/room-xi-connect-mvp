@@ -22,13 +22,19 @@ const QRScan = lazy(() => import('./routes/QRScan'));
 const Me = lazy(() => import('./routes/Me'));
 const ProgramDetail = lazy(() => import('./routes/ProgramDetail'));
 const Settings = lazy(() => import('./routes/Settings'));
-const Admin = lazy(() => import('./routes/Admin'));
+const AdminLayout = lazy(() => import('./routes/admin/AdminLayout'));
+const AdminOverview = lazy(() => import('./routes/admin/Overview'));
+const AdminOrganizations = lazy(() => import('./routes/admin/Organizations'));
+const AdminUsers = lazy(() => import('./routes/admin/Users'));
+const AdminAuditLogs = lazy(() => import('./routes/admin/AuditLogs'));
+const AdminCompliance = lazy(() => import('./routes/admin/Compliance'));
 const NotFound = lazy(() => import('./routes/NotFound'));
 const Login = lazy(() => import('./routes/auth/Login'));
 const Register = lazy(() => import('./routes/auth/Register'));
 const Signup = lazy(() => import('./routes/auth/Signup'));
 const Reset = lazy(() => import('./routes/auth/Reset'));
 const UpdatePassword = lazy(() => import('./routes/auth/UpdatePassword'));
+const VerifyEmail = lazy(() => import('./routes/auth/VerifyEmail'));
 const SafetyProfile = lazy(() => import('./routes/SafetyProfile'));
 const SafetyResources = lazy(() => import('./routes/SafetyResources'));
 const SafetyPlan = lazy(() => import('./routes/SafetyPlan'));
@@ -42,6 +48,7 @@ const VerifyConsent = lazy(() => import('./routes/VerifyConsent'));
 const GuardianVerify = lazy(() => import('./routes/GuardianVerify'));
 const OrgDashboard = lazy(() => import('./routes/org/Dashboard'));
 const ProgramManagement = lazy(() => import('./routes/org/ProgramManagement'));
+const StaffManagement = lazy(() => import('./routes/org/StaffManagement'));
 const TransparencyDashboard = lazy(() => import('./components/TransparencyDashboard').then(m => ({ default: m.TransparencyDashboard })));
 const PrivacyCenter = lazy(() => import('./components/PrivacyCenter').then(m => ({ default: m.PrivacyCenter })));
 const Achievements = lazy(() => import('./components/Achievements').then(m => ({ default: m.Achievements })));
@@ -128,8 +135,18 @@ export const router = createBrowserRouter([
       { path: 'safety-plan', element: withProtectedSuspense(SafetyPlan) },
       { path: 'safety-plan/share/:token', element: withSuspense(SafetyPlanShare) },
       { path: 'settings', element: withProtectedSuspense(Settings) },
-      { path: 'admin', element: withAdminSuspense(Admin) },
       { path: 'control/entrance', element: withSuspense(AdminPortal) },
+      {
+        path: 'admin',
+        element: withAdminSuspense(AdminLayout),
+        children: [
+          { index: true, element: withSuspense(AdminOverview) },
+          { path: 'organizations', element: withSuspense(AdminOrganizations) },
+          { path: 'users', element: withSuspense(AdminUsers) },
+          { path: 'audit-logs', element: withSuspense(AdminAuditLogs) },
+          { path: 'compliance', element: withSuspense(AdminCompliance) },
+        ]
+      },
       { path: 'about', element: withSuspense(About) },
       { path: 'terms-of-service', element: withSuspense(TermsOfService) },
       { path: 'privacy-policy', element: withSuspense(PrivacyPolicy) },
@@ -144,6 +161,7 @@ export const router = createBrowserRouter([
       { path: 'parent/accept/:token', element: withSuspense(ParentAcceptInvite) },
       { path: 'org/dashboard', element: withOrgSuspense(OrgDashboard) },
       { path: 'org/programs', element: withOrgSuspense(ProgramManagement) },
+      { path: 'org/staff', element: withOrgSuspense(StaffManagement) },
       { path: 'kpi-dashboard', element: withProtectedSuspense(KPIDashboard) },
       { path: 'transparency', element: withProtectedSuspense(TransparencyDashboard) },
       { path: 'privacy-center', element: withProtectedSuspense(PrivacyCenter) },
@@ -153,6 +171,7 @@ export const router = createBrowserRouter([
       { path: 'auth/register', element: withSuspense(Register) },
       { path: 'auth/signup', element: withSuspense(Signup) },
       { path: 'auth/reset', element: withSuspense(Reset) },
+      { path: 'auth/verify-email/:token', element: withSuspense(VerifyEmail) },
       { path: 'auth/update-password', element: withSuspense(UpdatePassword) },
       { path: 'demos/youth', element: withSuspense(DemoYouth) },
       { path: 'demos/organization', element: withSuspense(DemoOrganization) },

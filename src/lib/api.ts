@@ -69,29 +69,54 @@ export interface MoodTrendData {
   wellnessScores: Record<string, number>;
 }
 
-// CSRF token cache
-let csrfToken: string | null = null;
+// CSRF token cache per namespace (user, parent, admin have separate sessions)
+type CsrfNamespace = 'user' | 'parent' | 'admin';
+const csrfTokens: Record<CsrfNamespace, string | null> = {
+  user: null,
+  parent: null,
+  admin: null,
+};
+
+// CSRF token endpoint paths per namespace
+const csrfEndpoints: Record<CsrfNamespace, string> = {
+  user: '/auth/csrf-token',
+  parent: '/parent-auth/csrf-token',
+  admin: '/admin/csrf-token',
+};
 
 /**
- * Fetch CSRF token from server
+ * Determine the namespace for a given API endpoint
  */
-async function getCsrfToken(): Promise<string> {
-  if (csrfToken) {
-    return csrfToken;
+function getNamespaceForEndpoint(endpoint: string): CsrfNamespace {
+  if (endpoint.startsWith('/admin/') || endpoint.startsWith('/admin')) {
+    return 'admin';
+  }
+  if (endpoint.startsWith('/parent-auth/') || endpoint.startsWith('/parent-portal/')) {
+    return 'parent';
+  }
+  return 'user';
+}
+
+/**
+ * Fetch CSRF token from server for a specific namespace
+ */
+async function getCsrfToken(namespace: CsrfNamespace = 'user'): Promise<string> {
+  if (csrfTokens[namespace]) {
+    return csrfTokens[namespace]!;
   }
 
   try {
-    const response = await fetch(`${API_BASE}/auth/csrf-token`, {
+    const response = await fetch(`${API_BASE}${csrfEndpoints[namespace]}`, {
       credentials: 'include',
     });
     
     if (response.ok) {
       const data = await response.json();
-      csrfToken = data.csrfToken;
-      return csrfToken || '';
+      csrfTokens[namespace] = data.csrfToken;
+      return csrfTokens[namespace] || '';
     }
   } catch (error) {
-    console.error('Failed to fetch CSRF token:', error);
+    console.error(`Failed to fetch CSRF token for ${namespace}:`, error);
   }
   
   return '';
@@ -102,15 +127,18 @@ async function fetchApi<T = any>(
   options?: RequestInit,
   isRetry: boolean = false
 ): Promise<ApiResponse<T>> {
+  // Determine namespace for this endpoint
+  const namespace = getNamespaceForEndpoint(endpoint);
+  
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options?.headers as Record<string, string>),
     };
 
-    // Add CSRF token for state-changing requests
+    // Add CSRF token for state-changing requests (using namespace-specific token)
     if (options?.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
-      const token = await getCsrfToken();
+      const token = await getCsrfToken(namespace);
       if (token) {
         headers['X-CSRF-Token'] = token;
       }
@@ -137,9 +165,9 @@ async function fetchApi<T = any>(
     }
 
     if (!response.ok) {
-      // Handle invalid CSRF token with retry
+      // Handle invalid CSRF token with retry (clear only the specific namespace token)
       if (response.status === 403 && data?.error === 'Invalid CSRF token' && !isRetry) {
-        csrfToken = null;
+        csrfTokens[namespace] = null;
         // Retry once with fresh token
         return fetchApi<T>(endpoint, options, true);
       }
@@ -180,10 +208,17 @@ async function fetchApi<T = any>(
 }
 
 /**
- * Clear CSRF token (call on logout)
+ * Clear CSRF token for a specific namespace (call on logout)
+ * If no namespace provided, clears all tokens
  */
-export function clearCsrfToken() {
-  csrfToken = null;
+export function clearCsrfToken(namespace?: CsrfNamespace) {
+  if (namespace) {
+    csrfTokens[namespace] = null;
+  } else {
+    csrfTokens.user = null;
+    csrfTokens.parent = null;
+    csrfTokens.admin = null;
+  }
 }
 
 export const api = {
@@ -200,7 +235,7 @@ export const api = {
         body: JSON.stringify({ email, password }),
       }),
     logout: async () => {
-      clearCsrfToken();
+      clearCsrfToken('user');
       return fetchApi('/auth/logout', {
         method: 'POST',
       });
@@ -559,6 +594,18 @@ export const api = {
     exportAttendance: (timeRange: '7days' | '30days' | 'all' = '30days') =>
       fetchApi(`/org/attendance/export?timeRange=${timeRange}`),
     getPrograms: () => fetchApi('/org/programs'),
+    createProgram: (data: any) =>
+      fetchApi('/org/programs', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateProgram: (id: string, data: any) =>
+      fetchApi(`/org/programs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteProgram: (id: string) =>
+      fetchApi(`/org/programs/${id}`, { method: 'DELETE' }),
     getProgramAttendance: (programId: string) =>
       fetchApi(`/org/programs/${programId}/attendance`),
     recordProgramAttendance: (programId: string, data: { xidId: string; method: string; site?: string; timestamp?: string }) =>
@@ -566,21 +613,41 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    getProgramOutcomes: (programId: string) =>
-      fetchApi(`/org/programs/${programId}/outcomes`),
+    getProgramOutcomes: (programId: string, timeRange?: '7days' | '30days' | '90days' | 'all') =>
+      fetchApi(`/org/programs/${programId}/outcomes${timeRange ? `?timeRange=${timeRange}` : ''}`),
+    getMembers: () => fetchApi('/org/members'),
+    inviteMember: (email: string, role: 'admin' | 'facilitator' | 'viewer') =>
+      fetchApi('/org/members/invite', {
+        method: 'POST',
+        body: JSON.stringify({ email, role }),
+      }),
+    updateMemberRole: (userId: string, role: 'admin' | 'facilitator' | 'viewer') =>
+      fetchApi(`/org/members/${userId}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role }),
+      }),
+    removeMember: (userId: string) =>
+      fetchApi(`/org/members/${userId}`, { method: 'DELETE' }),
   },
 
   // Admin Dashboard
   admin: {
+    verifyAccess: (code: string) =>
+      fetchApi('/admin/verify-access', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
     login: (username: string, password: string) =>
       fetchApi('/admin/login', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       }),
-    logout: () =>
-      fetchApi('/admin/logout', {
+    logout: async () => {
+      clearCsrfToken('admin');
+      return fetchApi('/admin/logout', {
         method: 'POST',
-      }),
+      });
+    },
     getStats: () => fetchApi('/admin/stats'),
     getAuditLogs: (params?: { 
       page?: number; 
@@ -599,6 +666,59 @@ export const api = {
       const query = queryParams.toString();
       return fetchApi(`/admin/audit-logs${query ? `?${query}` : ''}`);
     },
+    getConsentAuditLogs: (params?: {
+      page?: number;
+      limit?: number;
+      actionType?: string;
+    }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.set('page', params.page.toString());
+      if (params?.limit) queryParams.set('limit', params.limit.toString());
+      if (params?.actionType) queryParams.set('actionType', params.actionType);
+      
+      const query = queryParams.toString();
+      return fetchApi(`/admin/consent-audit-logs${query ? `?${query}` : ''}`);
+    },
+    getOrganizations: () => fetchApi('/admin/organizations'),
+    createOrganization: (data: {
+      name: string;
+      description?: string;
+      contactEmail?: string;
+      website?: string;
+    }) =>
+      fetchApi('/admin/organizations', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateOrganization: (id: string, data: {
+      name?: string;
+      description?: string;
+      contactEmail?: string;
+      website?: string;
+    }) =>
+      fetchApi(`/admin/organizations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    getUsers: (params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+    }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.set('page', params.page.toString());
+      if (params?.limit) queryParams.set('limit', params.limit.toString());
+      if (params?.search) queryParams.set('search', params.search);
+      
+      const query = queryParams.toString();
+      return fetchApi(`/admin/users${query ? `?${query}` : ''}`);
+    },
+    getUser: (id: string) => fetchApi(`/admin/users/${id}`),
+    updateUserRole: (id: string, data: { isAdmin: boolean }) =>
+      fetchApi(`/admin/users/${id}/role`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
   },
 
   breach: {
@@ -692,10 +812,12 @@ export const api = {
       }),
     getPendingInvites: () => fetchApi('/parent-auth/invites/pending'),
     getStatus: () => fetchApi('/parent-auth/status'),
-    logout: () =>
-      fetchApi('/parent-auth/logout', {
+    logout: async () => {
+      clearCsrfToken('parent');
+      return fetchApi('/parent-auth/logout', {
         method: 'POST',
-      }),
+      });
+    },
     login: (email: string, password: string) =>
       fetchApi<{ success: boolean; parentId: string; email: string; name: string | null }>('/parent-auth/login', {
         method: 'POST',
@@ -732,12 +854,44 @@ export const api = {
         : fetchApi('/parent-portal/youth-data'),
     getPrivacySummary: (youthId: string) =>
       fetchApi(`/parent-portal/privacy-summary/${youthId}`),
+    getConsentHistory: (youthId: string) =>
+      fetchApi<{ success: boolean; history: any[] }>(`/parent-portal/consent-history/${youthId}`),
+    withdrawConsent: (youthId: string, reason?: string) =>
+      fetchApi(`/parent-portal/consent/withdraw/${youthId}`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
     getStatus: () =>
       fetchApi<{ success: boolean; parent: any; youth: any[]; totalYouth: number }>('/parent-portal/status'),
     getMoodSummary: () =>
       fetchApi<{ success: boolean; summaries: any[]; hiddenCount: number; message: string | null }>('/parent-portal/mood-summary'),
     getAlerts: () =>
       fetchApi<{ success: boolean; alerts: any[]; totalAlerts: number; hasUrgent: boolean }>('/parent-portal/alerts'),
+    getEmergencyContacts: (youthId: string) =>
+      fetchApi<{ success: boolean; contacts: any[] }>(`/parent-portal/emergency-contacts/${youthId}`),
+    addEmergencyContact: (youthId: string, data: { name: string; phone: string; relationship: string; email?: string; isPrimary?: boolean; notes?: string }) =>
+      fetchApi(`/parent-portal/emergency-contacts/${youthId}`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateEmergencyContact: (id: string, data: { name?: string; phone?: string; relationship?: string; email?: string; isPrimary?: boolean; notes?: string }) =>
+      fetchApi(`/parent-portal/emergency-contacts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    deleteEmergencyContact: (id: string) =>
+      fetchApi(`/parent-portal/emergency-contacts/${id}`, {
+        method: 'DELETE',
+      }),
+    exportData: (youthId: string) => {
+      window.open(`${API_BASE}/parent-portal/data/export/${youthId}`, '_blank');
+      return Promise.resolve({ data: { success: true } });
+    },
+    requestDataDeletion: (youthId: string, reason?: string) =>
+      fetchApi(`/parent-portal/data/delete/${youthId}`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
   },
 
   // Consent Auto
@@ -848,6 +1002,133 @@ export const api = {
         method: 'DELETE',
       }),
     viewShared: (token: string) => fetchApi(`/safety-plan/view/${token}`),
+  },
+
+  // Health Status (system health checks)
+  health: {
+    status: () => fetchApi('/health'),
+    live: () => fetchApi('/health/live'),
+    ready: () => fetchApi('/health/ready'),
+  },
+
+  // Health Profile (user health data)
+  healthProfile: {
+    get: () => fetchApi('/health-profile'),
+    update: (data: any) =>
+      fetchApi('/health-profile', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: () => fetchApi('/health-profile', { method: 'DELETE' }),
+  },
+
+  // Achievements (gamification and milestone tracking)
+  achievements: {
+    list: () => fetchApi('/achievements'),
+    check: () =>
+      fetchApi('/achievements/check', {
+        method: 'POST',
+      }),
+  },
+
+  // Analytics (user data analytics and trends)
+  analytics: {
+    getMoodByDay: () => fetchApi('/analytics/mood-by-day'),
+    getCrisisByDay: () => fetchApi('/analytics/crisis-by-day'),
+    getProgramEngagement: () => fetchApi('/analytics/program-engagement'),
+    getAiTransparency: () => fetchApi('/analytics/ai-transparency'),
+  },
+
+  // Mood Drop (quick mood logging)
+  moodDrop: {
+    create: (moodLevel: number, tags?: string[]) =>
+      fetchApi('/mood-drop', {
+        method: 'POST',
+        body: JSON.stringify({ moodLevel, tags }),
+      }),
+    getPublic: () => fetchApi('/mood-drop/public'),
+    getMine: () => fetchApi('/mood-drop/my'),
+  },
+
+  // Orb (visual wellness indicator)
+  orb: {
+    getSummary: () => fetchApi('/orb/summary'),
+  },
+
+  // Orb Snapshots (historical orb states)
+  orbSnapshots: {
+    capture: () =>
+      fetchApi('/orb-snapshots/capture', {
+        method: 'POST',
+      }),
+    getRecent: () => fetchApi('/orb-snapshots/recent'),
+    getByDate: (date: string) => fetchApi(`/orb-snapshots/${date}`),
+  },
+
+  // Transparency Dashboard (aggregated anonymized data)
+  transparency: {
+    getStats: () => fetchApi('/transparency/stats'),
+    getMoodDistribution: () => fetchApi('/transparency/mood-distribution'),
+    getOptInRates: () => fetchApi('/transparency/opt-in-rates'),
+  },
+
+  // Skip Token (guest access tokens)
+  skipToken: {
+    generate: (guestId?: string) =>
+      fetchApi('/skip-token', {
+        method: 'POST',
+        body: JSON.stringify({ guestId }),
+      }),
+    verify: (token: string) =>
+      fetchApi('/skip-token/verify', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+  },
+
+  // Geographic Data (location aggregation with privacy)
+  geo: {
+    aggregate: (data: any) =>
+      fetchApi('/geo/aggregate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getHexForLocation: (lat: number, lng: number) =>
+      fetchApi('/geo/hex-for-location', {
+        method: 'POST',
+        body: JSON.stringify({ lat, lng }),
+      }),
+  },
+
+  // KPI Tracking (key performance indicators)
+  kpi: {
+    getDailyCheckins: () => fetchApi('/kpi/daily-checkins'),
+    getStreakCompletion: () => fetchApi('/kpi/streak-completion'),
+    getExploreUnlocks: () => fetchApi('/kpi/explore-unlocks'),
+    getOptInRates: () => fetchApi('/kpi/opt-in-rates'),
+    getStaffUsage: () => fetchApi('/kpi/staff-usage'),
+    getReferralConversion: () => fetchApi('/kpi/referral-conversion'),
+    getCrisisRouting: () => fetchApi('/kpi/crisis-routing'),
+    getSummary: () => fetchApi('/kpi/summary'),
+    export: () => fetchApi('/kpi/export'),
+  },
+
+  // Partner Consent (external API partner consent delegation)
+  partnerConsent: {
+    getHealth: () => fetchApi('/partner-consent/health'),
+    getScopes: () => fetchApi('/partner-consent/scopes'),
+    requestConsent: (partnerName: string, requestedScopes: string[]) =>
+      fetchApi('/partner-consent/consent-request', {
+        method: 'POST',
+        body: JSON.stringify({ partnerName, requestedScopes }),
+      }),
+    getConsentStatus: (delegationId: string) =>
+      fetchApi(`/partner-consent/consent-status/${delegationId}`),
+    withdrawConsent: (delegationId: string) =>
+      fetchApi(`/partner-consent/consent-withdraw/${delegationId}`, {
+        method: 'POST',
+      }),
+    getMyConsents: () => fetchApi('/partner-consent/my-consents'),
   },
 };
 

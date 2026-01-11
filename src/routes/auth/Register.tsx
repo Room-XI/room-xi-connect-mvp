@@ -17,18 +17,18 @@ export default function Register() {
 
   const validatePassword = (password: string) => {
     if (password.length < 12) {
-      return 'Password must be at least 12 characters long';
+      return 'Password must be at least 12 characters';
     }
-    if (!/(?=.*[a-z])/.test(password)) {
-      return 'Password must contain at least one lowercase letter';
-    }
-    if (!/(?=.*[A-Z])/.test(password)) {
+    if (!/[A-Z]/.test(password)) {
       return 'Password must contain at least one uppercase letter';
     }
-    if (!/(?=.*\d)/.test(password)) {
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!/[0-9]/.test(password)) {
       return 'Password must contain at least one number';
     }
-    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
       return 'Password must contain at least one special character';
     }
     return null;
@@ -236,28 +236,44 @@ export default function Register() {
             {password && (
               <div className="text-xs space-y-1">
                 <div className={`flex items-center space-x-2 ${
-                  password.length >= 8 ? 'text-teal' : 'text-textSecondaryLight'
+                  password.length >= 12 ? 'text-teal' : 'text-textSecondaryLight'
                 }`}>
                   <div className={`w-1 h-1 rounded-full ${
-                    password.length >= 8 ? 'bg-teal' : 'bg-textSecondaryLight'
+                    password.length >= 12 ? 'bg-teal' : 'bg-textSecondaryLight'
                   }`} />
-                  <span>At least 8 characters</span>
+                  <span>At least 12 characters</span>
                 </div>
                 <div className={`flex items-center space-x-2 ${
-                  /(?=.*[a-z])(?=.*[A-Z])/.test(password) ? 'text-teal' : 'text-textSecondaryLight'
+                  /[A-Z]/.test(password) ? 'text-teal' : 'text-textSecondaryLight'
                 }`}>
                   <div className={`w-1 h-1 rounded-full ${
-                    /(?=.*[a-z])(?=.*[A-Z])/.test(password) ? 'bg-teal' : 'bg-textSecondaryLight'
+                    /[A-Z]/.test(password) ? 'bg-teal' : 'bg-textSecondaryLight'
                   }`} />
-                  <span>Upper and lowercase letters</span>
+                  <span>At least one uppercase letter</span>
                 </div>
                 <div className={`flex items-center space-x-2 ${
-                  /(?=.*\d)/.test(password) ? 'text-teal' : 'text-textSecondaryLight'
+                  /[a-z]/.test(password) ? 'text-teal' : 'text-textSecondaryLight'
                 }`}>
                   <div className={`w-1 h-1 rounded-full ${
-                    /(?=.*\d)/.test(password) ? 'bg-teal' : 'bg-textSecondaryLight'
+                    /[a-z]/.test(password) ? 'bg-teal' : 'bg-textSecondaryLight'
+                  }`} />
+                  <span>At least one lowercase letter</span>
+                </div>
+                <div className={`flex items-center space-x-2 ${
+                  /[0-9]/.test(password) ? 'text-teal' : 'text-textSecondaryLight'
+                }`}>
+                  <div className={`w-1 h-1 rounded-full ${
+                    /[0-9]/.test(password) ? 'bg-teal' : 'bg-textSecondaryLight'
                   }`} />
                   <span>At least one number</span>
+                </div>
+                <div className={`flex items-center space-x-2 ${
+                  /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? 'text-teal' : 'text-textSecondaryLight'
+                }`}>
+                  <div className={`w-1 h-1 rounded-full ${
+                    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? 'bg-teal' : 'bg-textSecondaryLight'
+                  }`} />
+                  <span>At least one special character</span>
                 </div>
               </div>
             )}

@@ -320,20 +320,28 @@ export default function Signup() {
               />
               <input
                 type="password"
-                placeholder="Password (min 12 characters)"
+                placeholder="Password (12+ chars, upper/lower/number/special)"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              {formData.password && formData.password.length > 0 && formData.password.length < 12 && (
-                <p className="text-xs text-amber-600">Password must be at least 12 characters</p>
-              )}
-              {formData.password && formData.password.length >= 12 && (
+              {formData.password && formData.password.length > 0 && (
                 <div className="text-xs space-y-1">
-                  {!/[A-Z]/.test(formData.password) && <p className="text-amber-600">Include an uppercase letter</p>}
-                  {!/[a-z]/.test(formData.password) && <p className="text-amber-600">Include a lowercase letter</p>}
-                  {!/[0-9]/.test(formData.password) && <p className="text-amber-600">Include a number</p>}
-                  {!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) && <p className="text-amber-600">Include a special character (!@#$%^&*...)</p>}
+                  <p className={formData.password.length >= 12 ? 'text-green-600' : 'text-amber-600'}>
+                    {formData.password.length >= 12 ? '✓' : '○'} At least 12 characters
+                  </p>
+                  <p className={/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-amber-600'}>
+                    {/[A-Z]/.test(formData.password) ? '✓' : '○'} One uppercase letter
+                  </p>
+                  <p className={/[a-z]/.test(formData.password) ? 'text-green-600' : 'text-amber-600'}>
+                    {/[a-z]/.test(formData.password) ? '✓' : '○'} One lowercase letter
+                  </p>
+                  <p className={/[0-9]/.test(formData.password) ? 'text-green-600' : 'text-amber-600'}>
+                    {/[0-9]/.test(formData.password) ? '✓' : '○'} One number
+                  </p>
+                  <p className={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) ? 'text-green-600' : 'text-amber-600'}>
+                    {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) ? '✓' : '○'} One special character
+                  </p>
                 </div>
               )}
             </div>

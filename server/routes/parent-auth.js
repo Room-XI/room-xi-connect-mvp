@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 import logger from "../logger.ts";
 import { sendParentPasswordResetEmail } from "../services/email.js";
 import { getPublicUrl } from "../utils/publicUrl.ts";
+import { generateCsrfToken } from "../middleware/security.ts";
 
 const router = express.Router();
 const SALT_ROUNDS = 12;
@@ -31,6 +32,11 @@ const requireParent = (req, res, next) => {
   }
   next();
 };
+
+router.get("/csrf-token", (req, res) => {
+  const token = generateCsrfToken(req);
+  res.json({ csrfToken: token });
+});
 
 router.post("/invite", requireAuth, async (req, res) => {
   try {
@@ -183,7 +189,7 @@ router.post("/logout", requireParent, async (req, res) => {
         return res.status(500).json({ error: "Logout failed" });
       }
 
-      res.clearCookie("connect.sid");
+      res.clearCookie("parent.sid");
       res.json({ success: true });
     });
   } catch (error) {
