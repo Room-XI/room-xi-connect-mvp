@@ -7,6 +7,24 @@ import logger from '../logger.ts';
 
 const router = express.Router();
 
+// XID_PEPPER is required in production for secure hashing
+const XID_PEPPER = process.env.XID_PEPPER;
+
+// Fail fast in production if XID_PEPPER is missing
+if (process.env.NODE_ENV === 'production' && !XID_PEPPER) {
+  throw new Error('FATAL: XID_PEPPER environment variable is required in production');
+}
+
+// Get pepper with fallback only in development
+const getXidPepper = () => {
+  if (XID_PEPPER) return XID_PEPPER;
+  if (process.env.NODE_ENV !== 'production') {
+    logger.warn({ context: 'xid' }, 'Using default XID_PEPPER in development - DO NOT USE IN PRODUCTION');
+    return 'default-pepper-DEVELOPMENT-ONLY';
+  }
+  throw new Error('XID_PEPPER is required');
+};
+
 // Get or create XID for user
 router.post('/create', async (req, res) => {
   try {
@@ -36,7 +54,7 @@ router.post('/create', async (req, res) => {
     const salt = crypto.randomBytes(32).toString('base64');
 
     // Generate XID hash using HMAC with environment pepper
-    const pepper = process.env.XID_PEPPER || 'default-pepper-change-in-production';
+    const pepper = getXidPepper();
     const xidHash = crypto
       .createHmac('sha256', pepper)
       .update(req.session.userId + salt)

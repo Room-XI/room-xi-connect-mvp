@@ -24,8 +24,12 @@ const transporter = nodemailer.createTransport({
 
 /**
  * Send email using the configured provider (SendGrid or Gmail)
+ * @param {Object} options - Email options
+ * @param {string} options.to - Recipient email address
+ * @param {string} options.subject - Email subject
+ * @param {string} options.html - Email HTML body
  */
-async function sendEmail({ to, subject, html }) {
+export async function sendEmail({ to, subject, html }) {
   const fromEmail = process.env.EMAIL_FROM || process.env.GMAIL_USER;
   const fromName = process.env.EMAIL_FROM_NAME || 'Room XI Connect';
   

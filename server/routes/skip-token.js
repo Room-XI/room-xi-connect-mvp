@@ -9,8 +9,23 @@ import logger from '../logger.ts';
 
 const router = express.Router();
 
-// Use a default secret if JWT_SECRET not set (for development only)
-const JWT_SECRET = process.env.JWT_SECRET || 'room-xi-dev-secret-change-in-production';
+// JWT_SECRET is required in production, optional fallback only in development
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// Fail fast in production if JWT_SECRET is missing
+if (process.env.NODE_ENV === 'production' && !JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required in production');
+}
+
+// Use fallback only in development/test
+const getJwtSecret = () => {
+  if (JWT_SECRET) return JWT_SECRET;
+  if (process.env.NODE_ENV !== 'production') {
+    logger.warn({ context: 'skip-token' }, 'Using default JWT_SECRET in development - DO NOT USE IN PRODUCTION');
+    return 'room-xi-dev-secret-DEVELOPMENT-ONLY';
+  }
+  throw new Error('JWT_SECRET is required');
+};
 
 /**
  * POST /api/skip-token
@@ -31,7 +46,7 @@ router.post('/', async (req, res) => {
     };
 
     // Sign token with 10-minute expiry
-    const token = jwt.sign(payload, JWT_SECRET, {
+    const token = jwt.sign(payload, getJwtSecret(), {
       expiresIn: '10m',
       issuer: 'room-xi-connect',
       audience: 'guest-users'
@@ -63,7 +78,7 @@ router.post('/verify', async (req, res) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET, {
+    const decoded = jwt.verify(token, getJwtSecret(), {
       issuer: 'room-xi-connect',
       audience: 'guest-users'
     });

@@ -1,13 +1,23 @@
 import type { Request, Response, NextFunction } from 'express';
+import logger from '../logger.ts';
 
 const ALLOWED_ORIGINS_ENV = process.env.ALLOWED_ORIGINS || '';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-const allowlist = ALLOWED_ORIGINS_ENV
+// Parse allowed origins from environment
+const allowlist: string[] = ALLOWED_ORIGINS_ENV
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
-if (allowlist.length === 0) {
+// In production, ALLOWED_ORIGINS must be explicitly set
+if (IS_PRODUCTION && allowlist.length === 0) {
+  logger.error({ context: 'cors' }, 'FATAL: ALLOWED_ORIGINS environment variable is required in production');
+  throw new Error('ALLOWED_ORIGINS environment variable is required in production. Set to your deployed domain(s), comma-separated.');
+}
+
+// Only add localhost defaults in development/test
+if (!IS_PRODUCTION && allowlist.length === 0) {
   allowlist.push('capacitor://localhost');
   allowlist.push('http://localhost');
   allowlist.push('http://localhost:5000');
@@ -24,32 +34,58 @@ if (allowlist.length === 0) {
     });
   }
   
-  // Allow all replit.dev subdomains in development
-  if (process.env.NODE_ENV !== 'production') {
-    allowlist.push('https://*.replit.dev');
+  logger.info({ context: 'cors', origins: allowlist }, 'Using default localhost origins in development');
+}
+
+/**
+ * Check if an origin matches a wildcard domain pattern
+ * Properly handles *.replit.dev matching sub.replit.dev, foo.bar.replit.dev, etc.
+ */
+function matchesWildcard(origin: string, pattern: string): boolean {
+  // Pattern like "https://*.replit.dev"
+  if (!pattern.includes('*.')) return false;
+  
+  try {
+    const originUrl = new URL(origin);
+    const patternParts = pattern.replace('https://*.', '').replace('http://*.', '');
+    
+    // Extract the base domain from pattern (e.g., "replit.dev" from "https://*.replit.dev")
+    const baseDomain = patternParts;
+    
+    // Check if the origin hostname ends with the base domain
+    // e.g., "foo.replit.dev".endsWith("replit.dev") = true
+    // e.g., "foo.bar.replit.dev".endsWith("replit.dev") = true
+    if (originUrl.hostname === baseDomain || originUrl.hostname.endsWith('.' + baseDomain)) {
+      // Also verify the protocol matches
+      const patternProtocol = pattern.startsWith('https://') ? 'https:' : 'http:';
+      return originUrl.protocol === patternProtocol;
+    }
+    
+    return false;
+  } catch {
+    return false;
   }
 }
 
 export function corsMiddleware(req: Request, res: Response, next: NextFunction) {
   const origin = req.headers.origin;
   
+  // Always set Vary: Origin when origin-based decisions are made
+  res.setHeader('Vary', 'Origin');
+  
   if (!origin) {
     return next();
   }
   
   const isAllowed = allowlist.some(allowed => {
+    // Exact match
     if (allowed === origin) return true;
-    // Handle prefix wildcard: "https://*" matches "https://example.com"
-    if (allowed.endsWith('*')) {
-      const prefix = allowed.slice(0, -1);
-      return origin.startsWith(prefix);
-    }
+    
     // Handle subdomain wildcard: "https://*.domain.com" matches "https://sub.domain.com"
     if (allowed.includes('*.')) {
-      const wildcardPattern = allowed.replace('*.', '([a-zA-Z0-9-]+\\.)+');
-      const regex = new RegExp(`^${wildcardPattern.replace(/\./g, '\\.')}$`);
-      return regex.test(origin);
+      return matchesWildcard(origin, allowed);
     }
+    
     return false;
   });
   
@@ -65,6 +101,7 @@ export function corsMiddleware(req: Request, res: Response, next: NextFunction) 
     if (isAllowed) {
       return res.status(204).end();
     } else {
+      logger.warn({ context: 'cors', origin, allowlist }, 'CORS request blocked - origin not in allowlist');
       return res.status(403).json({ error: 'CORS_NOT_ALLOWED', message: 'Origin not allowed' });
     }
   }

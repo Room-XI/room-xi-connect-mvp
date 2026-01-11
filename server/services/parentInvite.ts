@@ -3,35 +3,16 @@ import { db } from "../db.js";
 import { parentInvites, parents, parentLinks } from "../schema.extras.js";
 import { profiles } from "../schema.js";
 import { eq, and } from "drizzle-orm";
-import nodemailer from "nodemailer";
 import logger from "../logger.ts";
-
-const BASE_URL = process.env.REPLIT_DEV_DOMAIN 
-  ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-  : process.env.PUBLIC_BASE_URL || "http://localhost:5000";
+import { getPublicUrl } from "../utils/publicUrl.ts";
+import { sendEmail } from "./email.js";
 
 async function sendParentInviteEmail(toEmail: string, token: string, youthName?: string) {
-  const link = `${BASE_URL}/parent/accept/${token}`;
-  const aboutLink = `${BASE_URL}/about`;
-  const privacyLink = `${BASE_URL}/privacy-policy`;
-  const crisisLink = `${BASE_URL}/safety-resources`;
-  
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPassword = process.env.GMAIL_APP_PASSWORD;
-
-  if (!gmailUser || !gmailPassword) {
-    logger.error({ context: 'parent-invite-email' }, 'Gmail credentials not configured. Email not sent.');
-    logger.info({ context: 'parent-invite-dev', email: '[REDACTED]' }, 'Parent invite link generated in dev mode');
-    return;
-  }
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: gmailUser,
-      pass: gmailPassword,
-    },
-  });
+  const baseUrl = getPublicUrl();
+  const link = `${baseUrl}/parent/accept/${token}`;
+  const aboutLink = `${baseUrl}/about`;
+  const privacyLink = `${baseUrl}/privacy-policy`;
+  const crisisLink = `${baseUrl}/safety-resources`;
 
   const youthText = youthName ? `${youthName}` : "A youth";
   const subject = `${youthText} invited you to Room XI Connect`;
@@ -110,8 +91,7 @@ async function sendParentInviteEmail(toEmail: string, token: string, youthName?:
   `;
 
   try {
-    await transporter.sendMail({
-      from: `"Room XI Connect" <${gmailUser}>`,
+    await sendEmail({
       to: toEmail,
       subject,
       html,
