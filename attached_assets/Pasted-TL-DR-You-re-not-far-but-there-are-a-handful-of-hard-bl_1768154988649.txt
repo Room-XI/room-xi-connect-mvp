@@ -1,0 +1,288 @@
+TL;DR
+
+You’re not far, but there are a handful of hard blockers + consistency gaps that will keep biting you until fixed: password policy mismatch, admin split-brain, org API/UI mismatches, missing parent invite accept UX, stubbed youth consent verify + export, and session/csrf separation across portals.
+
+Below is a complete, prioritized task list to finish all portals + all UIs, and to make them work together cleanly with minimal future surprises.
+
+⸻
+
+P0 — Fix-now blockers (breaks flows / causes security or UX failures)
+
+1) Unify password policy to “min 8 chars” everywhere (you asked for this)
+
+Problem: youth register enforces 12 + complex + special char (backend) vs UI expects different rules.
+Do:
+	•	Backend: change server/schemas/auth.ts registerSchema.password to .min(8) and remove regex constraints (or match your chosen simplified policy).
+	•	Backend: update /api/auth/update-password validation in server/routes/auth.js to match (currently requires upper/lower/number).
+	•	Frontend: update src/routes/auth/Register.tsx and src/routes/auth/Signup.tsx password validators to min 8 only.
+	•	Tests: update server/__tests__/*security* and server/__tests__/auth.test.ts that assume 12+ complexity.
+Acceptance: any password ≥ 8 chars works consistently for register/reset/update (youth + parent already min 8).
+
+⸻
+
+2) Remove admin “split brain” (/api/admin vs /api/admin-portal)
+
+Problem: you have two separate admin auth systems + sessions:
+	•	UI /admin uses api.admin.* → /api/admin/*
+	•	UI /control/entrance uses /api/admin-portal/*
+Do (recommended):
+	•	Pick ONE: keep /api/admin/* as canonical.
+	•	Update src/routes/AdminPortal.tsx to call /api/admin/login (and drop /api/admin-portal/* from UI).
+	•	Delete or deprecate server/routes/adminPortal.js (or merge its endpoints into server/routes/admin.js).
+Acceptance: one admin login, one admin session, one CSRF strategy, one set of endpoints.
+
+⸻
+
+3) Fix route protection: Admin/Org should NOT use youth RequireAuth
+
+Problem: router.tsx protects /admin, /control/entrance, /org/* using the youth-centric guard (RequireAuth) which includes guardian verification logic.
+Do:
+	•	Add:
+	•	RequireAdminSession (checks /api/admin/stats or a /api/admin/status)
+	•	RequireOrgAccess (checks /api/org/programs or create /api/org/status)
+	•	RequireParentSession for /parent/*
+	•	Update src/router.tsx to use the correct guard per portal.
+Acceptance: admin/org/parent never show youth guardian gating screens; they redirect to their own login.
+
+⸻
+
+4) Parent invite acceptance is not implemented in the UI (email link dead-ends)
+
+Problem: invite email links to /parent/accept/:token, but that route renders ParentPortal and never calls the accept endpoint.
+Do:
+	•	Add src/routes/parent/AcceptInvite.tsx:
+	•	on mount: redirect browser to /api/parent-auth/accept/:token (server sets session then redirects to /parent)
+	•	show loading + error fallback
+	•	Change router to map /parent/accept/:token → AcceptInvite component.
+Acceptance: clicking invite email reliably lands parent into /parent logged in.
+
+⸻
+
+5) Org portal endpoint mismatches + inconsistent API usage
+
+Problems:
+	•	src/routes/org/Dashboard.tsx calls /api/org/outcomes/:programId but backend is /api/org/programs/:id/outcomes.
+	•	src/lib/api.ts defines org endpoints that don’t exist:
+	•	uses /org/export but backend is /org/attendance/export
+	•	uses /org/programs/:id/analytics but backend provides attendance/outcomes endpoints
+	•	Org dashboard uses raw fetch, not api.ts.
+Do:
+	•	Fix org outcomes call: use /api/org/programs/${programId}/outcomes.
+	•	Update src/lib/api.ts api.org.* to match backend:
+	•	getDashboardStats → /org/dashboard/stats
+	•	exportAttendance → /org/attendance/export
+	•	getPrograms → /org/programs
+	•	getProgramOutcomes → /org/programs/:id/outcomes
+	•	getProgramAttendance + postAttendance
+	•	Refactor src/routes/org/Dashboard.tsx to use api.org.* only.
+Acceptance: org dashboard loads stats, programs, outcomes without 404s; no duplicated API logic.
+
+⸻
+
+6) Youth “Verify Consent” page is a stub (still points to Supabase Functions)
+
+Problem: src/routes/VerifyConsent.tsx posts to /functions/v1/verify-consent and fakes consent details.
+Do:
+	•	Replace with real API calls:
+	•	load details from GET /api/consent/view/:token (exists)
+	•	submit action via POST /api/consent/agree/:token
+	•	show confirmation via GET /api/consent/confirm/:token if desired
+Acceptance: consent verification works end-to-end without fake data or Supabase URLs.
+
+⸻
+
+7) Youth “Export Data” button is currently non-functional
+
+Problem: settings UI shows Export Data but doesn’t call anything. Backend has GET /api/consent/export-data.
+Do:
+	•	Wire Settings → call /api/consent/export-data and download file (or open in new tab).
+	•	Add success/error UI.
+Acceptance: clicking Export produces a download reliably.
+
+⸻
+
+P1 — Finish each portal “fully” (UI + feature coverage)
+
+A) Youth app completion tasks
+	1.	Email verification UX
+
+	•	Backend /api/auth/verify-email/:token returns JSON.
+	•	Add a frontend route/page (ex: /auth/verify-email/:token) that calls the endpoint and shows friendly success/fail + “Go to login”.
+	•	Update verification email link generator to point to that UI route (or make backend redirect to UI).
+
+	2.	Polish account lifecycle
+
+	•	Ensure logout clears cached CSRF token (already does in api.auth.logout) and returns to correct screen.
+
+	3.	Remove/repair dead/demo routes (optional but recommended)
+
+	•	/demos/*, any dead links should be hidden or removed in production builds.
+
+⸻
+
+B) Parent portal completion tasks (you have backend coverage; UI is thin)
+
+Add UI sections/tabs in src/routes/ParentPortal.tsx:
+	1.	Consent & Privacy
+
+	•	Use:
+	•	GET /api/parent-portal/privacy-summary/:youthId
+	•	GET /api/parent-portal/consent-history/:youthId
+	•	POST /api/parent-portal/consent/withdraw/:youthId
+
+	2.	Emergency Contacts
+
+	•	CRUD UI using:
+	•	GET/POST /api/parent-portal/emergency-contacts/:youthId
+	•	PUT/DELETE /api/parent-portal/emergency-contacts/:id
+
+	3.	Export & Delete
+
+	•	Add UI actions:
+	•	GET /api/parent-portal/data/export/:youthId
+	•	POST /api/parent-portal/data/delete/:youthId
+
+	4.	Alerts
+
+	•	Surface GET /api/parent-portal/alerts
+
+	5.	Fix redirects
+
+	•	In ParentPortal.tsx: logout and “no linked youth” should go to /parent/login (not /).
+
+Acceptance: parent can onboard, view allowed data, manage consent, emergency contacts, export/delete, and handle alerts.
+
+⸻
+
+C) Organization portal completion tasks
+	1.	Org-scoped program management (important)
+
+	•	src/routes/org/ProgramManagement.tsx currently uses api.programs.* (global programs CRUD).
+	•	Backend /api/programs allows org admins to create programs but may allow passing any orgId.
+Do:
+	•	Enforce org scoping:
+	•	either add /api/org/programs CRUD (recommended), OR harden /api/programs to force orgId ∈ user orgs.
+	•	Update ProgramManagement to use api.org.programs.*.
+
+	2.	Attendance operations UI
+
+	•	Add program attendance view + manual entry UI:
+	•	GET /api/org/programs/:id/attendance
+	•	POST /api/org/programs/:id/attendance
+	•	Add export UI:
+	•	GET /api/org/attendance/export
+
+	3.	Outcomes UI
+
+	•	Already can fetch outcomes; add:
+	•	trends charts
+	•	time range filters
+
+	4.	Staff management (if required for “full portal”)
+
+	•	Build org members UI (list members, invite/remove, role changes).
+	•	If backend doesn’t support invites yet, add endpoints + email invite flow.
+
+Acceptance: org users can manage programs safely within their org, run attendance, export reports, view outcomes, manage staff.
+
+⸻
+
+D) Admin portal completion tasks
+
+Right now admin UI is stats + audit logs only.
+	1.	Admin navigation + sections
+
+	•	Layout: Overview / Organizations / Users / Audit Logs / Breach / Config
+
+	2.	Organizations management
+
+	•	Create/list/edit/deactivate orgs (backend exists in adminPortal.js; merge into /api/admin).
+
+	3.	User management
+
+	•	List/search users, view user details, deactivate, reset, assign org memberships.
+
+	4.	RBAC definition
+
+	•	Decide:
+	•	env-admin (superadmin) only, OR
+	•	also allow profiles.isAdmin as “global staff admin”
+	•	Implement consistently in middleware and UI.
+
+	5.	Breach/compliance UI
+
+	•	You already have breach route + runbook; add UI to list/create breach events if operationally required.
+
+Acceptance: admin can manage orgs/users/memberships, audit, and compliance from a cohesive portal.
+
+⸻
+
+P2 — “Works together perfectly” hardening (configuration + security + QA)
+
+1) Session separation to prevent portal collisions (highly recommended)
+
+Problem: parent/youth/admin all share connect.sid cookie right now.
+Do:
+	•	Use separate session cookies per portal:
+	•	user.sid (youth + staff)
+	•	parent.sid
+	•	admin.sid
+	•	Mount separate express-session instances by route prefix (/api/parent-*, /api/admin*, /api/*).
+Acceptance: logging into parent doesn’t interfere with youth; admin sessions are isolated.
+
+2) CSRF strategy consistent across portals
+
+Problem: API client caches one CSRF token; admin-portal had its own CSRF.
+Do:
+	•	Standardize CSRF endpoints per session namespace:
+	•	/api/csrf-token (user)
+	•	/api/parent-auth/csrf-token (parent) if needed
+	•	/api/admin/csrf-token (admin) if needed
+	•	In src/lib/api.ts, cache tokens per namespace (not one global variable).
+Acceptance: no random 403s when switching between portals; write endpoints always protected.
+
+3) Endpoint audit: remove dead endpoints or build missing UI
+
+Do:
+	•	Inventory all /api/* endpoints and mark:
+	•	used by UI
+	•	unused but needed
+	•	unused and safe to delete
+	•	Align src/lib/api.ts to reality (no phantom endpoints).
+Acceptance: zero 404s from UI during normal use.
+
+4) Deployment & environment configuration checklist (make it “no surprises”)
+
+Do:
+	•	Ensure .env.example includes everything required:
+	•	SESSION_SECRET
+	•	ADMIN_USERNAME / ADMIN_PASSWORD (and access code if kept)
+	•	email provider keys + base public URL used in email links
+	•	push notifications keys (if enabled)
+	•	Validate getPublicUrl() is correct in prod (invite/verify links).
+	•	Confirm cookie settings for prod domain (SameSite/secure) work with your hosting.
+Acceptance: fresh deploy supports login + emails + portals without manual patching.
+
+5) Expand E2E tests to cover all portals end-to-end
+
+Add Playwright flows:
+	•	Youth: register → verify email → login → check-in → export data
+	•	Parent: invite → accept → set password → login → withdraw consent → export
+	•	Org: staff login → dashboard → create program → attendance → export
+	•	Admin: admin login → create org → assign staff → view audit log
+Acceptance: CI can catch regressions before launch.
+
+⸻
+
+“One-page build order” (recommended)
+	1.	P0.1–P0.7 (password + admin unify + guards + parent accept + org mismatch + consent verify + export)
+	2.	Session/CSRF separation (P2.1–P2.2)
+	3.	Parent portal full UI (P1.B)
+	4.	Org portal full UI + org-scoped CRUD (P1.C)
+	5.	Admin management UI (P1.D)
+	6.	E2E coverage + deploy checklist validation (P2.5 + P2.4)
+
+⸻
+
+a. Want me to turn this into a GitHub-style checklist with exact file paths + “done when” acceptance criteria per task (ready to paste into Jira/ClickUp)?
+b. Want me to propose the cleanest implementation for separate session cookies per portal (exact Express wiring + minimal churn)?
