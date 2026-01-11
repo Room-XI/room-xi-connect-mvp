@@ -170,6 +170,7 @@ async function createServer() {
   const { default: partnerConsentRoutes } = await import('./routes/partner-consent.js');
   const { default: healthProfileRoutes } = await import('./routes/healthProfile.ts');
   const { default: safetyPlanRoutes } = await import('./routes/safety-plan.js');
+  const { default: breachRoutes } = await import('./routes/breach.ts');
 
   // Serve static files for server-rendered pages (consent forms, etc.)
   // These are served without CSP script-src restrictions since they're external files
@@ -184,7 +185,11 @@ async function createServer() {
 
   // ==================== ADMIN PORTAL ROUTES (admin.sid session) ====================
   // Apply admin session middleware and inactivity tracking to /api/admin routes
-  app.use('/api/admin', adminSession, createInactivityMiddleware('admin.sid'), validateCsrfToken, writeLimiter, adminRoutes);
+  // CSRF validation is applied per-route in admin.js (verify-access and login are exempt since they establish the session)
+  app.use('/api/admin', adminSession, createInactivityMiddleware('admin.sid'), writeLimiter, adminRoutes);
+  
+  // Breach routes (admin namespace) - PIPA compliance breach management
+  app.use('/api/admin/breach', adminSession, createInactivityMiddleware('admin.sid'), writeLimiter, breachRoutes);
   
   // Privacy-safe analytics (admin only) - uses admin session
   app.use('/api/analytics', adminSession, createInactivityMiddleware('admin.sid'), adminLimiter, analyticsRoutes);

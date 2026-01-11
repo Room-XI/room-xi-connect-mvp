@@ -13,17 +13,27 @@ import logger from '../logger.ts';
 const router = express.Router();
 
 /**
+ * Middleware to require admin session (for use under /api/admin/breach)
+ */
+const requireAdminSession = (req: Request, res: Response, next: any) => {
+  if (!req.session?.isAdminSession) {
+    return res.status(401).json({ error: 'Admin session required' });
+  }
+  // CSRF validation for mutating operations
+  if (req.method !== 'GET') {
+    const csrfToken = req.headers['x-csrf-token'];
+    if (!csrfToken || csrfToken !== req.session.adminCsrfToken) {
+      return res.status(403).json({ error: 'Invalid CSRF token' });
+    }
+  }
+  next();
+};
+
+/**
  * Get all breach events (Admin only)
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAdminSession, async (req: Request, res: Response) => {
   try {
-    if (!req.session?.userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    if (!req.session?.isAdmin) {
-      return res.status(403).json({ error: 'Admin privileges required' });
-    }
     
     const breaches = await db.select()
       .from(breachEvents)
@@ -39,16 +49,8 @@ router.get('/', async (req: Request, res: Response) => {
 /**
  * Create breach event (Admin only)
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireAdminSession, async (req: Request, res: Response) => {
   try {
-    if (!req.session?.userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    if (!req.session?.isAdmin) {
-      return res.status(403).json({ error: 'Admin privileges required' });
-    }
-    
     const {
       breachType,
       severity,
@@ -117,16 +119,8 @@ router.post('/', async (req: Request, res: Response) => {
 /**
  * Update breach event (Admin only)
  */
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', requireAdminSession, async (req: Request, res: Response) => {
   try {
-    if (!req.session?.userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    if (!req.session?.isAdmin) {
-      return res.status(403).json({ error: 'Admin privileges required' });
-    }
-    
     const { id } = req.params;
     const updates = req.body;
     

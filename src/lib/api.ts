@@ -722,7 +722,7 @@ export const api = {
   },
 
   breach: {
-    list: () => fetchApi('/breach'),
+    list: () => fetchApi('/admin/breach'),
     create: (data: {
       breachType: string;
       severity: string;
@@ -730,7 +730,7 @@ export const api = {
       affectedUserCount?: number;
       oipcNotificationRequired?: boolean;
     }) =>
-      fetchApi('/breach', {
+      fetchApi('/admin/breach', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -740,7 +740,7 @@ export const api = {
       remediationSteps?: string;
       remediationCompletedAt?: string;
     }) =>
-      fetchApi(`/breach/${id}`, {
+      fetchApi(`/admin/breach/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),

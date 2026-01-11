@@ -56,7 +56,8 @@ export async function sendVerificationEmail(userId: string, email: string): Prom
     .where(eq(users.id, userId));
 
   const baseUrl = getPublicUrl();
-  const verificationLink = `${baseUrl}/api/auth/verify-email/${token}`;
+  // Link to the React UI route, which then calls the API endpoint
+  const verificationLink = `${baseUrl}/auth/verify-email/${token}`;
 
   const html = `
     <!DOCTYPE html>
