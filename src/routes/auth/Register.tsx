@@ -16,8 +16,8 @@ export default function Register() {
   const [success, setSuccess] = useState(false);
 
   const validatePassword = (password: string) => {
-    if (password.length < 8) {
-      return 'Password must be at least 8 characters long';
+    if (password.length < 12) {
+      return 'Password must be at least 12 characters long';
     }
     if (!/(?=.*[a-z])/.test(password)) {
       return 'Password must contain at least one lowercase letter';
@@ -27,6 +27,9 @@ export default function Register() {
     }
     if (!/(?=.*\d)/.test(password)) {
       return 'Password must contain at least one number';
+    }
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
+      return 'Password must contain at least one special character';
     }
     return null;
   };

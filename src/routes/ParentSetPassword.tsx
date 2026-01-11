@@ -51,8 +51,28 @@ export default function ParentSetPassword() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (password.length < 12) {
+      setError('Password must be at least 12 characters');
+      return;
+    }
+
+    if (!/(?=.*[a-z])/.test(password)) {
+      setError('Password must contain at least one lowercase letter');
+      return;
+    }
+
+    if (!/(?=.*[A-Z])/.test(password)) {
+      setError('Password must contain at least one uppercase letter');
+      return;
+    }
+
+    if (!/(?=.*\d)/.test(password)) {
+      setError('Password must contain at least one number');
+      return;
+    }
+
+    if (!/(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/.test(password)) {
+      setError('Password must contain at least one special character');
       return;
     }
 

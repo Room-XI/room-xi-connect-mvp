@@ -51,6 +51,15 @@ const verifyOrgAccess = async (req, res, next) => {
   }
 };
 
+router.get('/status', verifyOrgAccess, (req, res) => {
+  res.json({
+    authenticated: true,
+    hasOrgAccess: true,
+    orgIds: req.userOrgIds,
+    isGlobalAdmin: req.isGlobalAdmin || false
+  });
+});
+
 router.get('/dashboard/stats', verifyOrgAccess, async (req, res) => {
   try {
     const edmontonNow = DateTime.now().setZone('America/Edmonton');

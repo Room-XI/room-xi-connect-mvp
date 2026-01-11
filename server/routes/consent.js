@@ -21,6 +21,208 @@ import logger from '../logger.ts';
 
 const router = express.Router();
 
+// ========== JSON API ENDPOINTS FOR REACT COMPONENT ==========
+
+/**
+ * GET /consent/details/:token
+ * Get consent details as JSON for React component
+ */
+router.get('/details/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    const [verification] = await db.select({
+      id: guardianVerifications.id,
+      userId: guardianVerifications.userId,
+      status: guardianVerifications.status,
+      expiresAt: guardianVerifications.expiresAt,
+      guardianContactValue: guardianVerifications.guardianContactValue,
+      guardianName: guardianVerifications.guardianName,
+      guardianRole: guardianVerifications.guardianRole,
+    })
+    .from(guardianVerifications)
+    .where(eq(guardianVerifications.initialConsentToken, token))
+    .limit(1);
+
+    if (!verification) {
+      return res.status(404).json({ error: 'Invalid or expired consent request' });
+    }
+
+    if (new Date() > new Date(verification.expiresAt)) {
+      return res.status(410).json({ error: 'This consent request has expired' });
+    }
+
+    if (verification.status === 'confirmed') {
+      return res.status(400).json({ error: 'Consent has already been confirmed', alreadyConfirmed: true });
+    }
+
+    if (verification.status !== 'pending_initial_consent' && verification.status !== 'pending_confirmation') {
+      return res.status(400).json({ error: `Consent cannot be processed. Current status: ${verification.status}` });
+    }
+
+    const [profile] = await db.select({
+      firstName: profiles.firstName,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, verification.userId))
+    .limit(1);
+
+    const youthName = profile?.firstName || 'Your child';
+
+    const formNonce = crypto.randomBytes(32).toString('hex');
+    await db.update(guardianVerifications)
+      .set({ formNonce })
+      .where(eq(guardianVerifications.id, verification.id));
+    
+    res.json({
+      youthName,
+      guardianName: verification.guardianName,
+      guardianRole: verification.guardianRole,
+      status: verification.status,
+      expiresAt: verification.expiresAt,
+      scope: 'guardian_consent',
+      formNonce,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'consent-details' }, 'Consent details error');
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+/**
+ * POST /consent/submit/:token
+ * Handle consent action (grant/deny) from React component
+ */
+router.post('/submit/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { action, guardian_dob, _nonce } = req.body;
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    if (!action || !['grant', 'deny'].includes(action)) {
+      return res.status(400).json({ ok: false, error: 'Invalid action. Must be "grant" or "deny".' });
+    }
+
+    if (!guardian_dob) {
+      return res.status(400).json({ ok: false, error: 'Guardian date of birth is required.' });
+    }
+
+    const age = Math.floor(
+      (new Date().getTime() - new Date(guardian_dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+    );
+
+    if (age < 18) {
+      return res.status(400).json({ ok: false, error: 'You must be 18 or older to provide consent.' });
+    }
+
+    const [verification] = await db.select()
+    .from(guardianVerifications)
+    .where(eq(guardianVerifications.initialConsentToken, token))
+    .limit(1);
+
+    if (!verification) {
+      return res.status(404).json({ ok: false, error: 'Invalid or expired consent request.' });
+    }
+
+    if (!_nonce || !verification.formNonce || _nonce !== verification.formNonce) {
+      return res.status(403).json({ ok: false, error: 'Form expired. Please reload the page and try again.' });
+    }
+
+    if (verification.status === 'confirmed') {
+      return res.status(400).json({ ok: false, error: 'Consent has already been confirmed.' });
+    }
+
+    if (verification.status !== 'pending_initial_consent') {
+      return res.status(400).json({ ok: false, error: `Consent cannot be processed. Current status: ${verification.status}` });
+    }
+
+    if (new Date() > new Date(verification.expiresAt)) {
+      return res.status(410).json({ ok: false, error: 'This consent request has expired.' });
+    }
+
+    if (action === 'deny') {
+      await db.update(guardianVerifications)
+        .set({
+          status: 'denied',
+          formNonce: null,
+          initialConsentAt: new Date(),
+          initialConsentIp: ipAddress,
+          initialConsentUserAgent: userAgent,
+        })
+        .where(eq(guardianVerifications.id, verification.id));
+
+      await db.insert(consentEvents).values({
+        userId: verification.userId,
+        actor: 'guardian',
+        eventType: 'guardian_consent_denied',
+        consentKey: 'guardian_verification',
+        newValue: false,
+        ipAddress,
+        userAgent,
+        notes: `Guardian denied consent. Version: ${CONSENT_NOTICE_VERSION}`,
+      });
+
+      return res.json({ ok: true, message: 'Your response has been recorded. Consent was denied.' });
+    }
+
+    const confirmationToken = crypto.randomBytes(32).toString('hex');
+
+    await db.update(guardianVerifications)
+      .set({
+        status: 'pending_confirmation',
+        formNonce: null,
+        initialConsentAt: new Date(),
+        initialConsentIp: ipAddress,
+        initialConsentUserAgent: userAgent,
+        confirmationToken: confirmationToken,
+        confirmationSentAt: new Date(),
+      })
+      .where(eq(guardianVerifications.id, verification.id));
+
+    const [profile] = await db.select({
+      firstName: profiles.firstName,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, verification.userId))
+    .limit(1);
+
+    const youthName = profile?.firstName || 'Your child';
+    const baseUrl = getPublicUrl(req);
+    const confirmationLink = `${baseUrl}/api/consent/confirm/${confirmationToken}`;
+
+    try {
+      await sendConfirmationEmail({
+        guardianEmail: verification.guardianContactValue,
+        youthName,
+        confirmationLink,
+      });
+    } catch (emailError) {
+      logger.error({ err: emailError, context: 'consent-submit-email' }, 'Failed to send confirmation email');
+    }
+
+    await db.insert(consentEvents).values({
+      userId: verification.userId,
+      actor: 'guardian',
+      eventType: 'guardian_consent_initial',
+      consentKey: 'guardian_verification',
+      newValue: true,
+      ipAddress,
+      userAgent,
+      notes: `Guardian initial consent granted. Confirmation email sent. Version: ${CONSENT_NOTICE_VERSION}`,
+    });
+
+    res.json({ 
+      ok: true, 
+      message: 'Thank you! A confirmation email has been sent. Please check your inbox and click the confirmation link to complete the consent process.',
+      pendingConfirmation: true,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'consent-submit' }, 'Consent submit error');
+    res.status(500).json({ ok: false, error: 'Something went wrong. Please try again.' });
+  }
+});
+
 // ========== TWO-STEP EMAIL PLUS CONSENT FLOW ==========
 
 /**

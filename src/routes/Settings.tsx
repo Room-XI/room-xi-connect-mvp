@@ -31,6 +31,8 @@ export default function Settings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [communityName, setCommunityName] = useState<string | null>(null);
   const [wardName, setWardName] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -119,6 +121,47 @@ export default function Settings() {
     } catch (error) {
       console.error('Unexpected error updating Ximi consent:', error);
       alert('Failed to update Ximi settings. Please try again.');
+    }
+  };
+
+  const handleExportData = async () => {
+    setExportLoading(true);
+    setExportError(null);
+    
+    try {
+      const response = await fetch('/api/consent/export-data', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setExportError('Please sign in to export your data.');
+          return;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        setExportError(errorData.error || 'Failed to export data. Please try again.');
+        return;
+      }
+      
+      const data = await response.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `room-xi-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      setExportError('Failed to export data. Please check your connection and try again.');
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -376,20 +419,46 @@ export default function Settings() {
               <ChevronRight className="w-5 h-5 text-textSecondaryLight" />
             </button>
 
-            <button className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-sage/5 transition-colors">
+            <button 
+              onClick={handleExportData}
+              disabled={exportLoading}
+              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-sage/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-coral/10 rounded-lg flex items-center justify-center">
-                  <Download className="w-5 h-5 text-coral" />
+                  {exportLoading ? (
+                    <div className="w-5 h-5 border-2 border-coral border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Download className="w-5 h-5 text-coral" />
+                  )}
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-deepSage">Export Data</p>
+                  <p className="font-medium text-deepSage">
+                    {exportLoading ? 'Exporting...' : 'Export Data'}
+                  </p>
                   <p className="text-sm text-textSecondaryLight">
-                    Download your information
+                    {exportLoading ? 'Preparing your data...' : 'Download your information'}
                   </p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-textSecondaryLight" />
             </button>
+            
+            {exportError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 bg-coral/10 border border-coral/20 rounded-lg"
+              >
+                <p className="text-sm text-coral">{exportError}</p>
+                <button 
+                  onClick={() => setExportError(null)}
+                  className="text-xs text-coral/70 hover:text-coral mt-1 underline"
+                >
+                  Dismiss
+                </button>
+              </motion.div>
+            )}
           </div>
         </motion.div>
 

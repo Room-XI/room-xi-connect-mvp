@@ -554,12 +554,20 @@ export const api = {
 
   // Organization Dashboard
   org: {
-    getDashboardStats: (timeRange: '7days' | '30days' | 'all' = '30days') =>
-      fetchApi(`/org/dashboard?timeRange=${timeRange}`),
-    exportReport: (timeRange: '7days' | '30days' | 'all' = '30days') =>
-      fetchApi(`/org/export?timeRange=${timeRange}`),
-    getProgramAnalytics: (programId: string) =>
-      fetchApi(`/org/programs/${programId}/analytics`),
+    getDashboardStats: () => fetchApi('/org/dashboard/stats'),
+    getDashboard: () => fetchApi('/org/dashboard'),
+    exportAttendance: (timeRange: '7days' | '30days' | 'all' = '30days') =>
+      fetchApi(`/org/attendance/export?timeRange=${timeRange}`),
+    getPrograms: () => fetchApi('/org/programs'),
+    getProgramAttendance: (programId: string) =>
+      fetchApi(`/org/programs/${programId}/attendance`),
+    recordProgramAttendance: (programId: string, data: { xidId: string; method: string; site?: string; timestamp?: string }) =>
+      fetchApi(`/org/programs/${programId}/attendance`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getProgramOutcomes: (programId: string) =>
+      fetchApi(`/org/programs/${programId}/outcomes`),
   },
 
   // Admin Dashboard

@@ -112,7 +112,7 @@ export default function OrgDashboard() {
   async function loadOutcomes(programId: string) {
     try {
       setOutcomesLoading(true);
-      const response = await fetch(`/api/org/outcomes/${programId}`, {
+      const response = await fetch(`/api/org/programs/${programId}/outcomes`, {
         credentials: 'include'
       });
 

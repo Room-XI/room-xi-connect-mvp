@@ -3,6 +3,9 @@ import { lazy, Suspense } from 'react';
 import App from './shell/App';
 import ErrorBoundary from './ui/ErrorBoundary';
 import RequireAuth from './components/RequireAuth';
+import RequireAdminSession from './components/RequireAdminSession';
+import RequireOrgAccess from './components/RequireOrgAccess';
+import RequireParentSession from './components/RequireParentSession';
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -48,6 +51,7 @@ const ParentPortal = lazy(() => import('./routes/ParentPortal'));
 const ParentLogin = lazy(() => import('./routes/ParentLogin'));
 const ParentSetPassword = lazy(() => import('./routes/ParentSetPassword'));
 const ParentResetPassword = lazy(() => import('./routes/ParentResetPassword'));
+const ParentAcceptInvite = lazy(() => import('./routes/ParentAcceptInvite'));
 const AdminPortal = lazy(() => import('./routes/AdminPortal'));
 const DemoYouth = lazy(() => import('./routes/demos/Youth'));
 const DemoOrganization = lazy(() => import('./routes/demos/Organization'));
@@ -61,13 +65,46 @@ const withSuspense = (Component: React.LazyExoticComponent<any>) => {
   );
 };
 
-// Wrapper for protected routes that require authentication
+// Wrapper for protected routes that require youth authentication
 const withProtectedSuspense = (Component: React.LazyExoticComponent<any>) => {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <RequireAuth>
         <Component />
       </RequireAuth>
+    </Suspense>
+  );
+};
+
+// Wrapper for admin portal routes
+const withAdminSuspense = (Component: React.LazyExoticComponent<any>) => {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <RequireAdminSession>
+        <Component />
+      </RequireAdminSession>
+    </Suspense>
+  );
+};
+
+// Wrapper for organization portal routes
+const withOrgSuspense = (Component: React.LazyExoticComponent<any>) => {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <RequireOrgAccess>
+        <Component />
+      </RequireOrgAccess>
+    </Suspense>
+  );
+};
+
+// Wrapper for parent portal routes
+const withParentSuspense = (Component: React.LazyExoticComponent<any>) => {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <RequireParentSession>
+        <Component />
+      </RequireParentSession>
     </Suspense>
   );
 };
@@ -91,8 +128,8 @@ export const router = createBrowserRouter([
       { path: 'safety-plan', element: withProtectedSuspense(SafetyPlan) },
       { path: 'safety-plan/share/:token', element: withSuspense(SafetyPlanShare) },
       { path: 'settings', element: withProtectedSuspense(Settings) },
-      { path: 'admin', element: withProtectedSuspense(Admin) },
-      { path: 'control/entrance', element: withProtectedSuspense(AdminPortal) },
+      { path: 'admin', element: withAdminSuspense(Admin) },
+      { path: 'control/entrance', element: withSuspense(AdminPortal) },
       { path: 'about', element: withSuspense(About) },
       { path: 'terms-of-service', element: withSuspense(TermsOfService) },
       { path: 'privacy-policy', element: withSuspense(PrivacyPolicy) },
@@ -100,13 +137,13 @@ export const router = createBrowserRouter([
       { path: 'saved-programs', element: withProtectedSuspense(SavedPrograms) },
       { path: 'verify-consent/:token', element: withSuspense(VerifyConsent) },
       { path: 'guardian/verify/:token', element: withSuspense(GuardianVerify) },
-      { path: 'parent', element: withSuspense(ParentPortal) },
+      { path: 'parent', element: withParentSuspense(ParentPortal) },
       { path: 'parent/login', element: withSuspense(ParentLogin) },
       { path: 'parent/set-password/:token', element: withSuspense(ParentSetPassword) },
       { path: 'parent/reset-password/:token', element: withSuspense(ParentResetPassword) },
-      { path: 'parent/accept/:token', element: withSuspense(ParentPortal) },
-      { path: 'org/dashboard', element: withProtectedSuspense(OrgDashboard) },
-      { path: 'org/programs', element: withProtectedSuspense(ProgramManagement) },
+      { path: 'parent/accept/:token', element: withSuspense(ParentAcceptInvite) },
+      { path: 'org/dashboard', element: withOrgSuspense(OrgDashboard) },
+      { path: 'org/programs', element: withOrgSuspense(ProgramManagement) },
       { path: 'kpi-dashboard', element: withProtectedSuspense(KPIDashboard) },
       { path: 'transparency', element: withProtectedSuspense(TransparencyDashboard) },
       { path: 'privacy-center', element: withProtectedSuspense(PrivacyCenter) },
