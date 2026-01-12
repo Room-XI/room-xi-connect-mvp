@@ -567,6 +567,85 @@ Room XI Connect collects wellness data (mood check-ins) that may be considered h
 
 ---
 
+## 11. Cross-Border Data Processing (PIPEDA Compliance)
+
+### 11.1 AI Companion (Ximi) Data Processing
+
+The Ximi AI companion utilizes OpenAI's GPT models for natural language processing. This involves cross-border data transfer subject to PIPEDA requirements.
+
+| Aspect | Implementation |
+|--------|----------------|
+| Processing Location | United States (OpenAI infrastructure) |
+| Data Transferred | Sanitized conversation text only |
+| Consent Requirement | Explicit opt-in with cross-border disclosure |
+| Consent Language | Clear disclosure that data is processed in the US |
+
+### 11.2 User Consent for Cross-Border Transfer
+
+**Consent Modal Requirements (XimiConsentModal.tsx):**
+- Explicit disclosure that conversations are processed by OpenAI servers in the United States
+- Checkbox acknowledgement required before enabling AI features
+- Users can revoke consent at any time via Settings
+
+**Consent Language Example:**
+> "Your conversations with Ximi are processed using AI technology operated by OpenAI, with servers located in the United States. By enabling Ximi, you consent to your conversation data being transferred to and processed in the United States."
+
+### 11.3 Data Minimization for AI Processing
+
+To minimize cross-border data exposure, the following PII sanitization occurs before any data is sent to AI services:
+
+| PII Type | Detection Pattern | Replacement |
+|----------|-------------------|-------------|
+| Email Addresses | Standard email regex | `[EMAIL]` |
+| Phone Numbers | North American formats | `[PHONE]` |
+| URLs | http/https links | `[URL]` |
+| Postal Codes | Canadian format (A1A 1A1) | `[ADDRESS]` |
+
+**Implementation (server/services/ximi.ts):**
+```typescript
+export function sanitizePrompt(text: string): SanitizationResult {
+  // Redacts PII before sending to AI
+  // Logs redaction counts for audit
+  // Returns sanitized text and metadata
+}
+```
+
+### 11.4 Crisis Detection (Local Processing)
+
+**Critical Safety Feature:** Crisis detection is performed locally on the server BEFORE any data sanitization or AI processing. This ensures:
+
+1. Crisis keywords are never redacted and can be detected
+2. No delay in crisis response due to AI processing
+3. Crisis detection does not depend on third-party services
+4. User safety is never compromised by privacy measures
+
+```typescript
+// Crisis detection runs on ORIGINAL message (server/services/ximi.ts)
+const crisisResult = detectCrisis(userMessage);
+if (crisisResult.detected) {
+  // Handle crisis immediately - no AI call needed
+}
+```
+
+### 11.5 Third-Party Processor Agreements
+
+| Processor | Purpose | Agreement Type | Data Residency |
+|-----------|---------|----------------|----------------|
+| OpenAI | Ximi AI conversations | DPA (via Replit proxy) | United States |
+| Neon | Database storage | Standard ToS | Canada (AWS ca-central-1) |
+| SendGrid/Gmail | Transactional email | Standard ToS | United States |
+
+### 11.6 User Rights for Cross-Border Data
+
+| Right | Implementation |
+|-------|----------------|
+| Consent Withdrawal | Settings page toggle to disable Ximi |
+| Data Deletion | Request via privacy controls |
+| Access | View conversation history |
+| Portability | Data export available |
+
+---
+
 ## Appendix A: Security Headers
 
 ```javascript

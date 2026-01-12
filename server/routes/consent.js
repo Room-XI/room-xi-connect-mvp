@@ -18,9 +18,25 @@ import { consentNoticeV1, CONSENT_NOTICE_VERSION, confirmationSuccessPage, pendi
 import { getPublicUrl } from '../utils/publicUrl.ts';
 import { debugLog } from '../utils/logger.ts';
 import logger from '../logger.ts';
-import { hashToken } from '../utils/tokenHash.ts';
+import { hashToken, verifyToken } from '../utils/tokenHash.ts';
 
 const router = express.Router();
+
+/**
+ * SECURITY NOTE: Guardian consent token verification
+ * 
+ * Tokens are stored as SHA256 hashes in the database. When verifying:
+ * 1. We hash the incoming token
+ * 2. Use the hash for indexed database lookup (O(log n), no timing leak)
+ * 3. The database performs the comparison, not application code
+ * 
+ * This approach is secure because:
+ * - Tokens are one-way hashed (SHA256) before storage
+ * - Database indexed lookups don't expose timing information
+ * - An attacker with database access only sees hashes, not plaintext tokens
+ * - The verifyToken function with constant-time comparison is available
+ *   for cases where application-level comparison is needed
+ */
 
 // ========== JSON API ENDPOINTS FOR REACT COMPONENT ==========
 
