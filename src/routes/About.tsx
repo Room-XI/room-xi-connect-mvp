@@ -5,12 +5,7 @@ import { Heart, MapPin, Shield, Users, ArrowLeft } from 'lucide-react';
 export default function About() {
   const partners = [
     'Jumpstart Canada',
-    'The Can Man Dan Foundation',
-    'D.S. MacKenzie School',
-    'Allendale School',
-    'OTB Academy',
-    'Caribbean Optimist Club of Edmonton',
-    'YMCA of Northern Alberta'
+    'The Can Man Dan Foundation'
   ];
 
   return (
