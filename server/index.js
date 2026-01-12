@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import session from 'express-session';
 import pgSession from 'connect-pg-simple';
 import cookieParser from 'cookie-parser';
@@ -21,6 +22,7 @@ const PgStore = pgSession(session);
 
 async function createServer() {
   const app = express();
+  const httpServer = http.createServer(app);
   
   // Trust proxy - Required for Replit deployment to get real client IPs for rate limiting
   app.set('trust proxy', 1);
@@ -316,8 +318,9 @@ async function createServer() {
     });
   } else {
     // Development mode - use Vite dev server
+    // Attach HMR WebSocket to our HTTP server to avoid Vite opening its own port
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { server: httpServer } },
       appType: 'spa'
     });
 
@@ -328,7 +331,7 @@ async function createServer() {
   app.use(errorHandler);
 
   const port = env.PORT;
-  app.listen(port, '0.0.0.0', () => {
+  httpServer.listen(port, '0.0.0.0', () => {
     logger.info({ port, nodeEnv: env.NODE_ENV }, '🚀 Server started');
     
     // Initialize the scheduler for weekly orb snapshots
