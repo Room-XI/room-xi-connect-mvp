@@ -1,7 +1,7 @@
 // Room XI Connect Service Worker
 // Provides offline functionality and PWA capabilities
 
-const CACHE_NAME = 'room-xi-connect-v1';
+const CACHE_NAME = 'room-xi-connect-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Files to cache for offline functionality
@@ -65,6 +65,20 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  const url = new URL(event.request.url);
+
+  // SECURITY: Never cache API responses - they may contain private user data
+  // Always fetch from network for /api/* routes
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Skip caching for Vite HMR and development assets
+  if (url.pathname.startsWith('/@') || url.pathname.includes('node_modules')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(cachedResponse => {
@@ -81,14 +95,22 @@ self.addEventListener('fetch', event => {
               return response;
             }
 
-            // Clone the response for caching
-            const responseToCache = response.clone();
+            // Only cache static assets (not HTML pages which may be user-specific)
+            const contentType = response.headers.get('content-type') || '';
+            const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|woff2?|ico)$/i.test(url.pathname) ||
+                                  contentType.includes('font') ||
+                                  contentType.includes('image');
 
-            // Cache the response for future use
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
+            if (isStaticAsset) {
+              // Clone the response for caching
+              const responseToCache = response.clone();
+
+              // Cache the response for future use
+              caches.open(CACHE_NAME)
+                .then(cache => {
+                  cache.put(event.request, responseToCache);
+                });
+            }
 
             return response;
           })

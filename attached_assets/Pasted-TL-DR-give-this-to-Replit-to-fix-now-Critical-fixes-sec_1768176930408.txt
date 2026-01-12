@@ -1,0 +1,201 @@
+TL;DR — give this to Replit to fix now
+
+Critical fixes (security + prod correctness):
+	1.	Remove hardcoded secret fallbacks (JWT_SECRET, XID_PEPPER). Fail fast in production if missing.
+	2.	Fix CORS wildcard matching (https://*.replit.dev logic is broken) + require ALLOWED_ORIGINS in production (don’t default to localhost).
+	3.	Unify + validate env vars: server uses 13 env vars not in server/config/env.ts schema; .env.example is missing several required vars.
+	4.	Moderation OpenAI client must not crash when key missing (schema says optional, code treats it as required).
+	5.	Move dev tooling out of dependencies (eslint/prettier/playwright/supertest/etc currently ship to prod).
+	6.	Parent invite email service is inconsistent (uses Gmail-only nodemailer + different BASE_URL var naming). Centralize to the main email service + getPublicUrl().
+
+⸻
+
+Replit Fix Report (actionable, file-by-file)
+
+1) Hardcoded secrets in production paths (MUST FIX)
+
+A) JWT secret fallback
+	•	File: server/routes/skip-token.js
+	•	Issue: Uses a hardcoded dev fallback:
+
+const JWT_SECRET = process.env.JWT_SECRET || 'room-xi-dev-secret-change-in-production';
+
+
+	•	Fix required:
+	•	If NODE_ENV === 'production' and JWT_SECRET missing → throw on startup or return 500 + log loudly.
+	•	Only allow a fallback in development/test (if you really need it).
+
+B) XID pepper fallback
+	•	File: server/routes/xid.js
+	•	Issue: Uses hardcoded pepper fallback:
+
+const pepper = process.env.XID_PEPPER || 'default-pepper-change-in-production';
+
+
+	•	Fix required: same pattern: no fallback in production; enforce env var.
+
+C) Add both to env validation
+	•	File: server/config/env.ts
+	•	Fix required: add JWT_SECRET and XID_PEPPER to envSchema (required in prod; ok optional in dev/test if you insist).
+
+⸻
+
+2) CORS is incorrect / unsafe-by-default (MUST FIX)
+
+A) Wildcard logic for subdomains is broken
+	•	File: server/middleware/cors.ts
+	•	Issue: This block breaks matching for https://*.replit.dev:
+
+if (allowed.includes('*.')) {
+  const wildcardPattern = allowed.replace('*.', '([a-zA-Z0-9-]+\\.)+');
+  const regex = new RegExp(`^${wildcardPattern.replace(/\./g, '\\.')}$`);
+  return regex.test(origin);
+}
+
+The second .replace(/\./g, '\\.') also escapes the dots inside the injected ([a-zA-Z0-9-]+\.)+ group → the regex won’t match real origins.
+
+	•	Fix required (recommended):
+	•	Don’t regex-escape strings like this.
+	•	Parse origin with new URL(origin) and match host suffix (e.g., hostname.endsWith('.replit.dev')).
+	•	Add Vary: Origin header when allowing origins.
+
+B) Production behavior should not silently allow localhost
+	•	File: server/middleware/cors.ts
+	•	Issue: If ALLOWED_ORIGINS is empty, you push:
+	•	http://localhost, http://localhost:5000, http://localhost:5173, etc.
+	•	plus Replit domains from REPLIT_DOMAINS / REPLIT_DEV_DOMAIN
+	•	Fix required:
+	•	In production, if ALLOWED_ORIGINS is empty → fail fast (log + throw).
+	•	Keep localhost defaults only for development/test.
+
+What to set on Replit (prod):
+	•	Set ALLOWED_ORIGINS to your deployed web origin(s), comma-separated:
+	•	https://<your-replit-domain> (and any custom domain if used)
+
+⸻
+
+3) Env vars used by server but not validated (MUST FIX)
+
+A) Server uses env vars not in envSchema (13 missing)
+	•	File: server/config/env.ts (schema is missing these)
+	•	Found used in server code but not validated:
+	•	ADMIN_ACCESS_CODE
+	•	EMAIL_FROM
+	•	EMAIL_FROM_NAME
+	•	JWT_SECRET
+	•	LOG_LEVEL
+	•	PUBLIC_BASE_URL
+	•	PUBLIC_URL
+	•	REPLIT_APP_URL
+	•	REPLIT_DEPLOYMENT_URL
+	•	REPLIT_DEV_DOMAIN
+	•	REPLIT_DOMAINS
+	•	STAFF_NOTIFICATION_EMAIL
+	•	XID_PEPPER
+
+Fix required:
+	•	Either:
+	1.	Add them all to envSchema (recommended), or
+	2.	Stop using process.env.* all over the server and import the validated env everywhere.
+
+B) .env.example missing important variables
+	•	File: .env.example
+	•	Missing (at least):
+	•	ALLOWED_ORIGINS
+	•	JWT_SECRET
+	•	XID_PEPPER
+	•	LOG_LEVEL
+	•	EMAIL_FROM
+	•	EMAIL_FROM_NAME
+	•	STAFF_NOTIFICATION_EMAIL
+	•	plus your chosen canonical public URL variable (see next section)
+
+⸻
+
+4) Public URL naming is inconsistent (SHOULD FIX; causes broken email links)
+
+A) Inconsistent variables:
+	•	File: server/utils/publicUrl.ts
+	•	Uses PUBLIC_URL, REPLIT_DEPLOYMENT_URL, REPLIT_APP_URL, and request host inference.
+	•	File: server/services/parentInvite.ts
+	•	Uses REPLIT_DEV_DOMAIN or PUBLIC_BASE_URL.
+
+Fix required:
+	•	Pick one canonical variable (recommend: PUBLIC_URL) and use it everywhere.
+	•	Update parentInvite.ts to use the same helper:
+	•	Use getPublicUrl() rather than its own BASE_URL logic.
+
+⸻
+
+5) OpenAI moderation can crash when API key is missing (SHOULD FIX)
+	•	File: server/services/moderation.ts
+	•	Issue: env schema says OpenAI key is optional, but code asserts it exists:
+
+apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY!,
+
+
+	•	Fix required:
+	•	If key is missing, moderation should either:
+	•	return {flagged:false} and log a warning (degraded mode), or
+	•	throw a clear error only when a moderation-dependent route is hit.
+	•	Do not create the OpenAI client with a non-null assertion at module import time.
+
+⸻
+
+6) Email sending is inconsistent (parent invite is Gmail-only) (SHOULD FIX)
+	•	File: server/services/parentInvite.ts
+	•	Issue: Uses nodemailer Gmail transport directly; ignores SendGrid + main email service (server/services/email.js).
+	•	Fix required:
+	•	Route parent invites through the centralized email layer (server/services/email.js) so provider choice is consistent.
+	•	Also fixes base URL inconsistency (see #4).
+
+⸻
+
+7) Dev tooling is installed in production (SHOULD FIX)
+	•	File: package.json
+	•	Issue: These are in "dependencies" (prod) but should be "devDependencies":
+	•	eslint, prettier, @playwright/test, supertest, pino-pretty, concurrently
+	•	Fix required: Move to devDependencies so Replit prod deploy is leaner and safer.
+
+⸻
+
+8) Scheduler duplication risk when scaling (CONTEXTUAL)
+	•	File: server/services/scheduler.js (initialized from server/index.js)
+	•	Issue: If Replit ever runs multiple instances (or restarts), scheduled jobs can run multiple times concurrently.
+	•	Fix required (if scaling):
+	•	Add a single-runner guard (env flag like RUN_SCHEDULER=true on one deployment), or
+	•	Move scheduled tasks to an external cron/worker with locking.
+
+⸻
+
+Replit Environment Variables to set (minimum)
+
+Set these in Replit Secrets / Environment Variables, not committed files:
+	•	DATABASE_URL
+	•	SESSION_SECRET (>= 32 chars)
+	•	JWT_SECRET (required in prod)
+	•	XID_PEPPER (required in prod)
+	•	ALLOWED_ORIGINS (prod origin(s))
+	•	Email:
+	•	EMAIL_PROVIDER (gmail or sendgrid)
+	•	GMAIL_USER + GMAIL_APP_PASSWORD or SENDGRID_API_KEY
+	•	EMAIL_FROM, EMAIL_FROM_NAME, STAFF_NOTIFICATION_EMAIL (recommended)
+	•	Public URL:
+	•	PUBLIC_URL (recommended canonical)
+	•	Optional:
+	•	LOG_LEVEL
+	•	AI_INTEGRATIONS_OPENAI_API_KEY (only if moderation enabled)
+
+⸻
+
+Quick “acceptance checks” after fixes
+	1.	From a browser on your deployed Replit domain, API calls succeed (no CORS errors).
+	2.	Calls from non-allowed origins get blocked (OPTIONS returns 403).
+	3.	If JWT_SECRET / XID_PEPPER missing in production → server refuses to start.
+	4.	Parent invite emails use the configured provider and correct links.
+	5.	App runs fine with OpenAI key unset (moderation degrades gracefully).
+
+⸻
+
+a. Want me to produce exact patch diffs for the 3 biggest issues (CORS wildcard, JWT/XID secret enforcement, envSchema + .env.example alignment)?
+b. Want a short Replit-ready checklist for “prod deploy hardening” (settings + secrets + smoke tests)?
