@@ -276,7 +276,8 @@ async function createServer() {
   
   // Safety plan routes - uses token-based security for public share links (like consent routes)
   // The view/:token endpoint is public, other endpoints use requireAuth in the route handler
-  app.use('/api/safety-plan', userSession, createInactivityMiddleware('user.sid'), writeLimiter, safetyPlanRoutes);
+  // CSRF protection added for state-changing operations (create, update, delete, share)
+  app.use('/api/safety-plan', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, safetyPlanRoutes);
 
   // Production or development mode
   if (env.NODE_ENV === 'production') {

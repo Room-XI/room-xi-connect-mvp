@@ -18,6 +18,7 @@ import { consentNoticeV1, CONSENT_NOTICE_VERSION, confirmationSuccessPage, pendi
 import { getPublicUrl } from '../utils/publicUrl.ts';
 import { debugLog } from '../utils/logger.ts';
 import logger from '../logger.ts';
+import { hashToken } from '../utils/tokenHash.ts';
 
 const router = express.Router();
 
@@ -30,6 +31,7 @@ const router = express.Router();
 router.get('/details/:token', async (req, res) => {
   try {
     const { token } = req.params;
+    const tokenHash = hashToken(token);
     
     const [verification] = await db.select({
       id: guardianVerifications.id,
@@ -41,7 +43,7 @@ router.get('/details/:token', async (req, res) => {
       guardianRole: guardianVerifications.guardianRole,
     })
     .from(guardianVerifications)
-    .where(eq(guardianVerifications.initialConsentToken, token))
+    .where(eq(guardianVerifications.initialConsentToken, tokenHash))
     .limit(1);
 
     if (!verification) {
@@ -96,6 +98,7 @@ router.get('/details/:token', async (req, res) => {
 router.post('/submit/:token', async (req, res) => {
   try {
     const { token } = req.params;
+    const tokenHash = hashToken(token);
     const { action, guardian_dob, _nonce } = req.body;
     const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -118,7 +121,7 @@ router.post('/submit/:token', async (req, res) => {
 
     const [verification] = await db.select()
     .from(guardianVerifications)
-    .where(eq(guardianVerifications.initialConsentToken, token))
+    .where(eq(guardianVerifications.initialConsentToken, tokenHash))
     .limit(1);
 
     if (!verification) {
@@ -232,6 +235,7 @@ router.post('/submit/:token', async (req, res) => {
 router.get('/view/:token', async (req, res) => {
   try {
     const { token } = req.params;
+    const tokenHash = hashToken(token);
     
     const [verification] = await db.select({
       id: guardianVerifications.id,
@@ -241,7 +245,7 @@ router.get('/view/:token', async (req, res) => {
       guardianContactValue: guardianVerifications.guardianContactValue,
     })
     .from(guardianVerifications)
-    .where(eq(guardianVerifications.initialConsentToken, token))
+    .where(eq(guardianVerifications.initialConsentToken, tokenHash))
     .limit(1);
 
     if (!verification) {
@@ -291,13 +295,14 @@ router.get('/view/:token', async (req, res) => {
 router.post('/agree/:token', async (req, res) => {
   try {
     const { token } = req.params;
+    const tokenHash = hashToken(token);
     const { _nonce } = req.body;
     const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
 
     const [verification] = await db.select()
     .from(guardianVerifications)
-    .where(eq(guardianVerifications.initialConsentToken, token))
+    .where(eq(guardianVerifications.initialConsentToken, tokenHash))
     .limit(1);
 
     if (!verification) {
@@ -638,13 +643,15 @@ router.post('/resend-guardian', async (req, res) => {
     }
 
     const newToken = crypto.randomBytes(32).toString('hex');
+    const newTokenHash = hashToken(newToken);
     const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     debugLog('Resend Guardian', 'Updating verification with new token, expiry:', newExpiry.toISOString());
 
+    // Store the HASH of the token, not the plaintext
     await db.update(guardianVerifications)
       .set({
-        initialConsentToken: newToken,
+        initialConsentToken: newTokenHash,
         status: 'pending_initial_consent',
         expiresAt: newExpiry,
         consentNoticeSentAt: new Date(),
@@ -667,6 +674,7 @@ router.post('/resend-guardian', async (req, res) => {
 
     const youthName = profile?.firstName || 'Your child';
     const baseUrl = getPublicUrl(req);
+    // Use the PLAINTEXT token in the email link (guardian clicks this)
     const consentViewUrl = `${baseUrl}/api/consent/view/${newToken}`;
 
     debugLog('Resend Guardian', 'Sending email to:', verification.guardianContactValue, 'link:', consentViewUrl);

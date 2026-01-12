@@ -34,6 +34,73 @@ export interface XimiResponse {
   crisisKeywords: string[];
 }
 
+export interface SanitizationResult {
+  sanitized: string;
+  redactionCounts: {
+    emails: number;
+    phones: number;
+    urls: number;
+    postalCodes: number;
+  };
+}
+
+export function sanitizePrompt(text: string): SanitizationResult {
+  let sanitized = text;
+  const redactionCounts = {
+    emails: 0,
+    phones: 0,
+    urls: 0,
+    postalCodes: 0,
+  };
+
+  // Email detection: standard email regex
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const emailMatches = sanitized.match(emailRegex);
+  if (emailMatches) {
+    redactionCounts.emails = emailMatches.length;
+    sanitized = sanitized.replace(emailRegex, '[EMAIL]');
+  }
+
+  // Phone number detection: North American formats
+  // Supports: xxx-xxx-xxxx, (xxx) xxx-xxxx, xxx xxx xxxx, +1 xxx-xxx-xxxx, etc.
+  const phoneRegex = /(\+?1\s?)?(\([0-9]{3}\)|[0-9]{3})[\s.-]?[0-9]{3}[\s.-]?[0-9]{4}\b/g;
+  const phoneMatches = sanitized.match(phoneRegex);
+  if (phoneMatches) {
+    redactionCounts.phones = phoneMatches.length;
+    sanitized = sanitized.replace(phoneRegex, '[PHONE]');
+  }
+
+  // URL detection: http/https links
+  const urlRegex = /https?:\/\/[^\s]+/g;
+  const urlMatches = sanitized.match(urlRegex);
+  if (urlMatches) {
+    redactionCounts.urls = urlMatches.length;
+    sanitized = sanitized.replace(urlRegex, '[URL]');
+  }
+
+  // Postal code detection: Canadian format (A1A 1A1)
+  const postalCodeRegex = /[A-Za-z][0-9][A-Za-z]\s?[0-9][A-Za-z][0-9]/g;
+  const postalCodeMatches = sanitized.match(postalCodeRegex);
+  if (postalCodeMatches) {
+    redactionCounts.postalCodes = postalCodeMatches.length;
+    sanitized = sanitized.replace(postalCodeRegex, '[ADDRESS]');
+  }
+
+  // Log redaction counts for audit purposes
+  if (Object.values(redactionCounts).some(count => count > 0)) {
+    logger.info({
+      context: 'pii-sanitization',
+      redactionCounts,
+      totalRedactions: Object.values(redactionCounts).reduce((sum, count) => sum + count, 0),
+    }, 'PII redacted from Ximi prompt');
+  }
+
+  return {
+    sanitized,
+    redactionCounts,
+  };
+}
+
 export function detectCrisis(text: string): { detected: boolean; keywords: string[] } {
   const lowerText = text.toLowerCase();
   const foundKeywords = CRISIS_KEYWORDS.filter(keyword => 
@@ -183,20 +250,31 @@ export async function generateXimiResponse(
     };
   }
 
-  let enhancedMessage = userMessage;
+  // Sanitize the message for AI consumption (PII redaction)
+  // Crisis detection happened on the ORIGINAL message above, so safety is preserved
+  const sanitizationResult = sanitizePrompt(userMessage);
+  const sanitizedUserMessage = sanitizationResult.sanitized;
+  
+  // Also sanitize the recent note if present
+  let sanitizedRecentNote = context.recentNote;
+  if (context.recentNote) {
+    sanitizedRecentNote = sanitizePrompt(context.recentNote).sanitized;
+  }
+
+  let enhancedMessage = sanitizedUserMessage;
   
   if (context.moodType && MOOD_RESPONSES[context.moodType]) {
     const moodDialogue = MOOD_RESPONSES[context.moodType];
     
     let contextualResponse = moodDialogue.opening;
     
-    if (userMessage.length > 50 || userMessage.includes('?')) {
+    if (sanitizedUserMessage.length > 50 || sanitizedUserMessage.includes('?')) {
       contextualResponse = moodDialogue.followUp;
     }
     
-    if (userMessage.toLowerCase().includes('help') || 
-        userMessage.toLowerCase().includes('what should') ||
-        userMessage.toLowerCase().includes('advice')) {
+    if (sanitizedUserMessage.toLowerCase().includes('help') || 
+        sanitizedUserMessage.toLowerCase().includes('what should') ||
+        sanitizedUserMessage.toLowerCase().includes('advice')) {
       contextualResponse = moodDialogue.encouragement;
     }
     
@@ -206,8 +284,8 @@ export async function generateXimiResponse(
       enhancedMessage += `Areas affected: ${context.wellnessDimensions.join(', ')}.\n`;
     }
     
-    if (context.recentNote) {
-      enhancedMessage += `Their note: "${context.recentNote}"\n\n`;
+    if (sanitizedRecentNote) {
+      enhancedMessage += `Their note: "${sanitizedRecentNote}"\n\n`;
     }
 
     if (context.moodTrend) {
@@ -243,7 +321,7 @@ export async function generateXimiResponse(
       });
     }
     
-    enhancedMessage += `\nRespond to them using this tone as inspiration: "${contextualResponse}"\n\nUser message: ${userMessage}`;
+    enhancedMessage += `\nRespond to them using this tone as inspiration: "${contextualResponse}"\n\nUser message: ${sanitizedUserMessage}`;
   }
 
   const maxRetries = 3;

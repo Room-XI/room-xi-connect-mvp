@@ -15,6 +15,7 @@ import { authLimiter, passwordResetLimiter } from '../middleware/rateLimit.ts';
 import { getPublicUrl } from '../utils/publicUrl.ts';
 import { checkAccountLockout, recordFailedLogin, clearFailedLogin } from '../middleware/accountLockout.ts';
 import logger from '../logger.ts';
+import { hashToken } from '../utils/tokenHash.ts';
 
 const router = express.Router();
 
@@ -200,6 +201,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       // Generate tokens for two-step consent flow
       const verificationToken = crypto.randomBytes(32).toString('hex');
       const initialConsentToken = crypto.randomBytes(32).toString('hex');
+      const initialConsentTokenHash = hashToken(initialConsentToken);
       const contactHash = await bcryptLib.hash(guardianEmail.toLowerCase(), 10);
       
       // Set expiration to 24 hours (PIPA/PIPEDA compliant)
@@ -210,6 +212,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       const { CONSENT_NOTICE_VERSION } = await import('../services/consentNotices.js');
       
       // Create guardian verification request with two-step flow
+      // Store the HASH of the token, not the plaintext
       await db.insert(guardianVerifications).values({
         userId: newUser.id,
         guardianContactType: 'email',
@@ -218,7 +221,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
         guardianName: guardianName || null,
         verificationToken: verificationToken,
         verificationMethod: 'email_plus',
-        initialConsentToken: initialConsentToken,
+        initialConsentToken: initialConsentTokenHash,
         consentNoticeVersion: CONSENT_NOTICE_VERSION,
         consentNoticeSentAt: new Date(),
         status: 'pending_initial_consent',
@@ -226,6 +229,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       });
 
       // Send initial consent email with link to view full consent notice
+      // Use the PLAINTEXT token in the email link (guardian clicks this)
       try {
         const { sendInitialConsentEmail } = await import('../services/email.js');
         const baseUrl = getPublicUrl();
@@ -456,6 +460,7 @@ router.post('/add-guardian', authLimiter, validateBody(addGuardianSchema), async
     // Generate tokens for two-step consent flow
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const initialConsentToken = crypto.randomBytes(32).toString('hex');
+    const initialConsentTokenHash = hashToken(initialConsentToken);
     const contactHash = await bcryptLib.hash(guardianEmail.toLowerCase(), 10);
     
     // Set expiration to 24 hours (PIPA/PIPEDA compliant)
@@ -466,6 +471,7 @@ router.post('/add-guardian', authLimiter, validateBody(addGuardianSchema), async
     const { CONSENT_NOTICE_VERSION } = await import('../services/consentNotices.js');
     
     // Create guardian verification request
+    // Store the HASH of the token, not the plaintext
     await db.insert(guardianVerifications).values({
       userId: userId,
       guardianContactType: 'email',
@@ -475,7 +481,7 @@ router.post('/add-guardian', authLimiter, validateBody(addGuardianSchema), async
       guardianRole: guardianRole || 'secondary',
       verificationToken: verificationToken,
       verificationMethod: 'email_plus',
-      initialConsentToken: initialConsentToken,
+      initialConsentToken: initialConsentTokenHash,
       consentNoticeVersion: CONSENT_NOTICE_VERSION,
       consentNoticeSentAt: new Date(),
       status: 'pending_initial_consent',
@@ -491,6 +497,7 @@ router.post('/add-guardian', authLimiter, validateBody(addGuardianSchema), async
     const youthName = profile?.firstName || 'your child';
 
     // Send initial consent email
+    // Use the PLAINTEXT token in the email link (guardian clicks this)
     try {
       const { sendInitialConsentEmail } = await import('../services/email.js');
       const baseUrl = getPublicUrl();

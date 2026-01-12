@@ -11,6 +11,7 @@ interface XimiConsentModalProps {
 
 export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: XimiConsentModalProps) {
   const [isAccepting, setIsAccepting] = useState(false);
+  const [acknowledgedCrossBorder, setAcknowledgedCrossBorder] = useState(false);
 
   const handleAccept = async () => {
     try {
@@ -164,6 +165,25 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                   </ul>
                 </div>
 
+                {/* Cross-Border Data Transfer Disclosure */}
+                <div className="bg-teal/5 rounded-lg p-4 border border-teal/10">
+                  <h3 className="font-semibold text-deepSage mb-3">Where Your Data Goes</h3>
+                  <p className="text-sm text-textSecondaryLight leading-relaxed mb-4">
+                    Your conversations with Ximi are processed using AI technology operated by OpenAI, with servers located in the United States. When you chat with Ximi, your conversation data is transferred to and processed in the United States.
+                  </p>
+                  <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={acknowledgedCrossBorder}
+                      onChange={(e) => setAcknowledgedCrossBorder(e.target.checked)}
+                      className="mt-1 w-5 h-5 rounded border-2 border-teal/30 checked:bg-teal checked:border-teal accent-teal cursor-pointer"
+                    />
+                    <span className="text-sm text-textSecondaryLight leading-relaxed">
+                      I understand and consent to my conversation data being transferred to and processed in the United States.
+                    </span>
+                  </label>
+                </div>
+
                 {/* Consent Statement */}
                 <div className="bg-sage/5 rounded-lg p-4 border border-sage/10">
                   <p className="text-sm text-textSecondaryLight leading-relaxed">
@@ -189,7 +209,7 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                 </button>
                 <button
                   onClick={handleAccept}
-                  disabled={isAccepting}
+                  disabled={isAccepting || !acknowledgedCrossBorder}
                   className="flex-1 px-6 py-3 rounded-full bg-gradient-to-br from-purple-500 to-teal text-cream font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isAccepting ? (
