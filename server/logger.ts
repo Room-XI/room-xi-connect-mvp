@@ -28,6 +28,24 @@ export const logger = pino({
   },
 });
 
+/**
+ * Sanitize URL to remove sensitive tokens from path segments
+ * Tokens typically appear as long alphanumeric strings in URL paths
+ */
+function sanitizeUrl(url: string): string {
+  if (!url) return url;
+  
+  // Remove query string entirely (may contain tokens)
+  const urlWithoutQuery = url.split('?')[0];
+  
+  // Redact long token-like path segments (UUIDs, JWT segments, hex tokens)
+  // Matches: UUIDs, 20+ char alphanumeric strings, base64-like tokens
+  return urlWithoutQuery.replace(
+    /\/([a-f0-9-]{36}|[a-zA-Z0-9_-]{20,})/g,
+    '/[REDACTED]'
+  );
+}
+
 export const httpLogger = pinoHttp({
   logger,
   genReqId: (req) => (req.headers['x-request-id'] as string) || randomUUID(),
@@ -35,16 +53,19 @@ export const httpLogger = pinoHttp({
     userId: (req as any).session?.userId ?? null,
   }),
   customSuccessMessage: (req, res) => {
-    return `${req.method} ${req.url} ${res.statusCode}`;
+    // Log sanitized URL path only (not full URL with tokens)
+    const safePath = sanitizeUrl(req.url || '').split('/').pop() || req.url;
+    return `${req.method} ${safePath} ${res.statusCode}`;
   },
   customErrorMessage: (req, res, err) => {
-    return `${req.method} ${req.url} ${res.statusCode} - ${err.message}`;
+    const safePath = sanitizeUrl(req.url || '').split('/').pop() || req.url;
+    return `${req.method} ${safePath} ${res.statusCode} - ${err.message}`;
   },
   serializers: {
     req: (req) => ({
       id: req.id,
       method: req.method,
-      url: req.url,
+      url: sanitizeUrl(req.url),
       remoteAddress: req.remoteAddress,
     }),
     res: (res) => ({

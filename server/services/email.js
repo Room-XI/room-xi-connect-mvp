@@ -1,16 +1,39 @@
 import nodemailer from 'nodemailer';
 import sgMail from '@sendgrid/mail';
+import logger from '../logger.ts';
 
 // Email provider configuration
 const EMAIL_PROVIDER = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
 const USE_SENDGRID = EMAIL_PROVIDER === 'sendgrid';
 
+/**
+ * Mask email address for safe logging (PII protection)
+ * e.g., "john.doe@example.com" -> "j***e@e***.com"
+ */
+function maskEmail(email) {
+  if (!email || typeof email !== 'string') return '[no-email]';
+  const [local, domain] = email.split('@');
+  if (!domain) return '[invalid-email]';
+  
+  const maskedLocal = local.length > 2 
+    ? local[0] + '***' + local[local.length - 1]
+    : '***';
+  
+  const domainParts = domain.split('.');
+  const maskedDomain = domainParts.length > 1
+    ? domainParts[0][0] + '***.' + domainParts[domainParts.length - 1]
+    : '***';
+  
+  return `${maskedLocal}@${maskedDomain}`;
+}
+
 // Configure SendGrid if using it
 if (USE_SENDGRID && process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log('[Email] Using SendGrid provider');
+  logger.info('[Email] Using SendGrid provider');
+  logger.info('[Email] SendGrid configured successfully');
 } else {
-  console.log('[Email] Using Gmail SMTP provider');
+  logger.info('[Email] Using Gmail SMTP provider');
 }
 
 // Gmail SMTP transporter configuration (used as fallback)
@@ -41,7 +64,7 @@ export async function sendEmail({ to, subject, html }) {
       html,
     };
     await sgMail.send(msg);
-    console.log(`[Email] Sent via SendGrid to: ${to}`);
+    logger.info({ provider: 'sendgrid', recipient: maskEmail(to) }, '[Email] Email sent successfully');
   } else {
     const mailOptions = {
       from: { name: fromName, address: fromEmail },
@@ -50,7 +73,7 @@ export async function sendEmail({ to, subject, html }) {
       html,
     };
     await transporter.sendMail(mailOptions);
-    console.log(`[Email] Sent via Gmail to: ${to}`);
+    logger.info({ provider: 'gmail', recipient: maskEmail(to) }, '[Email] Email sent successfully');
   }
 }
 
@@ -276,10 +299,10 @@ For support, contact: ${process.env.GMAIL_USER}
       subject: mailOptions.subject,
       html: mailOptions.html,
     });
-    console.log('Guardian verification email sent to:', guardianEmail);
+    logger.info({ type: 'guardian_verification', recipient: maskEmail(guardianEmail) }, 'Guardian verification email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send guardian verification email:', error);
+    logger.error({ err: error, type: 'guardian_verification' }, 'Failed to send guardian verification email');
     throw new Error('Failed to send verification email');
   }
 }
@@ -467,10 +490,10 @@ Room XI Connect Team
       subject: mailOptions.subject,
       html: mailOptions.html,
     });
-    console.log('Initial consent email sent to:', guardianEmail);
+    logger.info({ type: 'initial_consent', recipient: maskEmail(guardianEmail) }, 'Initial consent email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send initial consent email:', error);
+    logger.error({ err: error, type: 'initial_consent' }, 'Failed to send initial consent email');
     throw new Error('Failed to send consent email');
   }
 }
@@ -639,10 +662,10 @@ Room XI Connect Team
       subject: mailOptions.subject,
       html: mailOptions.html,
     });
-    console.log('Confirmation email sent to:', guardianEmail);
+    logger.info({ type: 'confirmation', recipient: maskEmail(guardianEmail) }, 'Confirmation email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send confirmation email:', error);
+    logger.error({ err: error, type: 'confirmation' }, 'Failed to send confirmation email');
     throw new Error('Failed to send confirmation email');
   }
 }
@@ -797,10 +820,10 @@ For support: ${process.env.GMAIL_USER}
       subject: mailOptions.subject,
       html: mailOptions.html,
     });
-    console.log('Consent complete email sent to:', guardianEmail);
+    logger.info({ type: 'consent_complete', recipient: maskEmail(guardianEmail) }, 'Consent complete email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send consent complete email:', error);
+    logger.error({ err: error, type: 'consent_complete' }, 'Failed to send consent complete email');
     throw new Error('Failed to send consent complete email');
   }
 }
@@ -996,10 +1019,10 @@ This email contains confidential information. Handle according to privacy polici
       subject: mailOptions.subject,
       html: mailOptions.html,
     });
-    console.log('Staff notification email sent to:', staffEmail);
+    logger.info({ type: 'staff_notification', recipient: maskEmail(staffEmail) }, 'Staff notification email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send staff notification email:', error);
+    logger.error({ err: error, type: 'staff_notification' }, 'Failed to send staff notification email');
     throw new Error('Failed to send staff notification email');
   }
 }
@@ -1130,10 +1153,10 @@ export async function sendPasswordResetEmail({ email, resetLink }) {
       subject: 'Password Reset Request - Room XI Connect',
       html,
     });
-    console.log('Password reset email sent to:', email);
+    logger.info({ type: 'password_reset', recipient: maskEmail(email) }, 'Password reset email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send password reset email:', error);
+    logger.error({ err: error, type: 'password_reset' }, 'Failed to send password reset email');
     throw new Error('Failed to send password reset email');
   }
 }
@@ -1267,10 +1290,10 @@ export async function sendParentPasswordSetupEmail({ guardianEmail, guardianName
       subject: `Set Up Your Parent Portal Password - Room XI Connect`,
       html,
     });
-    console.log('Parent password setup email sent to:', guardianEmail);
+    logger.info({ type: 'parent_password_setup', recipient: maskEmail(guardianEmail) }, 'Parent password setup email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send parent password setup email:', error);
+    logger.error({ err: error, type: 'parent_password_setup' }, 'Failed to send parent password setup email');
     throw new Error('Failed to send parent password setup email');
   }
 }
@@ -1384,10 +1407,10 @@ export async function sendParentPasswordResetEmail({ email, resetLink }) {
       subject: 'Parent Portal Password Reset - Room XI Connect',
       html,
     });
-    console.log('Parent password reset email sent to:', email);
+    logger.info({ type: 'parent_password_reset', recipient: maskEmail(email) }, 'Parent password reset email sent');
     return { messageId: 'sent' };
   } catch (error) {
-    console.error('Failed to send parent password reset email:', error);
+    logger.error({ err: error, type: 'parent_password_reset' }, 'Failed to send parent password reset email');
     throw new Error('Failed to send parent password reset email');
   }
 }
@@ -1399,22 +1422,22 @@ export async function sendParentPasswordResetEmail({ email, resetLink }) {
 export async function verifyEmailConfig() {
   if (USE_SENDGRID) {
     if (!process.env.SENDGRID_API_KEY) {
-      console.error('❌ SENDGRID_API_KEY is not configured');
+      logger.error('[Email] SENDGRID_API_KEY is not configured');
       return false;
     }
     if (!process.env.EMAIL_FROM) {
-      console.warn('⚠️ EMAIL_FROM not set, emails may fail without a verified sender');
+      logger.warn('[Email] EMAIL_FROM not set, emails may fail without a verified sender');
     }
-    console.log('✅ Email service ready (SendGrid)');
+    logger.info('[Email] Email service ready (SendGrid)');
     return true;
   }
   
   try {
     await transporter.verify();
-    console.log('✅ Email service ready (Gmail SMTP)');
+    logger.info('[Email] Email service ready (Gmail SMTP)');
     return true;
   } catch (error) {
-    console.error('❌ Email service configuration error:', error);
+    logger.error({ err: error }, '[Email] Email service configuration error');
     return false;
   }
 }

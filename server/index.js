@@ -12,6 +12,7 @@ import env from './config/env.ts';
 import logger, { httpLogger } from './logger.ts';
 import { corsMiddleware } from './middleware/cors.ts';
 import { errorHandler } from './middleware/errorHandler.ts';
+import { noCacheForSensitiveRoutes } from './middleware/security.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,10 +37,16 @@ async function createServer() {
   // CORS for mobile (Capacitor) and web origins
   app.use(corsMiddleware);
   
-  // Verify email configuration on startup (graceful failure - server continues without email)
+  // Verify email configuration on startup
   const emailConfigured = await verifyEmailConfig();
   if (!emailConfigured) {
-    logger.warn('[Email] Email provider not configured - some features will be unavailable');
+    if (env.NODE_ENV === 'production') {
+      // In production, email must work for consent/verification flows
+      logger.fatal('[Email] Email provider not configured - cannot start in production without email');
+      process.exit(1);
+    } else {
+      logger.warn('[Email] Email provider not configured - some features will be unavailable');
+    }
   }
   
   // Apply security headers
@@ -47,8 +54,11 @@ async function createServer() {
   applySecurity(app);
   
   app.use(express.json({ limit: '200kb' }));
-  app.use(express.urlencoded({ extended: true })); // For form submissions (consent forms)
+  app.use(express.urlencoded({ extended: true, limit: '200kb' })); // For form submissions (consent forms)
   app.use(cookieParser());
+  
+  // Apply no-cache headers for sensitive routes (API, profile, auth)
+  app.use(noCacheForSensitiveRoutes);
   
   // Initialize session store with error handling
   const sessionStore = new PgStore({
