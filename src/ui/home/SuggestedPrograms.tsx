@@ -363,7 +363,7 @@ export default function SuggestedPrograms() {
 
       {!user && (
         <p className="text-xs text-center text-textSecondaryLight mt-2">
-          <Link to="/login" className="text-teal hover:underline">Sign in</Link> and check in to get personalized recommendations
+          <Link to="/auth/login" className="text-teal hover:underline">Sign in</Link> and check in to get personalized recommendations
         </p>
       )}
     </div>

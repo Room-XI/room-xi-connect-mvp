@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Users, FileText, ArrowRight, TrendingUp, Calendar, Activity, Heart, ChevronDown, BarChart3, Repeat, Download, UserPlus, ClipboardList, ThumbsUp } from 'lucide-react';
+import { Users, FileText, ArrowRight, TrendingUp, Calendar, Activity, Heart, ChevronDown, BarChart3, Download, UserPlus, ClipboardList, ThumbsUp } from 'lucide-react';
 import { useSession } from '@/lib/session';
 import { api } from '@/lib/api';
-import { LineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashboardStats {
   totalUsers: number;

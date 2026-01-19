@@ -628,6 +628,19 @@ export const api = {
       }),
     removeMember: (userId: string) =>
       fetchApi(`/org/members/${userId}`, { method: 'DELETE' }),
+    getStatus: () => fetchApi('/org/status'),
+    searchYouth: (query: string) => fetchApi(`/org/youth?q=${encodeURIComponent(query)}`),
+    getPartnerOrganizations: () => fetchApi('/org/partner-organizations'),
+    getReferrals: (status?: string) => {
+      const params = new URLSearchParams();
+      if (status && status !== 'all') params.set('status', status);
+      return fetchApi(`/org/referrals?${params}`);
+    },
+    createReferral: (data: { youth_id: string; to_org_id: string; priority: string; summary: string }) =>
+      fetchApi('/org/referrals', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 
   // Admin Dashboard
@@ -1130,6 +1143,13 @@ export const api = {
       }),
     getMyConsents: () => fetchApi('/partner-consent/my-consents'),
   },
+
+  get: <T = any>(endpoint: string) => fetchApi<T>(endpoint),
+  post: <T = any>(endpoint: string, data: any) =>
+    fetchApi<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export { fetchApi };

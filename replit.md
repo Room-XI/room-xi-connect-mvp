@@ -14,7 +14,7 @@ The tech stack includes React 18 with TypeScript, Vite 5, React Router v6, Tailw
 **Multi-Portal Architecture:** The application features four separate portals, each with isolated session management:
 - **Youth Portal** (user.sid cookie) - Main app for youth users with mood tracking, programs, and AI companion
 - **Parent Portal** (`/parent/*`, parent.sid cookie) - Guardian access with consent management, emergency contacts, data export/deletion, and filtered youth data views
-- **Org Portal** (`/org/*`, user.sid cookie with org member check) - Partner organization dashboard with program CRUD, attendance tracking, outcomes analytics, and staff management
+- **Org Portal** (`/org/*`, user.sid cookie with org member check) - Partner organization dashboard with program CRUD, attendance tracking, outcomes analytics, staff management, and inter-org referral system
 - **Admin Portal** (`/admin/*`, admin.sid cookie) - Platform administration with organizations/users management, audit logs, and PIPA/PIPEDA compliance dashboard
 
 Each portal uses per-namespace CSRF tokens (/api/csrf-token, /api/parent-auth/csrf-token, /api/admin/csrf-token) cached separately in the API client.

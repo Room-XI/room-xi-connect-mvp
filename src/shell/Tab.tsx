@@ -12,7 +12,6 @@ interface TabProps {
 export default function Tab({ to, icon, label, showDot = false }: TabProps) {
   const location = useLocation();
   const isActive = location.pathname === to || 
-    (to === '/home' && location.pathname === '/') ||
     (to === '/explore' && location.pathname.startsWith('/explore'));
 
   return (

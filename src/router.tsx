@@ -62,6 +62,10 @@ const ParentAcceptInvite = lazy(() => import('./routes/ParentAcceptInvite'));
 const AdminPortal = lazy(() => import('./routes/AdminPortal'));
 const DemoYouth = lazy(() => import('./routes/demos/Youth'));
 const DemoOrganization = lazy(() => import('./routes/demos/Organization'));
+const RootRedirect = lazy(() => import('./components/RootRedirect'));
+const ReferralsList = lazy(() => import('./routes/org/ReferralsList'));
+const ReferralsNew = lazy(() => import('./routes/org/ReferralsNew'));
+const Reports = lazy(() => import('./routes/org/Reports'));
 
 // Wrapper to add Suspense to lazy-loaded components
 const withSuspense = (Component: React.LazyExoticComponent<any>) => {
@@ -122,7 +126,7 @@ export const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorBoundary />,
     children: [
-      { index: true, element: withSuspense(Explore) },
+      { index: true, element: withSuspense(RootRedirect) },
       { path: 'home', element: withProtectedSuspense(Home) },
       { path: 'explore', element: withSuspense(Explore) },
       { path: 'explore/:view', element: withSuspense(Explore) },
@@ -162,6 +166,9 @@ export const router = createBrowserRouter([
       { path: 'org/dashboard', element: withOrgSuspense(OrgDashboard) },
       { path: 'org/programs', element: withOrgSuspense(ProgramManagement) },
       { path: 'org/staff', element: withOrgSuspense(StaffManagement) },
+      { path: 'org/referrals', element: withOrgSuspense(ReferralsList) },
+      { path: 'org/referrals/new', element: withOrgSuspense(ReferralsNew) },
+      { path: 'org/reports', element: withOrgSuspense(Reports) },
       { path: 'kpi-dashboard', element: withProtectedSuspense(KPIDashboard) },
       { path: 'transparency', element: withProtectedSuspense(TransparencyDashboard) },
       { path: 'privacy-center', element: withProtectedSuspense(PrivacyCenter) },

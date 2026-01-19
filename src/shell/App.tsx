@@ -46,23 +46,27 @@ export default function App() {
 
   const currentPath = window.location.pathname;
   const isAuthRoute = currentPath.startsWith('/auth') || currentPath.startsWith('/control/entrance');
+  const isPortalRoute = currentPath.startsWith('/parent') || 
+    currentPath.startsWith('/admin') || 
+    currentPath.startsWith('/org');
+  const hideYouthNav = isAuthRoute || isPortalRoute;
 
   return (
     <div className="min-h-dvh flex flex-col bg-cream text-textPrimaryLight">
-      {!isAuthRoute && <Header />}
-      {!isAuthRoute && <OfflineSyncIndicator />}
+      {!hideYouthNav && <Header />}
+      {!hideYouthNav && <OfflineSyncIndicator />}
       
       <main 
         id="main-content" 
         className={`flex-1 px-4 max-w-xl mx-auto w-full ${
-          isAuthRoute ? 'py-8' : 'pb-24'
+          hideYouthNav ? 'py-8' : 'pb-24'
         }`}
         tabIndex={-1}
       >
         <Outlet />
       </main>
       
-      {!isAuthRoute && (
+      {!hideYouthNav && (
         <nav 
           className="fixed bottom-0 left-0 right-0 bg-surface border-t border-borderMutedLight/60 safe-area-bottom"
           role="navigation"

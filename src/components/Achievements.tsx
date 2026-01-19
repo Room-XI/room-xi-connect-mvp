@@ -85,8 +85,13 @@ export function Achievements() {
       
       if (response.ok) {
         const data = await response.json();
-        setAchievements(data.achievements || getMockAchievements());
-        setUserStats(data.stats || getMockStats());
+        if (data.achievements && data.achievements.length > 0) {
+          setAchievements(data.achievements);
+          setUserStats(data.stats);
+        } else {
+          setAchievements([]);
+          setUserStats(null);
+        }
         
         // Check for newly unlocked achievements
         const newlyUnlocked = data.achievements?.find(
@@ -98,82 +103,19 @@ export function Achievements() {
           setTimeout(() => setNewUnlock(null), 5000);
         }
       } else {
-        // Use mock data if API fails
-        setAchievements(getMockAchievements());
-        setUserStats(getMockStats());
+        // Show empty state on API failure - no mock data for pilot integrity
+        setAchievements([]);
+        setUserStats(null);
       }
     } catch (error) {
       console.error('Error loading achievements:', error);
-      setAchievements(getMockAchievements());
-      setUserStats(getMockStats());
+      // Show empty state on error - no mock data for pilot integrity
+      setAchievements([]);
+      setUserStats(null);
     } finally {
       setLoading(false);
     }
   };
-
-  const getMockAchievements = (): Achievement[] => [
-    {
-      id: '1',
-      name: 'First Steps',
-      description: 'Complete your first mood check-in',
-      icon: 'star',
-      category: 'checkin',
-      points: 10,
-      unlockedAt: new Date().toISOString(),
-      rarity: 'common'
-    },
-    {
-      id: '2',
-      name: 'Week Warrior',
-      description: 'Maintain a 7-day check-in streak',
-      icon: 'calendar',
-      category: 'streak',
-      points: 50,
-      progress: 5,
-      maxProgress: 7,
-      rarity: 'rare'
-    },
-    {
-      id: '4',
-      name: 'Community Champion',
-      description: 'Attend 10 community programs',
-      icon: 'heart',
-      category: 'program',
-      points: 75,
-      progress: 3,
-      maxProgress: 10,
-      rarity: 'rare'
-    },
-    {
-      id: '5',
-      name: 'Aurora Seeker',
-      description: 'Reach Aurora mood 10 times',
-      icon: 'trophy',
-      category: 'special',
-      points: 200,
-      progress: 2,
-      maxProgress: 10,
-      rarity: 'legendary'
-    },
-    {
-      id: '6',
-      name: 'Consistency King',
-      description: 'Check in for 30 consecutive days',
-      icon: 'trending',
-      category: 'streak',
-      points: 150,
-      rarity: 'epic'
-    }
-  ];
-
-  const getMockStats = (): UserStats => ({
-    totalPoints: 285,
-    level: 4,
-    nextLevelPoints: 500,
-    rank: 'Rising Star',
-    unlockedCount: 8,
-    totalAchievements: 25
-  });
 
   const filteredAchievements = selectedCategory === 'all' 
     ? achievements 

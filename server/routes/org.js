@@ -1,7 +1,7 @@
 import express from 'express';
 import { db, pool } from '../db.js';
-import { attendance, programs, profiles, checkins, orgMembers, xids, users, programEvents, outcomeEvents, peerSuccessInsights } from '../schema.js';
-import { eq, sql, desc, and, gte, lte, count, countDistinct } from 'drizzle-orm';
+import { attendance, programs, profiles, checkins, orgMembers, xids, users, programEvents, outcomeEvents, peerSuccessInsights, referrals, organizations } from '../schema.js';
+import { eq, sql, desc, and, gte, lte, count, countDistinct, ilike, or, ne } from 'drizzle-orm';
 import { Parser } from '@json2csv/plainjs';
 import { DateTime } from 'luxon';
 import logger from '../logger.ts';
@@ -811,6 +811,234 @@ router.delete('/members/:id', verifyOrgAccess, async (req, res) => {
   } catch (error) {
     logger.error({ err: error, context: 'org-member-remove' }, 'Error removing member');
     res.status(500).json({ error: 'Failed to remove member' });
+  }
+});
+
+// Search youth who have attended org programs
+router.get('/youth', verifyOrgAccess, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || typeof q !== 'string' || q.length < 2) {
+      return res.json({ youth: [] });
+    }
+
+    const orgId = req.userOrgIds[0];
+    if (!orgId && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const searchPattern = `%${q}%`;
+    
+    const youthResults = await db
+      .selectDistinct({
+        id: users.id,
+        displayName: profiles.displayName,
+        lastAttendance: sql`MAX(${attendance.timestamp})`.as('last_attendance')
+      })
+      .from(attendance)
+      .innerJoin(programs, eq(attendance.programId, programs.id))
+      .innerJoin(xids, eq(attendance.xidId, xids.id))
+      .innerJoin(users, eq(xids.userId, users.id))
+      .innerJoin(profiles, eq(users.id, profiles.userId))
+      .where(and(
+        req.isGlobalAdmin ? undefined : eq(programs.orgId, orgId),
+        ilike(profiles.displayName, searchPattern)
+      ))
+      .groupBy(users.id, profiles.displayName)
+      .orderBy(desc(sql`MAX(${attendance.timestamp})`))
+      .limit(20);
+
+    res.json({ 
+      youth: youthResults.map(y => ({
+        id: y.id,
+        displayName: y.displayName || 'Anonymous',
+        lastAttendance: y.lastAttendance
+      }))
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-youth-search' }, 'Error searching youth');
+    res.status(500).json({ error: 'Failed to search youth' });
+  }
+});
+
+// Get partner organizations (other orgs to refer to)
+router.get('/partner-organizations', verifyOrgAccess, async (req, res) => {
+  try {
+    const orgId = req.userOrgIds[0];
+    
+    const orgs = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        type: organizations.type
+      })
+      .from(organizations)
+      .where(and(
+        eq(organizations.active, true),
+        orgId ? ne(organizations.id, orgId) : undefined
+      ))
+      .orderBy(organizations.name);
+
+    res.json({ organizations: orgs });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-partner-orgs' }, 'Error fetching partner organizations');
+    res.status(500).json({ error: 'Failed to fetch partner organizations' });
+  }
+});
+
+// Create a new referral
+router.post('/referrals', verifyOrgAccess, async (req, res) => {
+  try {
+    const orgId = req.userOrgIds[0];
+    if (!orgId) {
+      return res.status(403).json({ error: 'Organization membership required to create referrals' });
+    }
+
+    const { youth_id, to_org_id, priority, summary } = req.body;
+
+    if (!youth_id || !to_org_id) {
+      return res.status(400).json({ error: 'youth_id and to_org_id are required' });
+    }
+
+    const validPriorities = ['low', 'medium', 'high'];
+    const referralPriority = validPriorities.includes(priority) ? priority : 'medium';
+
+    const [newReferral] = await db
+      .insert(referrals)
+      .values({
+        fromOrgId: orgId,
+        toOrgId: to_org_id,
+        youthId: youth_id,
+        priority: referralPriority,
+        summary: summary || null,
+        status: 'pending_consent',
+        sentAt: new Date()
+      })
+      .returning();
+
+    logger.info({ referralId: newReferral.id, fromOrg: orgId, toOrg: to_org_id }, 'Referral created');
+    res.status(201).json({ referral: newReferral });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-referral-create' }, 'Error creating referral');
+    res.status(500).json({ error: 'Failed to create referral' });
+  }
+});
+
+// Get referrals for the organization (both sent and received)
+router.get('/referrals', verifyOrgAccess, async (req, res) => {
+  try {
+    const orgId = req.userOrgIds[0];
+    if (!orgId && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const { status } = req.query;
+
+    let whereClause = req.isGlobalAdmin 
+      ? undefined 
+      : or(eq(referrals.fromOrgId, orgId), eq(referrals.toOrgId, orgId));
+
+    if (status && status !== 'all') {
+      whereClause = and(whereClause, eq(referrals.status, status));
+    }
+
+    const referralList = await db
+      .select({
+        id: referrals.id,
+        youthId: referrals.youthId,
+        youthName: profiles.displayName,
+        toOrgId: referrals.toOrgId,
+        toOrgName: organizations.name,
+        fromOrgId: referrals.fromOrgId,
+        priority: referrals.priority,
+        status: referrals.status,
+        summary: referrals.summary,
+        createdAt: referrals.createdAt,
+        sentAt: referrals.sentAt,
+        acceptedAt: referrals.acceptedAt,
+        declinedAt: referrals.declinedAt,
+        declinedReason: referrals.declinedReason
+      })
+      .from(referrals)
+      .leftJoin(profiles, eq(referrals.youthId, profiles.userId))
+      .leftJoin(organizations, eq(referrals.toOrgId, organizations.id))
+      .where(whereClause)
+      .orderBy(desc(referrals.createdAt))
+      .limit(100);
+
+    res.json({ 
+      referrals: referralList.map(r => ({
+        ...r,
+        youthName: r.youthName || 'Anonymous'
+      }))
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'org-referrals-list' }, 'Error fetching referrals');
+    res.status(500).json({ error: 'Failed to fetch referrals' });
+  }
+});
+
+// Export referrals as CSV
+router.get('/referrals/export', verifyOrgAccess, async (req, res) => {
+  try {
+    const orgId = req.userOrgIds[0];
+    if (!orgId && !req.isGlobalAdmin) {
+      return res.status(403).json({ error: 'Organization membership required' });
+    }
+
+    const { status } = req.query;
+
+    let whereClause = req.isGlobalAdmin 
+      ? undefined 
+      : or(eq(referrals.fromOrgId, orgId), eq(referrals.toOrgId, orgId));
+
+    if (status && status !== 'all') {
+      whereClause = and(whereClause, eq(referrals.status, status));
+    }
+
+    const referralList = await db
+      .select({
+        id: referrals.id,
+        youthName: profiles.displayName,
+        toOrgName: organizations.name,
+        priority: referrals.priority,
+        status: referrals.status,
+        summary: referrals.summary,
+        createdAt: referrals.createdAt,
+        sentAt: referrals.sentAt,
+        acceptedAt: referrals.acceptedAt,
+        declinedAt: referrals.declinedAt,
+        declinedReason: referrals.declinedReason
+      })
+      .from(referrals)
+      .leftJoin(profiles, eq(referrals.youthId, profiles.userId))
+      .leftJoin(organizations, eq(referrals.toOrgId, organizations.id))
+      .where(whereClause)
+      .orderBy(desc(referrals.createdAt));
+
+    const csvData = referralList.map(r => ({
+      'Referral ID': r.id,
+      'Youth': r.youthName || 'Anonymous',
+      'To Organization': r.toOrgName || 'Unknown',
+      'Priority': r.priority,
+      'Status': r.status,
+      'Summary': r.summary || '',
+      'Created': r.createdAt ? DateTime.fromJSDate(r.createdAt).toISO() : '',
+      'Sent': r.sentAt ? DateTime.fromJSDate(r.sentAt).toISO() : '',
+      'Accepted': r.acceptedAt ? DateTime.fromJSDate(r.acceptedAt).toISO() : '',
+      'Declined': r.declinedAt ? DateTime.fromJSDate(r.declinedAt).toISO() : '',
+      'Decline Reason': r.declinedReason || ''
+    }));
+
+    const parser = new Parser();
+    const csv = parser.parse(csvData);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=referrals-${DateTime.now().toISODate()}.csv`);
+    res.send(csv);
+  } catch (error) {
+    logger.error({ err: error, context: 'org-referrals-export' }, 'Error exporting referrals');
+    res.status(500).json({ error: 'Failed to export referrals' });
   }
 });
 
