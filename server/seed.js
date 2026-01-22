@@ -1,10 +1,155 @@
 import { db } from './db.js';
-import { programs, crisisSupports } from './schema.js';
+import { programs, crisisSupports, organizations } from './schema.js';
+import { parents } from './schema.extras.js';
+import { youthWorkers, aiInterventions } from './schema-extensions.js';
+import bcrypt from 'bcrypt';
 
 async function seed() {
   console.log('🌱 Seeding database...');
 
   try {
+    // Seed organizations
+    const [org1, org2, org3] = await db.insert(organizations).values([
+      {
+        name: 'Room XI Connect',
+        type: 'nonprofit',
+        contactEmail: 'hello@roomxiconnect.ca',
+        contactPhone: '780-555-0100',
+        website: 'https://roomxiconnect.ca',
+        active: true,
+      },
+      {
+        name: 'YESS Edmonton',
+        type: 'nonprofit',
+        contactEmail: 'info@yess.org',
+        contactPhone: '780-555-0200',
+        website: 'https://yess.org',
+        active: true,
+      },
+      {
+        name: 'iHuman Youth Society',
+        type: 'nonprofit',
+        contactEmail: 'contact@ihuman.org',
+        contactPhone: '780-555-0300',
+        website: 'https://ihuman.org',
+        active: true,
+      },
+    ]).returning();
+    console.log('✅ Organizations seeded');
+
+    // Seed youth workers (staff members)
+    const passwordHash = await bcrypt.hash('TestPassword123!', 12);
+    await db.insert(youthWorkers).values([
+      {
+        organizationId: org1.id,
+        email: 'sarah.worker@roomxiconnect.ca',
+        passwordHash,
+        firstName: 'Sarah',
+        lastName: 'Chen',
+        role: 'worker',
+        active: true,
+      },
+      {
+        organizationId: org1.id,
+        email: 'michael.admin@roomxiconnect.ca',
+        passwordHash,
+        firstName: 'Michael',
+        lastName: 'Thompson',
+        role: 'admin',
+        active: true,
+      },
+      {
+        organizationId: org2.id,
+        email: 'jamie.worker@yess.org',
+        passwordHash,
+        firstName: 'Jamie',
+        lastName: 'Rodriguez',
+        role: 'worker',
+        active: true,
+      },
+      {
+        organizationId: org3.id,
+        email: 'alex.worker@ihuman.org',
+        passwordHash,
+        firstName: 'Alex',
+        lastName: 'Kim',
+        role: 'worker',
+        active: true,
+      },
+    ]);
+    console.log('✅ Youth workers seeded');
+
+    // Seed parent accounts
+    await db.insert(parents).values([
+      {
+        email: 'parent1@example.com',
+        passwordHash,
+        firstName: 'Jennifer',
+        lastName: 'Smith',
+        phone: '780-555-1001',
+      },
+      {
+        email: 'parent2@example.com',
+        passwordHash,
+        firstName: 'David',
+        lastName: 'Johnson',
+        phone: '780-555-1002',
+      },
+      {
+        email: 'guardian@example.com',
+        passwordHash,
+        firstName: 'Maria',
+        lastName: 'Garcia',
+        phone: '780-555-1003',
+      },
+    ]);
+    console.log('✅ Parent accounts seeded');
+
+    // Seed AI interventions (default templates)
+    await db.insert(aiInterventions).values([
+      {
+        interventionType: 'mood_decline',
+        content: "Hey, Ximi here. I noticed your mood has been lower lately. Would you like to talk, or maybe explore some coping strategies together?",
+        triggerConditions: { moodDeclineThreshold: 2, windowDays: 7 },
+        deliveryChannel: 'in_app_notification',
+        cooldownPeriodHours: 48,
+        active: true,
+      },
+      {
+        interventionType: 'inactivity',
+        content: "Hi! Ximi checking in. It's been a while since we connected. No pressure, but I'm here whenever you want to chat or check in.",
+        triggerConditions: { inactiveDays: 7 },
+        deliveryChannel: 'in_app_notification',
+        cooldownPeriodHours: 72,
+        active: true,
+      },
+      {
+        interventionType: 'crisis_keyword',
+        content: "I'm here for you. It sounds like you might be going through something really difficult. Remember, you're not alone. Would you like to see some crisis resources?",
+        triggerConditions: { keywords: ['hopeless', 'can\'t go on', 'end it', 'give up'] },
+        deliveryChannel: 'in_app_notification',
+        cooldownPeriodHours: 24,
+        active: true,
+      },
+      {
+        interventionType: 'low_engagement',
+        content: "Hey there! Ximi here. Have you checked out any programs lately? There might be something new that matches your interests.",
+        triggerConditions: { daysSinceLastProgramView: 14 },
+        deliveryChannel: 'in_app_notification',
+        cooldownPeriodHours: 168,
+        active: true,
+      },
+      {
+        interventionType: 'streak_encouragement',
+        content: "Amazing work on your check-in streak! Consistency like this shows real self-awareness. Keep it up!",
+        triggerConditions: { streakMilestones: [7, 14, 30] },
+        deliveryChannel: 'in_app_notification',
+        cooldownPeriodHours: 168,
+        active: false,
+      },
+    ]);
+    console.log('✅ AI interventions seeded');
+
     // Seed programs
     await db.insert(programs).values([
       {
@@ -200,7 +345,21 @@ async function seed() {
     ]);
     console.log('✅ Crisis supports seeded');
 
+    console.log('');
     console.log('✨ Database seeded successfully!');
+    console.log('');
+    console.log('📋 Test Accounts Created:');
+    console.log('   Youth Workers:');
+    console.log('     - sarah.worker@roomxiconnect.ca (worker)');
+    console.log('     - michael.admin@roomxiconnect.ca (admin)');
+    console.log('     - jamie.worker@yess.org (worker)');
+    console.log('     - alex.worker@ihuman.org (worker)');
+    console.log('   Parents:');
+    console.log('     - parent1@example.com');
+    console.log('     - parent2@example.com');
+    console.log('     - guardian@example.com');
+    console.log('   Password for all: TestPassword123!');
+    console.log('');
   } catch (error) {
     console.error('❌ Seed error:', error);
     throw error;
