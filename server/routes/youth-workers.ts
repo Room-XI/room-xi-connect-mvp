@@ -98,8 +98,15 @@ function requireYouthWorkerAuth(req: any, res: any, next: any) {
 
 // Get assigned youth list
 router.get("/my-youth", requireYouthWorkerAuth, async (req, res, next) => {
+  const youthWorkerId = req.session.youthWorkerId!;
+  
+  logger.info({ 
+    youthWorkerId, 
+    action: "my_youth_list_access", 
+    context: "youth-workers" 
+  }, "Youth worker accessing assigned youth list");
+
   try {
-    const youthWorkerId = req.session.youthWorkerId!;
     const assignments = await db
       .select({
         id: schemaExtensions.youthWorkerAssignments.id,
@@ -144,6 +151,14 @@ router.get("/my-youth", requireYouthWorkerAuth, async (req, res, next) => {
 // Request assignment to a youth
 router.post("/assign", requireYouthWorkerAuth, async (req, res, next) => {
   const { youthEmail } = req.body;
+  const youthWorkerId = req.session.youthWorkerId!;
+
+  logger.info({ 
+    youthWorkerId, 
+    action: "assignment_request_attempt", 
+    targetEmail: youthEmail ? "[REDACTED]" : null,
+    context: "youth-workers" 
+  }, "Youth worker attempting to request assignment");
 
   if (!youthEmail) {
     return res.status(400).json({ error: "youthEmail is required" });
@@ -156,10 +171,14 @@ router.post("/assign", requireYouthWorkerAuth, async (req, res, next) => {
     });
 
     if (!youth) {
+      logger.info({ 
+        youthWorkerId, 
+        action: "assignment_request_failed", 
+        reason: "youth_not_found",
+        context: "youth-workers" 
+      }, "Assignment request failed: youth not found");
       return res.status(404).json({ error: "Youth not found" });
     }
-
-    const youthWorkerId = req.session.youthWorkerId!;
 
     // Check if assignment already exists
     const [existing] = await db
@@ -172,6 +191,13 @@ router.post("/assign", requireYouthWorkerAuth, async (req, res, next) => {
       .limit(1);
 
     if (existing) {
+      logger.info({ 
+        youthWorkerId, 
+        youthId: youth.id,
+        action: "assignment_request_duplicate", 
+        existingStatus: existing.consentStatus,
+        context: "youth-workers" 
+      }, "Assignment request rejected: already exists");
       return res.status(409).json({ error: "Assignment request already exists", status: existing.consentStatus });
     }
 
@@ -183,8 +209,9 @@ router.post("/assign", requireYouthWorkerAuth, async (req, res, next) => {
     }).returning();
 
     logger.info({ 
-      youthWorkerId: req.session.youthWorkerId, 
+      youthWorkerId, 
       youthId: youth.id, 
+      action: "assignment_request_created",
       context: "youth-workers" 
     }, "Created youth worker assignment request");
 
@@ -201,7 +228,7 @@ router.get("/youth/:youthId/dashboard", requireYouthWorkerAuth, async (req, res,
   const youthWorkerId = req.session.youthWorkerId!;
 
   try {
-    // Verify consent
+    // Verify consent BEFORE any data access
     const [assignment] = await db
       .select()
       .from(schemaExtensions.youthWorkerAssignments)
@@ -213,7 +240,14 @@ router.get("/youth/:youthId/dashboard", requireYouthWorkerAuth, async (req, res,
       .limit(1);
 
     if (!assignment) {
-      return res.status(403).json({ error: "No consent to view this youth's data" });
+      logger.info({ 
+        youthWorkerId, 
+        youthId, 
+        action: "dashboard_access_denied", 
+        reason: "no_consent", 
+        context: "youth-workers" 
+      }, "Blocked dashboard access attempt");
+      return res.status(403).json({ error: "Access denied" });
     }
 
     const consentLevel = assignment.consentLevel as any || {};
@@ -266,6 +300,7 @@ router.get("/youth/:youthId/dashboard", requireYouthWorkerAuth, async (req, res,
       logger.info({
         youthWorkerId,
         youthId,
+        action: "dashboard_partial_access",
         deniedScopes,
         context: "youth-workers",
       }, "Dashboard access partially restricted due to consent levels");
@@ -274,6 +309,172 @@ router.get("/youth/:youthId/dashboard", requireYouthWorkerAuth, async (req, res,
     res.status(200).json(dashboard);
   } catch (error) {
     logger.error({ error, youthId, context: "youth-workers" }, "Error fetching youth dashboard");
+    next(error);
+  }
+});
+
+// Get youth profile data (for granted assignments only)
+router.get("/youth/:youthId", requireYouthWorkerAuth, async (req, res, next) => {
+  const { youthId } = req.params;
+  const youthWorkerId = req.session.youthWorkerId!;
+
+  try {
+    // MUST verify consent BEFORE any data access
+    const [assignment] = await db
+      .select()
+      .from(schemaExtensions.youthWorkerAssignments)
+      .where(and(
+        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, youthWorkerId),
+        eq(schemaExtensions.youthWorkerAssignments.youthId, youthId),
+        eq(schemaExtensions.youthWorkerAssignments.consentStatus, "granted")
+      ))
+      .limit(1);
+
+    if (!assignment) {
+      logger.info({ 
+        youthWorkerId, 
+        youthId, 
+        action: "profile_access_denied", 
+        reason: "no_consent", 
+        context: "youth-workers" 
+      }, "Blocked access attempt");
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const consentLevel = assignment.consentLevel as any || {};
+    const profileData: any = {};
+    const deniedScopes: string[] = [];
+
+    // Get basic profile info (always available for granted assignments)
+    const profile = await db.query.profiles?.findFirst({
+      where: eq(schema.profiles.userId, youthId),
+      columns: {
+        preferredName: true,
+        firstName: true,
+        city: true,
+        createdAt: true,
+      }
+    });
+
+    profileData.displayName = profile?.preferredName || profile?.firstName || "Youth";
+    profileData.city = profile?.city;
+    profileData.memberSince = profile?.createdAt;
+
+    // Mood timeline data (if consented)
+    if (consentLevel.share_mood_timeline !== false) {
+      const recentCheckins = await db.query.checkins?.findMany({
+        where: eq(schema.checkins.userId, youthId),
+        orderBy: [desc(schema.checkins.timestamp)],
+        limit: 7,
+        columns: {
+          moodType: true,
+          moodLevel16: true,
+          timestamp: true,
+        }
+      });
+      profileData.recentMoods = recentCheckins;
+    } else {
+      deniedScopes.push("share_mood_timeline");
+    }
+
+    // Program engagement data (if consented)
+    if (consentLevel.share_program_engagement !== false) {
+      const totalCheckins = await db.query.checkins?.findMany({
+        where: eq(schema.checkins.userId, youthId),
+      });
+      profileData.totalCheckIns = totalCheckins?.length || 0;
+    } else {
+      deniedScopes.push("share_program_engagement");
+    }
+
+    // Check-in streak (if consented)
+    if (consentLevel.share_checkin_streak !== false) {
+      const streakProfile = await db.query.profiles?.findFirst({
+        where: eq(schema.profiles.userId, youthId),
+        columns: { streakCount: true, lastCheckinDate: true }
+      });
+      profileData.currentStreak = streakProfile?.streakCount || 0;
+      profileData.lastCheckinDate = streakProfile?.lastCheckinDate;
+    } else {
+      deniedScopes.push("share_checkin_streak");
+    }
+
+    // Audit log for denied scopes
+    if (deniedScopes.length > 0) {
+      logger.info({
+        youthWorkerId,
+        youthId,
+        action: "profile_partial_access",
+        deniedScopes,
+        context: "youth-workers",
+      }, "Profile access partially restricted due to consent levels");
+    }
+
+    res.status(200).json(profileData);
+  } catch (error) {
+    logger.error({ error, youthId, context: "youth-workers" }, "Error fetching youth profile");
+    next(error);
+  }
+});
+
+// Get youth mood history (for sparkline chart, requires share_mood_timeline consent)
+router.get("/youth/:youthId/mood-history", requireYouthWorkerAuth, async (req, res, next) => {
+  const { youthId } = req.params;
+  const youthWorkerId = req.session.youthWorkerId!;
+
+  try {
+    // MUST verify consent BEFORE any data access
+    const [assignment] = await db
+      .select()
+      .from(schemaExtensions.youthWorkerAssignments)
+      .where(and(
+        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, youthWorkerId),
+        eq(schemaExtensions.youthWorkerAssignments.youthId, youthId),
+        eq(schemaExtensions.youthWorkerAssignments.consentStatus, "granted")
+      ))
+      .limit(1);
+
+    if (!assignment) {
+      logger.info({ 
+        youthWorkerId, 
+        youthId, 
+        action: "mood_history_access_denied", 
+        reason: "no_consent", 
+        context: "youth-workers" 
+      }, "Blocked mood history access attempt");
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const consentLevel = assignment.consentLevel as any || {};
+
+    // Verify explicit consent for mood timeline
+    if (consentLevel.share_mood_timeline === false) {
+      logger.info({ 
+        youthWorkerId, 
+        youthId, 
+        action: "mood_history_access_denied", 
+        reason: "mood_timeline_not_consented", 
+        context: "youth-workers" 
+      }, "Blocked mood history access: youth has not consented to mood timeline sharing");
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    // Fetch mood history for sparkline (last 30 days)
+    const moodHistory = await db.query.checkins?.findMany({
+      where: eq(schema.checkins.userId, youthId),
+      orderBy: [desc(schema.checkins.timestamp)],
+      limit: 30,
+      columns: {
+        moodType: true,
+        moodLevel16: true,
+        timestamp: true,
+        checkinDate: true,
+      }
+    });
+
+    res.status(200).json({ moodHistory: moodHistory || [] });
+  } catch (error) {
+    logger.error({ error, youthId, context: "youth-workers" }, "Error fetching youth mood history");
     next(error);
   }
 });

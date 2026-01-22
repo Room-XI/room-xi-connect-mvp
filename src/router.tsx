@@ -6,6 +6,7 @@ import RequireAuth from './components/RequireAuth';
 import RequireAdminSession from './components/RequireAdminSession';
 import RequireOrgAccess from './components/RequireOrgAccess';
 import RequireParentSession from './components/RequireParentSession';
+import RequireYouthWorkerSession from './components/RequireYouthWorkerSession';
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -66,6 +67,9 @@ const RootRedirect = lazy(() => import('./components/RootRedirect'));
 const ReferralsList = lazy(() => import('./routes/org/ReferralsList'));
 const ReferralsNew = lazy(() => import('./routes/org/ReferralsNew'));
 const Reports = lazy(() => import('./routes/org/Reports'));
+const YouthWorkerLogin = lazy(() => import('./routes/youth-worker/Login'));
+const YouthWorkerDashboard = lazy(() => import('./routes/youth-worker/Dashboard'));
+const YouthProfileView = lazy(() => import('./routes/youth-worker/YouthProfile'));
 
 // Wrapper to add Suspense to lazy-loaded components
 const withSuspense = (Component: React.LazyExoticComponent<any>) => {
@@ -120,6 +124,17 @@ const withParentSuspense = (Component: React.LazyExoticComponent<any>) => {
   );
 };
 
+// Wrapper for youth worker portal routes
+const withYouthWorkerSuspense = (Component: React.LazyExoticComponent<any>) => {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <RequireYouthWorkerSession>
+        <Component />
+      </RequireYouthWorkerSession>
+    </Suspense>
+  );
+};
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -170,6 +185,10 @@ export const router = createBrowserRouter([
       { path: 'org/referrals', element: withOrgSuspense(ReferralsList) },
       { path: 'org/referrals/new', element: withOrgSuspense(ReferralsNew) },
       { path: 'org/reports', element: withOrgSuspense(Reports) },
+      { path: 'youth-worker', element: <Navigate to="/youth-worker/dashboard" replace /> },
+      { path: 'youth-worker/login', element: withSuspense(YouthWorkerLogin) },
+      { path: 'youth-worker/dashboard', element: withYouthWorkerSuspense(YouthWorkerDashboard) },
+      { path: 'youth-worker/youth/:youthId', element: withYouthWorkerSuspense(YouthProfileView) },
       { path: 'kpi-dashboard', element: withProtectedSuspense(KPIDashboard) },
       { path: 'transparency', element: withProtectedSuspense(TransparencyDashboard) },
       { path: 'privacy-center', element: withProtectedSuspense(PrivacyCenter) },
