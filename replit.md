@@ -16,9 +16,19 @@ The tech stack includes React 18 with TypeScript, Vite 5, React Router v6, Tailw
 - **Parent Portal** (`/parent/*`, parent.sid cookie) - Guardian access with consent management, emergency contacts, data export/deletion, and filtered youth data views
 - **Org Portal** (`/org/*`, user.sid cookie with org member check) - Partner organization dashboard with program CRUD, attendance tracking, outcomes analytics, staff management, and inter-org referral system
 - **Admin Portal** (`/admin/*`, admin.sid cookie) - Platform administration with organizations/users management, audit logs, and PIPA/PIPEDA compliance dashboard
-- **Youth Worker Portal** (`/api/youth-workers/*`, user.sid cookie with youth worker role check) - Phase 2 addition enabling trusted youth workers to view consented youth data, request assignments, and provide support
+- **Youth Worker Portal** (`/youth-worker/*`, org.sid cookie with youth worker session) - Phase 2 addition enabling trusted youth workers to view consented youth data, request assignments, and provide personalized support
 
 **Phase 2 Additions (Jan 2026):**
+
+**Youth Worker Portal Frontend** (Added Jan 2026):
+- `src/routes/youth-worker/Login.tsx` - Youth worker authentication with email/password
+- `src/routes/youth-worker/Dashboard.tsx` - Assigned youth list with consent status, assignment requests
+- `src/routes/youth-worker/YouthProfile.tsx` - Consent-aware youth profile view with AI mood summaries
+- `src/components/ConsentStatusBadge.tsx` - Reusable consent status indicators
+- `src/components/RequireYouthWorkerSession.tsx` - Auth wrapper for youth worker routes
+- Routes: `/youth-worker/login`, `/youth-worker/dashboard`, `/youth-worker/youth/:youthId`
+- API endpoints: `/api/youth-workers/login`, `/api/youth-workers/me`, `/api/youth-workers/my-youth`, `/api/youth-workers/youth/:youthId`, `/api/youth-workers/youth/:youthId/mood-history`
+
 - **Proactive AI System** (`server/services/proactiveAI.ts`) - Intelligent intervention engine that detects mood patterns, inactivity, crisis keywords, and low engagement to deliver personalized support messages via Ximi. Features tiered cooldowns (24hr default), consent-gated delivery, and audit logging.
 - **AI Interventions Table** - Stores intervention templates with trigger types, content templates, cooldown periods, and Ximi persona integration. 4 default interventions seeded.
 - **Youth Worker Assignments** - Consent-based assignment system where youth workers request access to youth data, youth approve/deny with granular consent levels (share_mood_timeline, share_program_engagement, share_checkin_streak).
