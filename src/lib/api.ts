@@ -732,6 +732,35 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    getInterventions: () => fetchApi('/ai/interventions'),
+    createIntervention: (data: {
+      interventionType: string;
+      content: string;
+      triggerConditions: object;
+      deliveryChannel?: string;
+      cooldownPeriodHours?: number;
+      active?: boolean;
+    }) =>
+      fetchApi('/ai/interventions', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    updateIntervention: (id: string, data: {
+      interventionType?: string;
+      content?: string;
+      triggerConditions?: object;
+      deliveryChannel?: string;
+      cooldownPeriodHours?: number;
+      active?: boolean;
+    }) =>
+      fetchApi(`/ai/interventions/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    triggerAIEngine: () =>
+      fetchApi('/ai/trigger', {
+        method: 'POST',
+      }),
   },
 
   breach: {

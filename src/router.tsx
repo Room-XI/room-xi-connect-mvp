@@ -29,6 +29,7 @@ const AdminOrganizations = lazy(() => import('./routes/admin/Organizations'));
 const AdminUsers = lazy(() => import('./routes/admin/Users'));
 const AdminAuditLogs = lazy(() => import('./routes/admin/AuditLogs'));
 const AdminCompliance = lazy(() => import('./routes/admin/Compliance'));
+const AdminAIInterventions = lazy(() => import('./routes/admin/AIInterventions'));
 const NotFound = lazy(() => import('./routes/NotFound'));
 const Login = lazy(() => import('./routes/auth/Login'));
 const Register = lazy(() => import('./routes/auth/Register'));
@@ -164,6 +165,7 @@ export const router = createBrowserRouter([
           { path: 'users', element: withSuspense(AdminUsers) },
           { path: 'audit-logs', element: withSuspense(AdminAuditLogs) },
           { path: 'compliance', element: withSuspense(AdminCompliance) },
+          { path: 'ai-interventions', element: withSuspense(AdminAIInterventions) },
         ]
       },
       { path: 'about', element: withSuspense(About) },

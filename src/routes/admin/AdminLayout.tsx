@@ -9,7 +9,8 @@ import {
   LogOut,
   Shield,
   Menu,
-  X
+  X,
+  Brain
 } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
@@ -20,6 +21,7 @@ const navItems = [
   { path: '/admin/users', label: 'Users', icon: Users },
   { path: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },
   { path: '/admin/compliance', label: 'Breach/Compliance', icon: AlertTriangle },
+  { path: '/admin/ai-interventions', label: 'AI Interventions', icon: Brain },
 ];
 
 export default function AdminLayout() {
