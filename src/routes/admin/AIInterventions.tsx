@@ -31,6 +31,7 @@ const INTERVENTION_TYPES = [
   { value: 'inactivity', label: 'Inactivity' },
   { value: 'crisis_keyword', label: 'Crisis Keyword' },
   { value: 'low_engagement', label: 'Low Engagement' },
+  { value: 'streak_encouragement', label: 'Streak Encouragement' },
 ];
 
 const DELIVERY_CHANNELS = [
