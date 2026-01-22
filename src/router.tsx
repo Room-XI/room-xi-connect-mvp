@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import App from './shell/App';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -163,6 +163,7 @@ export const router = createBrowserRouter([
       { path: 'parent/set-password/:token', element: withSuspense(ParentSetPassword) },
       { path: 'parent/reset-password/:token', element: withSuspense(ParentResetPassword) },
       { path: 'parent/accept/:token', element: withSuspense(ParentAcceptInvite) },
+      { path: 'org', element: <Navigate to="/org/dashboard" replace /> },
       { path: 'org/dashboard', element: withOrgSuspense(OrgDashboard) },
       { path: 'org/programs', element: withOrgSuspense(ProgramManagement) },
       { path: 'org/staff', element: withOrgSuspense(StaffManagement) },

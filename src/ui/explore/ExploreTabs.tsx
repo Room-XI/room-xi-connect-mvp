@@ -28,21 +28,20 @@ export default function ExploreTabs({ current }: ExploreTabsProps) {
           to={tab.to}
           role="tab"
           aria-selected={current === tab.key}
-          className="relative"
+          className={`relative w-full text-center py-3 rounded-lg text-sm font-semibold transition-colors duration-200 block ${
+            current === tab.key
+              ? 'text-deepSage'
+              : 'text-textSecondaryLight hover:text-deepSage'
+          }`}
         >
-          <motion.button
-            className={`w-full text-center py-3 rounded-lg text-sm font-semibold transition-colors duration-200 ${
-              current === tab.key
-                ? 'text-deepSage'
-                : 'text-textSecondaryLight hover:text-deepSage'
-            }`}
+          <motion.span
+            className="block"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
             {tab.label}
-          </motion.button>
+          </motion.span>
           
-          {/* Animated background for selected tab */}
           {current === tab.key && (
             <motion.div
               className="absolute inset-1 bg-surface shadow-sm rounded-lg -z-10"

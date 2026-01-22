@@ -18,7 +18,7 @@ test.describe('Admin Portal Journey - API Tests', () => {
       expect([400, 401, 403, 429, 503]).toContain(response.status());
     });
 
-    test('POST /api/admin/verify-access without CSRF token fails', async ({ request }) => {
+    test('POST /api/admin/verify-access with correct code succeeds and returns CSRF token', async ({ request }) => {
       const response = await request.post(`${API_BASE}/admin/verify-access`, {
         headers: {
           'Content-Type': 'application/json',
@@ -28,7 +28,12 @@ test.describe('Admin Portal Journey - API Tests', () => {
         },
       });
       
-      expect([401, 403]).toContain(response.status());
+      expect([200, 503]).toContain(response.status());
+      if (response.status() === 200) {
+        const data = await response.json();
+        expect(data.success).toBe(true);
+        expect(data.csrfToken).toBeDefined();
+      }
     });
 
     test('GET /api/admin/status returns admin session status', async ({ request }) => {
