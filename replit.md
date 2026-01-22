@@ -11,11 +11,18 @@ The application features a youth-friendly landing page, a professional "About" p
 ### Technical Implementations
 The tech stack includes React 18 with TypeScript, Vite 5, React Router v6, Tailwind CSS for the frontend, and Express/Neon PostgreSQL (Drizzle ORM) for the backend. **API naming convention:** API responses use camelCase (from Drizzle ORM), while API request bodies use snake_case (validated by Zod schemas). Frontend TypeScript interfaces must use camelCase to match API responses. Key features include daily mood tracking with DST-safe streak logic, a trauma-informed AI companion (Ximi) with crisis detection, QR code attendance tracking, offline support via IndexedDB, and end-to-end encryption. Geo-spatial privacy is ensured using H3 Hex Bucketing with dual k-anonymity thresholds and Laplace noise. The 7-day canvas-based gradient mood orb features a smooth pastel aesthetic with pixel-perfect rendering, HSL color interpolation, and accessibility features.
 
-**Multi-Portal Architecture:** The application features four separate portals, each with isolated session management:
+**Multi-Portal Architecture:** The application features five separate portals, each with isolated session management:
 - **Youth Portal** (user.sid cookie) - Main app for youth users with mood tracking, programs, and AI companion
 - **Parent Portal** (`/parent/*`, parent.sid cookie) - Guardian access with consent management, emergency contacts, data export/deletion, and filtered youth data views
 - **Org Portal** (`/org/*`, user.sid cookie with org member check) - Partner organization dashboard with program CRUD, attendance tracking, outcomes analytics, staff management, and inter-org referral system
 - **Admin Portal** (`/admin/*`, admin.sid cookie) - Platform administration with organizations/users management, audit logs, and PIPA/PIPEDA compliance dashboard
+- **Youth Worker Portal** (`/api/youth-workers/*`, user.sid cookie with youth worker role check) - Phase 2 addition enabling trusted youth workers to view consented youth data, request assignments, and provide support
+
+**Phase 2 Additions (Jan 2026):**
+- **Proactive AI System** (`server/services/proactiveAI.ts`) - Intelligent intervention engine that detects mood patterns, inactivity, crisis keywords, and low engagement to deliver personalized support messages via Ximi. Features tiered cooldowns (24hr default), consent-gated delivery, and audit logging.
+- **AI Interventions Table** - Stores intervention templates with trigger types, content templates, cooldown periods, and Ximi persona integration. 4 default interventions seeded.
+- **Youth Worker Assignments** - Consent-based assignment system where youth workers request access to youth data, youth approve/deny with granular consent levels (share_mood_timeline, share_program_engagement, share_checkin_streak).
+- **API Routes** - `/api/ai/*` for intervention history and journal summaries, `/api/youth-workers/*` for assignment management and youth dashboards.
 
 Each portal uses per-namespace CSRF tokens (/api/csrf-token, /api/parent-auth/csrf-token, /api/admin/csrf-token) cached separately in the API client.
 

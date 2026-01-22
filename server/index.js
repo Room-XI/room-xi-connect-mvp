@@ -183,6 +183,10 @@ async function createServer() {
   const { default: healthProfileRoutes } = await import('./routes/healthProfile.ts');
   const { default: safetyPlanRoutes } = await import('./routes/safety-plan.js');
   const { default: breachRoutes } = await import('./routes/breach.ts');
+  
+  // Phase 2 Routes - Youth Worker Portal & AI Interventions
+  const { default: aiRoutes } = await import('./routes/ai.ts');
+  const { default: youthWorkerRoutes } = await import('./routes/youth-workers.ts');
 
   // Serve static files for server-rendered pages (consent forms, etc.)
   // These are served without CSP script-src restrictions since they're external files
@@ -210,6 +214,12 @@ async function createServer() {
   // Apply parent session middleware and inactivity tracking to parent routes
   app.use('/api/parent-auth', parentSession, createInactivityMiddleware('parent.sid'), writeLimiter, parentAuthRoutes);
   app.use('/api/parent-portal', parentSession, createInactivityMiddleware('parent.sid'), validateCsrfToken, writeLimiter, parentPortalRoutes);
+
+  // ==================== PHASE 2: YOUTH WORKER & AI ROUTES (user.sid session) ====================
+  // Youth Worker Portal routes - uses existing user session with additional role checks
+  app.use('/api/youth-workers', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, youthWorkerRoutes);
+  // Proactive AI intervention routes
+  app.use('/api/ai', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, aiRoutes);
 
   // ==================== PUBLIC/GUEST ROUTES (stateless, no session) ====================
   // These routes are publicly accessible without authentication

@@ -30,16 +30,28 @@ router.get("/summary/:youthId", requireYouthWorkerAuth, async (req, res, next) =
 
   try {
     // Verify the youth worker is assigned to this youth and has consent
-    const assignment = await db.query.youthWorkerAssignments?.findFirst({
-      where: and(
-        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, youthWorkerId),
+    const [assignment] = await db
+      .select()
+      .from(schemaExtensions.youthWorkerAssignments)
+      .where(and(
+        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, youthWorkerId!),
         eq(schemaExtensions.youthWorkerAssignments.youthId, youthId),
         eq(schemaExtensions.youthWorkerAssignments.consentStatus, "granted")
-      ),
-    });
+      ))
+      .limit(1);
 
     if (!assignment) {
       return res.status(403).json({ error: "No consent to view this youth's data" });
+    }
+
+    // Verify explicit consent for mood timeline (journal access)
+    const consentLevel = assignment.consentLevel as any || {};
+    if (consentLevel.share_mood_timeline === false) {
+      logger.warn(
+        { youthWorkerId, youthId, context: "ai-routes" },
+        "Blocked journal summary access: youth has not consented to mood timeline sharing"
+      );
+      return res.status(403).json({ error: "Youth has not consented to mood timeline sharing" });
     }
 
     const summary = await generateJournalSummary(youthId);

@@ -115,9 +115,27 @@ async function selectIntervention(userId: string) {
 
 /**
  * Delivery Service: Delivers the intervention and records it.
+ * Respects user privacy consent before delivery.
  */
 async function deliverIntervention(userId: string, intervention: any) {
   try {
+    // Check if user has opted into AI/notification features
+    const userConsent = await db.query.privacyConsents?.findFirst({
+      where: eq(schema.privacyConsents.userId, userId),
+    });
+
+    // If user has explicitly opted out, skip delivery and log for audit trail
+    if (userConsent && userConsent.notificationsEnabled === false) {
+      logger.info({
+        userId,
+        interventionId: intervention.id,
+        type: intervention.interventionType,
+        reason: "User has not consented to notifications",
+        context: "proactiveAI",
+      }, "Skipped intervention delivery: consent not granted");
+      return null;
+    }
+
     const [historyRecord] = await db.insert(schemaExtensions.userInterventionHistory).values({
       userId,
       interventionId: intervention.id,

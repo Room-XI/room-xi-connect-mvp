@@ -12,6 +12,7 @@ declare module 'express-session' {
     isAdminSession?: boolean;
     adminAccessGranted?: boolean;
     adminCsrfToken?: string;
+    adminId?: string;
     consents?: Record<string, boolean>;
     email?: string;
     firstName?: string;
@@ -19,5 +20,13 @@ declare module 'express-session' {
     csrfToken?: string;
     requiresGuardianVerification?: boolean;
     guardianVerifiedAt?: string | null;
+    // Phase 2: Youth Worker session
+    youthWorkerId?: string;
+    organizationId?: string;
+    isYouthWorkerSession?: boolean;
+    youthWorkerRole?: string;
+    // Phase 2: Parent session (extended)
+    parentId?: string;
+    isParentSession?: boolean;
   }
 }

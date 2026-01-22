@@ -99,6 +99,7 @@ function requireYouthWorkerAuth(req: any, res: any, next: any) {
 // Get assigned youth list
 router.get("/my-youth", requireYouthWorkerAuth, async (req, res, next) => {
   try {
+    const youthWorkerId = req.session.youthWorkerId!;
     const assignments = await db
       .select({
         id: schemaExtensions.youthWorkerAssignments.id,
@@ -109,23 +110,24 @@ router.get("/my-youth", requireYouthWorkerAuth, async (req, res, next) => {
         respondedAt: schemaExtensions.youthWorkerAssignments.respondedAt,
       })
       .from(schemaExtensions.youthWorkerAssignments)
-      .where(eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, req.session.youthWorkerId));
+      .where(eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, youthWorkerId));
 
     // Get youth profiles for granted assignments
     const grantedAssignments = assignments.filter(a => a.consentStatus === "granted");
-    const youthProfiles = [];
+    const youthProfiles: any[] = [];
 
     for (const assignment of grantedAssignments) {
       const profile = await db.query.profiles?.findFirst({
         where: eq(schema.profiles.userId, assignment.youthId),
         columns: {
-          displayName: true,
-          avatarUrl: true,
+          preferredName: true,
+          firstName: true,
         }
       });
+      const displayName = profile?.preferredName || profile?.firstName || "Youth";
       youthProfiles.push({
         ...assignment,
-        profile: profile || { displayName: "Youth", avatarUrl: null },
+        profile: { displayName },
       });
     }
 
@@ -157,13 +159,17 @@ router.post("/assign", requireYouthWorkerAuth, async (req, res, next) => {
       return res.status(404).json({ error: "Youth not found" });
     }
 
+    const youthWorkerId = req.session.youthWorkerId!;
+
     // Check if assignment already exists
-    const existing = await db.query.youthWorkerAssignments?.findFirst({
-      where: and(
-        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, req.session.youthWorkerId),
+    const [existing] = await db
+      .select()
+      .from(schemaExtensions.youthWorkerAssignments)
+      .where(and(
+        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, youthWorkerId),
         eq(schemaExtensions.youthWorkerAssignments.youthId, youth.id)
-      ),
-    });
+      ))
+      .limit(1);
 
     if (existing) {
       return res.status(409).json({ error: "Assignment request already exists", status: existing.consentStatus });
@@ -171,7 +177,7 @@ router.post("/assign", requireYouthWorkerAuth, async (req, res, next) => {
 
     // Create assignment request
     const [assignment] = await db.insert(schemaExtensions.youthWorkerAssignments).values({
-      youthWorkerId: req.session.youthWorkerId,
+      youthWorkerId: youthWorkerId,
       youthId: youth.id,
       consentStatus: "pending",
     }).returning();
@@ -192,16 +198,19 @@ router.post("/assign", requireYouthWorkerAuth, async (req, res, next) => {
 // Get youth dashboard data (for granted assignments only)
 router.get("/youth/:youthId/dashboard", requireYouthWorkerAuth, async (req, res, next) => {
   const { youthId } = req.params;
+  const youthWorkerId = req.session.youthWorkerId!;
 
   try {
     // Verify consent
-    const assignment = await db.query.youthWorkerAssignments?.findFirst({
-      where: and(
-        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, req.session.youthWorkerId),
+    const [assignment] = await db
+      .select()
+      .from(schemaExtensions.youthWorkerAssignments)
+      .where(and(
+        eq(schemaExtensions.youthWorkerAssignments.youthWorkerId, youthWorkerId),
         eq(schemaExtensions.youthWorkerAssignments.youthId, youthId),
         eq(schemaExtensions.youthWorkerAssignments.consentStatus, "granted")
-      ),
-    });
+      ))
+      .limit(1);
 
     if (!assignment) {
       return res.status(403).json({ error: "No consent to view this youth's data" });
@@ -211,8 +220,9 @@ router.get("/youth/:youthId/dashboard", requireYouthWorkerAuth, async (req, res,
 
     // Build dashboard based on consent level
     const dashboard: any = {};
+    const deniedScopes: string[] = [];
 
-    // Mood timeline (if consented)
+    // Mood timeline (if consented) - verify share_mood_timeline flag
     if (consentLevel.share_mood_timeline !== false) {
       const recentCheckins = await db.query.checkins?.findMany({
         where: eq(schema.checkins.userId, youthId),
@@ -225,25 +235,40 @@ router.get("/youth/:youthId/dashboard", requireYouthWorkerAuth, async (req, res,
         }
       });
       dashboard.moodTimeline = recentCheckins;
+    } else {
+      deniedScopes.push("share_mood_timeline");
     }
 
-    // Program attendance (if consented)
+    // Program engagement (if consented) - verify share_program_engagement flag
     if (consentLevel.share_program_engagement !== false) {
-      const attendance = await db.query.attendance?.findMany({
-        where: eq(schema.attendance.userId, youthId),
-        orderBy: [desc(schema.attendance.checkinTime)],
-        limit: 20,
+      const recentCheckinsCount = await db.query.checkins?.findMany({
+        where: eq(schema.checkins.userId, youthId),
+        limit: 30,
       });
-      dashboard.programAttendance = attendance?.length || 0;
+      dashboard.programAttendance = recentCheckinsCount?.length || 0;
+    } else {
+      deniedScopes.push("share_program_engagement");
     }
 
-    // Check-in streak
+    // Check-in streak (if consented) - verify share_checkin_streak flag
     if (consentLevel.share_checkin_streak !== false) {
       const profile = await db.query.profiles?.findFirst({
         where: eq(schema.profiles.userId, youthId),
-        columns: { currentStreak: true }
+        columns: { streakCount: true }
       });
-      dashboard.currentStreak = profile?.currentStreak || 0;
+      dashboard.currentStreak = profile?.streakCount || 0;
+    } else {
+      deniedScopes.push("share_checkin_streak");
+    }
+
+    // Audit log for any denied scopes
+    if (deniedScopes.length > 0) {
+      logger.info({
+        youthWorkerId,
+        youthId,
+        deniedScopes,
+        context: "youth-workers",
+      }, "Dashboard access partially restricted due to consent levels");
     }
 
     res.status(200).json(dashboard);
