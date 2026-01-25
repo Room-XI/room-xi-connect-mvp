@@ -234,7 +234,8 @@ async function createServer() {
   
   // Consent routes - uses token-based security via email links (not session-based)
   // Parents access these via unique consent tokens, not from the React app
-  app.use('/api/consent', writeLimiter, consentRoutes);
+  // ALSO supports session-based consent updates for logged-in users (POST /)
+  app.use('/api/consent', userSession, writeLimiter, consentRoutes);
   
   // ==================== PUBLIC ROUTES WITH OPTIONAL SESSION ====================
   // These routes support both anonymous and authenticated access
