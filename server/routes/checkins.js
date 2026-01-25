@@ -6,6 +6,7 @@ import { calculateStreak, getLocalDateString } from '../services/streak.ts';
 import { analyzeMoodTrigger } from '../services/moodAnalysis.ts';
 import { requireDataConsent } from '../middleware/consent.ts';
 import logger from '../logger.ts';
+import { analyzeAndStoreSentiment } from '../services/sentimentOrchestrator.ts';
 
 const router = express.Router();
 
@@ -426,6 +427,12 @@ router.post('/', requireDataConsent(), async (req, res) => {
         logger.error({ err: error, context: 'checkins-mood-trigger' }, 'Mood trigger analysis failed');
         // Continue without Ximi trigger if analysis fails
       }
+    }
+
+    // Fire-and-forget sentiment analysis if note exists
+    if (note && result.id) {
+      analyzeAndStoreSentiment(req.session.userId, 'checkin', result.id, note)
+        .catch(err => logger.error({ err, context: 'checkins-sentiment' }, 'Sentiment analysis failed'));
     }
 
     res.status(201).json({

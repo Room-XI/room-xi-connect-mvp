@@ -187,6 +187,7 @@ async function createServer() {
   // Phase 2 Routes - Youth Worker Portal & AI Interventions
   const { default: aiRoutes } = await import('./routes/ai.ts');
   const { default: youthWorkerRoutes } = await import('./routes/youth-workers.ts');
+  const { default: sentimentRoutes } = await import('./routes/sentiment.ts');
 
   // Serve static files for server-rendered pages (consent forms, etc.)
   // These are served without CSP script-src restrictions since they're external files
@@ -220,6 +221,8 @@ async function createServer() {
   app.use('/api/youth-workers', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, youthWorkerRoutes);
   // Proactive AI intervention routes
   app.use('/api/ai', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, aiRoutes);
+  // Sentiment analysis routes
+  app.use('/api/sentiment', userSession, createInactivityMiddleware('user.sid'), validateCsrfToken, writeLimiter, sentimentRoutes);
 
   // ==================== PUBLIC/GUEST ROUTES (stateless, no session) ====================
   // These routes are publicly accessible without authentication

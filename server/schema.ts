@@ -1191,3 +1191,27 @@ export const safetyPlanEvents = pgTable("safety_plan_events", {
   userIdx: index("safety_plan_events_user_idx").on(table.userId),
   eventTypeIdx: index("safety_plan_events_type_idx").on(table.eventType),
 }));
+
+// Sentiment Analyses - NLP sentiment/emotion metadata for check-ins
+export const sentimentAnalyses = pgTable("sentiment_analyses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceType: text("source_type").notNull(), // 'checkin' | 'journal'
+  sourceId: uuid("source_id").notNull(),
+  sentimentLabel: text("sentiment_label").notNull().default("unknown"), // positive, neutral, negative, mixed, unknown
+  sentimentScore: numeric("sentiment_score"), // -1 to 1
+  emotions: jsonb("emotions"), // { primary: string, secondary?: string[] }
+  themes: text("themes").array().notNull().default(sql`'{}'`),
+  confidence: numeric("confidence"), // 0 to 1
+  crisisFlagged: boolean("crisis_flagged").notNull().default(false),
+  crisisFlags: jsonb("crisis_flags"), // { guardian: boolean, llm: object, redactions: object }
+  model: text("model"), // e.g. 'gpt-4o-mini'
+  raw: jsonb("raw"), // full LLM response for debugging
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("sentiment_analyses_user_idx").on(table.userId),
+  sourceIdx: index("sentiment_analyses_source_idx").on(table.sourceType, table.sourceId),
+  createdIdx: index("sentiment_analyses_created_idx").on(table.createdAt),
+  uniqueSource: uniqueIndex("sentiment_analyses_unique_source").on(table.userId, table.sourceType, table.sourceId),
+}));

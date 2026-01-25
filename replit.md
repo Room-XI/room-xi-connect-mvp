@@ -34,6 +34,17 @@ The tech stack includes React 18 with TypeScript, Vite 5, React Router v6, Tailw
 - **Youth Worker Assignments** - Consent-based assignment system where youth workers request access to youth data, youth approve/deny with granular consent levels (share_mood_timeline, share_program_engagement, share_checkin_streak).
 - **API Routes** - `/api/ai/*` for intervention history and journal summaries, `/api/youth-workers/*` for assignment management and youth dashboards.
 
+**NLP Sentiment Analysis (Added Jan 2026):**
+- **Sentiment Orchestrator** (`server/services/sentimentOrchestrator.ts`) - Hybrid multi-layer sentiment analysis:
+  - Layer 1 (Generalist): GPT-4o-mini via Replit AI integration for broad sentiment extraction
+  - Layer 3 (Guardian): Crisis keyword detection (always runs, consent-independent safety net)
+  - Confidence fusion engine combining results from all layers
+- **Database Table**: `sentiment_analyses` stores sentiment label, score (-1 to 1), emotions (primary/secondary), themes, confidence, crisis flags, model info, and raw LLM response
+- **Consent-Gated**: Analysis only runs for users with ximiConsent enabled; API access requires consent
+- **Fire-and-Forget**: Integrated into check-in creation without blocking the API response
+- **Crisis Escalation**: Auto-updates `checkins.crisisFlagged` when guardian or LLM detects crisis signals
+- **API Routes**: `GET /api/sentiment/checkins/:checkinId`, `GET /api/sentiment/recent`
+
 Each portal uses per-namespace CSRF tokens (/api/csrf-token, /api/parent-auth/csrf-token, /api/admin/csrf-token) cached separately in the API client.
 
 A comprehensive admin dashboard provides real-time analytics, monitoring with role-based access control, live statistics widgets, Recharts visualizations, and an audit log viewer. A Demographics Research System allows youth to self-identify across three dimensions (sexual orientation, racial/ethnic identity, gender identity), with guardian verification separate. A Disclosure Request System allows parents to request access to youth demographics data, with youth approval/denial and audit logging. Push notifications are implemented via the Web Push API. A Capacitor Mobile Wrapper provides iOS and Android native app functionality.
