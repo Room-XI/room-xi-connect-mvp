@@ -5,8 +5,7 @@ import {
   UserPlus, 
   Shield, 
   Edit2, 
-  Trash2, 
-  Save,
+  Trash2,
   X,
   Mail,
   ChevronDown

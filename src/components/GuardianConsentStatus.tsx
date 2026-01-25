@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, RefreshCw, Check, Clock, AlertTriangle, Copy, Share2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Shield, RefreshCw, Check, Clock, AlertTriangle, Copy, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../lib/api';
 
 interface Guardian {

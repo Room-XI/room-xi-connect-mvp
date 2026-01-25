@@ -17,7 +17,6 @@ import {
   Phone,
   Download,
   Trash2,
-  Plus,
   Edit2,
   X,
   AlertTriangle,
@@ -200,11 +199,7 @@ export default function ParentPortal() {
   const loadParentStatus = async () => {
     try {
       setLoading(true);
-      const { data, error: apiError } = await api.parentAuth.getStatus();
-
-      if (apiError) {
-        throw new Error(apiError);
-      }
+      const { data } = await api.parentAuth.getStatus();
 
       if (data?.linkedYouth) {
         setLinkedYouth(data.linkedYouth);
@@ -267,7 +262,7 @@ export default function ParentPortal() {
   const loadEmergencyContacts = async (youthId: string) => {
     try {
       setLoadingContacts(true);
-      const { data, error: apiError } = await api.parentPortal.getEmergencyContacts(youthId);
+      const { data } = await api.parentPortal.getEmergencyContacts(youthId);
 
       if (data?.contacts) {
         setEmergencyContacts(data.contacts);
@@ -282,7 +277,7 @@ export default function ParentPortal() {
   const loadAlerts = async () => {
     try {
       setLoadingAlerts(true);
-      const { data, error: apiError } = await api.parentPortal.getAlerts();
+      const { data } = await api.parentPortal.getAlerts();
 
       if (data?.alerts) {
         setAlerts(data.alerts);
@@ -315,7 +310,7 @@ export default function ParentPortal() {
     
     try {
       setWithdrawing(true);
-      const { data, error: apiError } = await api.parentPortal.withdrawConsent(selectedYouth, withdrawReason);
+      const { error: apiError } = await api.parentPortal.withdrawConsent(selectedYouth, withdrawReason);
       
       if (apiError) {
         throw new Error(apiError);

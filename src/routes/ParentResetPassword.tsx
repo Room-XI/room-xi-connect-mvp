@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Eye, EyeOff, Loader, AlertCircle, Check, ArrowLeft } from 'lucide-react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import api from '@/lib/api';
 
 export default function ParentResetPassword() {
   const { token } = useParams<{ token: string }>();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);

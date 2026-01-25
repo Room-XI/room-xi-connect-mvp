@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -6,11 +6,8 @@ import {
   FileText,
   Clock,
   CheckCircle,
-  ExternalLink,
-  Calendar,
-  Loader2
+  ExternalLink
 } from 'lucide-react';
-import { api } from '@/lib/api';
 import { BreachManagement } from '@/ui/admin/BreachManagement';
 
 interface ComplianceStatus {
