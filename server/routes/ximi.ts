@@ -8,6 +8,7 @@ import { generateXimiResponse, generateFollowUpPrompt } from '../services/ximi.t
 import { getLatestMoodTrend, computeMoodTrends, storeMoodTrends } from '../services/moodTrends.ts';
 import { getRecommendationsWithContext } from '../services/recommendations.ts';
 import { recordAiMetrics } from '../services/aiTransparency.ts';
+import { escalateCrisis, hasRecentEscalation } from '../services/crisisEscalation.ts';
 import type { MoodKey } from '../../src/lib/moodConfig.js';
 import { validateBody } from '../middleware/validate.ts';
 import { ximiChatSchema, ximiConsentSchema, ximiRecommendationsSchema } from '../schemas/ximi.ts';
@@ -131,6 +132,22 @@ router.post('/chat', requireDataConsent(), validateBody(ximiChatSchema), async (
       crisisDetectedDelta: ximiResponse.crisisDetected ? 1 : 0,
       moderationFlaggedDelta: 0,
     });
+
+    if (ximiResponse.crisisDetected && conversation.id) {
+      hasRecentEscalation(req.session.userId, 24).then(async (recentEscalation) => {
+        if (!recentEscalation) {
+          await escalateCrisis({
+            userId: req.session.userId!,
+            sourceType: 'ximi_chat',
+            sourceId: conversation.id,
+            triggerType: 'keywords',
+          });
+          logger.info({ userId: req.session.userId, conversationId: conversation.id, context: 'ximi-crisis' }, 'Crisis escalation triggered from Ximi chat');
+        }
+      }).catch(err => {
+        logger.error({ err, userId: req.session.userId, context: 'ximi-crisis' }, 'Failed to escalate crisis from Ximi chat');
+      });
+    }
 
     res.json({
       ...conversation,

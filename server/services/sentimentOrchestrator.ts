@@ -11,6 +11,7 @@ import { db } from '../db.js';
 import { checkins, sentimentAnalyses, profiles } from '../schema.ts';
 import { and, eq } from 'drizzle-orm';
 import { sanitizePrompt, detectCrisis } from './ximi.ts';
+import { escalateCrisis, hasRecentEscalation } from './crisisEscalation.ts';
 
 type SourceType = 'checkin' | 'journal';
 
@@ -242,6 +243,25 @@ export async function analyzeAndStoreSentiment(
           crisisResolvedAt: null,
         })
         .where(and(eq(checkins.id, sourceId), eq(checkins.userId, userId)));
+    }
+
+    if (crisisFlagged) {
+      const recentEscalation = await hasRecentEscalation(userId, 24);
+      if (!recentEscalation) {
+        const triggerType = (guardianFlagged && llm.crisisFlagged) ? 'both' 
+          : guardianFlagged ? 'keywords' : 'ai_detected';
+        escalateCrisis({
+          userId,
+          sourceType: sourceType as 'checkin' | 'ximi_chat' | 'journal',
+          sourceId,
+          triggerType,
+        }).catch(err => {
+          logger.error({ err, userId, sourceType, sourceId, context: 'crisis-escalation' }, 'Failed to escalate crisis');
+        });
+        logger.info({ userId, sourceType, sourceId, context: 'sentiment-orchestrator' }, 'Crisis escalation triggered');
+      } else {
+        logger.info({ userId, sourceType, sourceId, context: 'sentiment-orchestrator' }, 'Crisis escalation skipped - recent escalation exists');
+      }
     }
 
     logger.info(

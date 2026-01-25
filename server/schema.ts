@@ -1215,3 +1215,26 @@ export const sentimentAnalyses = pgTable("sentiment_analyses", {
   createdIdx: index("sentiment_analyses_created_idx").on(table.createdAt),
   uniqueSource: uniqueIndex("sentiment_analyses_unique_source").on(table.userId, table.sourceType, table.sourceId),
 }));
+
+export const crisisEscalations = pgTable("crisis_escalations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceType: text("source_type").notNull(), // 'checkin' | 'ximi_chat' | 'journal'
+  sourceId: uuid("source_id").notNull(),
+  recipientType: text("recipient_type").notNull(), // 'guardian' | 'emergency_contact' | 'admin'
+  recipientId: uuid("recipient_id"), // FK to guardians, emergency_contacts, or admin users
+  recipientEmailHash: text("recipient_email_hash"), // SHA256 hash of email for audit (privacy-preserving)
+  channel: text("channel").notNull(), // 'email' | 'push' | 'sms'
+  status: text("status").notNull().default("pending"), // 'pending' | 'sent' | 'failed' | 'delivered'
+  attemptedAt: timestamp("attempted_at", { withTimezone: true }).defaultNow().notNull(),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  errorMessage: text("error_message"),
+  providerMessageId: text("provider_message_id"), // For tracking delivery status
+  meta: jsonb("meta"), // additional context (no PII content)
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("crisis_escalations_user_idx").on(table.userId, table.attemptedAt.desc()),
+  sourceIdx: index("crisis_escalations_source_idx").on(table.sourceType, table.sourceId),
+  statusIdx: index("crisis_escalations_status_idx").on(table.status, table.attemptedAt.desc()),
+}));
