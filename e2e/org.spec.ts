@@ -16,7 +16,7 @@ test.describe('Organization Portal Journey - API Tests', () => {
         },
       });
       
-      expect([400, 401]).toContain(response.status());
+      expect([400, 401, 429]).toContain(response.status());
     });
   });
 

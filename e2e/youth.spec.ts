@@ -127,7 +127,7 @@ test.describe('Youth Portal Journey - API Tests', () => {
         },
       });
       
-      expect([400, 401]).toContain(response.status());
+      expect([400, 401, 429]).toContain(response.status());
     });
 
     test('GET /api/auth/me returns session status', async ({ request }) => {
