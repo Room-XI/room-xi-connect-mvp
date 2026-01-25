@@ -13,10 +13,15 @@ if (!process.env.SAFETY_PLAN_TOKEN_PEPPER) {
   throw new Error('SAFETY_PLAN_TOKEN_PEPPER environment variable must be set. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
 }
 
+if (process.env.SAFETY_PLAN_TOKEN_PEPPER.length < 32) {
+  logger.error({ context: 'safety-plan-init' }, 'SAFETY_PLAN_TOKEN_PEPPER is too short - must be at least 32 characters for security');
+  throw new Error('SAFETY_PLAN_TOKEN_PEPPER must be at least 32 characters. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+}
+
 const SAFETY_PLAN_TOKEN_PEPPER = process.env.SAFETY_PLAN_TOKEN_PEPPER;
 
 function hashToken(token) {
-  return crypto.createHash('sha256').update(token + SAFETY_PLAN_TOKEN_PEPPER).digest('hex');
+  return crypto.createHmac('sha256', SAFETY_PLAN_TOKEN_PEPPER).update(token).digest('hex');
 }
 
 const publicViewRateLimiter = rateLimit({
