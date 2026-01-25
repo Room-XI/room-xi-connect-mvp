@@ -1238,3 +1238,18 @@ export const crisisEscalations = pgTable("crisis_escalations", {
   sourceIdx: index("crisis_escalations_source_idx").on(table.sourceType, table.sourceId),
   statusIdx: index("crisis_escalations_status_idx").on(table.status, table.attemptedAt.desc()),
 }));
+
+export const crisisFollowups = pgTable("crisis_followups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  escalationId: uuid("escalation_id").notNull().references(() => crisisEscalations.id, { onDelete: "cascade" }),
+  scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("pending"), // 'pending' | 'sent' | 'completed' | 'cancelled'
+  followupType: text("followup_type").notNull().default("ximi_message"), // 'ximi_message' | 'push_notification'
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userScheduledIdx: index("crisis_followups_user_scheduled_idx").on(table.userId, table.scheduledFor),
+  statusIdx: index("crisis_followups_status_idx").on(table.status, table.scheduledFor),
+}));

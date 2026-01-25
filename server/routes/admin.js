@@ -428,6 +428,7 @@ router.get('/audit-logs', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = (page - 1) * limit;
     const action = req.query.action;
+    const tableName = req.query.tableName;
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
 
@@ -435,6 +436,10 @@ router.get('/audit-logs', async (req, res) => {
     
     if (action && action !== 'all') {
       conditions.push(eq(adminLogs.action, action.toUpperCase()));
+    }
+    
+    if (tableName && tableName !== 'all') {
+      conditions.push(eq(adminLogs.tableName, tableName));
     }
     
     if (startDate) {

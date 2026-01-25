@@ -17,7 +17,7 @@ export default function Tab({ to, icon, label, showDot = false }: TabProps) {
   return (
     <Link
       to={to}
-      className="relative flex flex-col items-center justify-center py-3 px-2 transition-colors duration-200"
+      className="relative flex flex-col items-center justify-center py-3 px-4 transition-colors duration-200 min-h-[56px] min-w-[48px]"
       aria-label={label}
       aria-current={isActive ? 'page' : undefined}
       role="menuitem"

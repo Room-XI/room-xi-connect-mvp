@@ -34,7 +34,7 @@ export default function Header({ title, showCrisis = true }: HeaderProps) {
             {showCrisis && (
               <motion.button
                 onClick={() => navigate('/safety-resources')}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-coral/10 text-[#9b2c2c] hover:bg-coral/20 transition-colors"
+                className="flex items-center space-x-2 px-4 py-3 rounded-lg bg-coral/10 text-[#9b2c2c] hover:bg-coral/20 transition-colors min-h-[44px] min-w-[44px]"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 aria-label="Get crisis support"

@@ -178,6 +178,16 @@
   .sparkline-container {
     @apply relative h-16 w-full overflow-hidden rounded-lg;
   }
+  
+  /* Tab navigation focus states for accessibility */
+  a[role="menuitem"]:focus-visible {
+    @apply ring-2 ring-teal ring-offset-2 ring-offset-cream outline-none;
+  }
+  
+  /* Header button focus states */
+  header button:focus-visible {
+    @apply ring-2 ring-offset-2 ring-offset-surface outline-none;
+  }
 }
 
 /* Utility layer for specific Cosmic Garden utilities */

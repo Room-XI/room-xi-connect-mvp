@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 const navItems = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -115,6 +116,7 @@ export default function AdminLayout() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
+          <Breadcrumbs />
           <Outlet />
         </motion.div>
       </main>

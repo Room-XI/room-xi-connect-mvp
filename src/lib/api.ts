@@ -666,6 +666,7 @@ export const api = {
       page?: number; 
       limit?: number; 
       action?: string; 
+      tableName?: string;
       startDate?: string; 
       endDate?: string;
     }) => {
@@ -673,6 +674,7 @@ export const api = {
       if (params?.page) queryParams.set('page', params.page.toString());
       if (params?.limit) queryParams.set('limit', params.limit.toString());
       if (params?.action) queryParams.set('action', params.action);
+      if (params?.tableName) queryParams.set('tableName', params.tableName);
       if (params?.startDate) queryParams.set('startDate', params.startDate);
       if (params?.endDate) queryParams.set('endDate', params.endDate);
       

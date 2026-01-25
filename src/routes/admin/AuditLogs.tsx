@@ -30,13 +30,16 @@ interface Pagination {
 }
 
 const ACTION_TYPES = ['all', 'INSERT', 'UPDATE', 'DELETE'];
+const TABLE_TYPES = ['all', 'users', 'profiles', 'checkins', 'consents', 'guardian_verifications', 'ximi_messages', 'attendance', 'programs', 'crisis_escalations'];
 
 export default function AuditLogs() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('all');
+  const [tableFilter, setTableFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 50,
@@ -51,11 +54,23 @@ export default function AuditLogs() {
         page: pagination.page,
         limit: pagination.limit,
         action: actionFilter !== 'all' ? actionFilter : undefined,
+        tableName: tableFilter !== 'all' ? tableFilter : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined
       });
       if (error) throw new Error(error);
-      setLogs(data?.logs || []);
+      
+      let filteredLogs: AuditLog[] = data?.logs || [];
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        filteredLogs = filteredLogs.filter((log: AuditLog) => 
+          log.table_name?.toLowerCase().includes(query) ||
+          log.record_id?.toLowerCase().includes(query) ||
+          log.user_id?.toLowerCase().includes(query)
+        );
+      }
+      
+      setLogs(filteredLogs);
       if (data?.pagination) {
         setPagination((prev) => ({ ...prev, ...data.pagination }));
       }
@@ -64,7 +79,7 @@ export default function AuditLogs() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, actionFilter, startDate, endDate]);
+  }, [pagination.page, pagination.limit, actionFilter, tableFilter, startDate, endDate, searchQuery]);
 
   useEffect(() => {
     loadLogs();
@@ -196,6 +211,39 @@ export default function AuditLogs() {
 
           <div>
             <label className="block text-sm font-medium text-textSecondaryLight mb-1">
+              Table
+            </label>
+            <select
+              value={tableFilter}
+              onChange={(e) => {
+                setTableFilter(e.target.value);
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              className="px-3 py-2 border border-borderMutedLight rounded-lg focus:outline-none focus:ring-2 focus:ring-teal"
+            >
+              {TABLE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type === 'all' ? 'All Tables' : type}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-textSecondaryLight mb-1">
+              Search
+            </label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Record ID or User..."
+              className="px-3 py-2 border border-borderMutedLight rounded-lg focus:outline-none focus:ring-2 focus:ring-teal"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-textSecondaryLight mb-1">
               <Calendar className="w-4 h-4 inline mr-1" />
               Start Date
             </label>
@@ -225,12 +273,14 @@ export default function AuditLogs() {
             />
           </div>
 
-          {(actionFilter !== 'all' || startDate || endDate) && (
+          {(actionFilter !== 'all' || tableFilter !== 'all' || startDate || endDate || searchQuery) && (
             <button
               onClick={() => {
                 setActionFilter('all');
+                setTableFilter('all');
                 setStartDate('');
                 setEndDate('');
+                setSearchQuery('');
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
               className="px-3 py-2 text-sm text-teal hover:bg-teal/10 rounded-lg transition-colors"

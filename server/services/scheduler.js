@@ -4,6 +4,7 @@ import { checkMorningNudges } from '../routes/notifications.js';
 import { sendCheckinReminder, pushEnabled } from './pushNotification.ts';
 import { computeTrendsForAllUsers } from './moodTrends.ts';
 import { computePeerInsightsForAllPrograms } from './peerInsights.ts';
+import { checkAndSendFollowups } from './crisisFollowup.ts';
 import { db } from '../db.js';
 import { privacyConsents, checkins, profiles, ximiConversations, guardianVerifications } from '../schema.js';
 import { eq, and, lt, sql } from 'drizzle-orm';
@@ -239,9 +240,38 @@ async function runScheduledTasks() {
         console.error('[Scheduler] Failed to run data retention cleanup:', error);
       }
     }
+    
+    // Crisis follow-ups run every 15 minutes to check for due check-ins
+    if (shouldRunCrisisFollowups()) {
+      console.log('[Scheduler] Checking crisis follow-ups...');
+      
+      try {
+        await checkAndSendFollowups();
+        console.log('[Scheduler] Crisis follow-ups check completed');
+      } catch (error) {
+        console.error('[Scheduler] Failed to check crisis follow-ups:', error);
+      }
+    }
   } catch (error) {
     console.error('[Scheduler] Error in scheduled tasks:', error);
   }
+}
+
+/**
+ * Check if current time is at 0, 15, 30, or 45 minute marks for crisis follow-ups.
+ * Uses 5-minute windows to ensure follow-ups are processed even with minor timing variations.
+ * The checkAndSendFollowups() function is idempotent - it only processes pending follow-ups
+ * that are due, so running multiple times in a window is safe and preferred for reliability.
+ */
+function shouldRunCrisisFollowups() {
+  const now = DateTime.now().setZone('America/Edmonton');
+  const minute = now.minute;
+  
+  // Run every 15 minutes using 5-minute windows for reliability
+  return (minute >= 0 && minute < 5) || 
+         (minute >= 15 && minute < 20) ||
+         (minute >= 30 && minute < 35) ||
+         (minute >= 45 && minute < 50);
 }
 
 /**

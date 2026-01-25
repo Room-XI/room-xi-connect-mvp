@@ -22,6 +22,7 @@ import {
 import { eq, and, desc, gte, or } from 'drizzle-orm';
 import { sendEmail } from './email.js';
 import crypto from 'crypto';
+import { scheduleFollowup } from './crisisFollowup.ts';
 
 type SourceType = 'checkin' | 'ximi_chat' | 'journal';
 
@@ -315,7 +316,29 @@ export async function escalateCrisis(context: EscalationContext): Promise<{ sent
     'Crisis escalation workflow completed'
   );
 
+  if (sent > 0) {
+    const firstEscalationId = await getFirstEscalationId(userId, sourceId);
+    if (firstEscalationId) {
+      scheduleFollowup(userId, firstEscalationId).catch(err => {
+        logger.error({ err, userId, context: 'crisis-followup' }, 'Failed to schedule follow-up after escalation');
+      });
+    }
+  }
+
   return { sent, failed };
+}
+
+async function getFirstEscalationId(userId: string, sourceId: string): Promise<string | null> {
+  const [record] = await db.select({ id: crisisEscalations.id })
+    .from(crisisEscalations)
+    .where(and(
+      eq(crisisEscalations.userId, userId),
+      eq(crisisEscalations.sourceId, sourceId),
+      eq(crisisEscalations.status, 'sent')
+    ))
+    .orderBy(desc(crisisEscalations.attemptedAt))
+    .limit(1);
+  return record?.id || null;
 }
 
 export async function hasRecentEscalation(userId: string, withinHours: number = 24): Promise<boolean> {

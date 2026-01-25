@@ -430,6 +430,176 @@ router.get('/programs/:id/outcomes', verifyOrgAccess, async (req, res) => {
   }
 });
 
+router.get('/programs/:id/outcomes/export', verifyOrgAccess, async (req, res) => {
+  try {
+    const { id: programId } = req.params;
+    const { timeRange } = req.query;
+
+    if (!req.isGlobalAdmin) {
+      const [program] = await db
+        .select()
+        .from(programs)
+        .where(and(
+          eq(programs.id, programId),
+          sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`
+        ))
+        .limit(1);
+
+      if (!program) {
+        return res.status(403).json({ error: 'Program not found or access denied' });
+      }
+    }
+
+    const K_ANONYMITY = 5;
+    const edmontonNow = DateTime.now().setZone('America/Edmonton');
+    let startDate = null;
+
+    if (timeRange === '7days') {
+      startDate = edmontonNow.minus({ days: 7 }).startOf('day').toJSDate();
+    } else if (timeRange === '30days') {
+      startDate = edmontonNow.minus({ days: 30 }).startOf('day').toJSDate();
+    } else if (timeRange === '90days') {
+      startDate = edmontonNow.minus({ days: 90 }).startOf('day').toJSDate();
+    }
+
+    const dateFilter = startDate 
+      ? and(eq(outcomeEvents.programId, programId), eq(outcomeEvents.attended, true), gte(outcomeEvents.createdAt, startDate))
+      : and(eq(outcomeEvents.programId, programId), eq(outcomeEvents.attended, true));
+
+    const [stats] = await db
+      .select({
+        totalResponses: count(outcomeEvents.id),
+        avgHelpfulness: sql`AVG(${outcomeEvents.helpfulnessRating})`,
+        recommendCount: sql`COUNT(*) FILTER (WHERE ${outcomeEvents.wouldRecommend} = true)`
+      })
+      .from(outcomeEvents)
+      .where(dateFilter);
+
+    const totalResponses = Number(stats?.totalResponses || 0);
+
+    if (totalResponses < K_ANONYMITY) {
+      return res.status(400).json({ 
+        error: `Privacy protection: Cannot export until at least ${K_ANONYMITY} responses are collected.` 
+      });
+    }
+
+    const timelineData = await db
+      .select({
+        date: sql`DATE(${outcomeEvents.createdAt})`,
+        count: count(outcomeEvents.id),
+        avgHelpfulness: sql`AVG(${outcomeEvents.helpfulnessRating})`
+      })
+      .from(outcomeEvents)
+      .where(dateFilter)
+      .groupBy(sql`DATE(${outcomeEvents.createdAt})`)
+      .orderBy(sql`DATE(${outcomeEvents.createdAt})`);
+
+    const csvData = timelineData.map(row => ({
+      Date: row.date,
+      Responses: Number(row.count),
+      'Average Helpfulness': row.avgHelpfulness ? Math.round(Number(row.avgHelpfulness) * 10) / 10 : 0
+    }));
+
+    const averageHelpfulness = stats.avgHelpfulness ? Math.round(Number(stats.avgHelpfulness) * 10) / 10 : null;
+    const wouldRecommendPercentage = totalResponses > 0 
+      ? Math.round((Number(stats.recommendCount) / totalResponses) * 100) 
+      : 0;
+
+    csvData.push({
+      Date: 'SUMMARY',
+      Responses: totalResponses,
+      'Average Helpfulness': averageHelpfulness
+    });
+    csvData.push({
+      Date: 'RECOMMENDATION RATE',
+      Responses: `${wouldRecommendPercentage}%`,
+      'Average Helpfulness': ''
+    });
+
+    const parser = new Parser({
+      fields: ['Date', 'Responses', 'Average Helpfulness'],
+    });
+    const csv = parser.parse(csvData);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="outcomes-${programId.slice(0, 8)}-${timeRange || 'all'}-${DateTime.now().toFormat('yyyy-MM-dd')}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    logger.error({ err: error, context: 'org-outcomes-export' }, 'Error exporting outcomes data');
+    res.status(500).json({ error: 'Failed to export outcomes data' });
+  }
+});
+
+router.get('/programs/export', verifyOrgAccess, async (req, res) => {
+  try {
+    const orgFilter = req.isGlobalAdmin ? undefined : sql`${programs.orgId} = ANY(${req.userOrgIds}::uuid[])`;
+
+    let query = db
+      .select({
+        title: programs.title,
+        organizer: programs.organizer,
+        description: programs.description,
+        address: programs.address,
+        city: programs.city,
+        category: programs.category,
+        tags: programs.tags,
+        minAge: programs.minAge,
+        maxAge: programs.maxAge,
+        hostedAt: programs.hostedAt,
+        createdAt: programs.createdAt,
+      })
+      .from(programs);
+    
+    if (orgFilter) {
+      query = query.where(orgFilter);
+    }
+    
+    const programList = await query.orderBy(programs.title);
+
+    const csvData = programList.map(p => ({
+      Title: p.title,
+      Organizer: p.organizer,
+      Description: p.description?.substring(0, 200) || '',
+      Address: p.address || '',
+      City: p.city || '',
+      Category: p.category || '',
+      Tags: Array.isArray(p.tags) ? p.tags.join(', ') : '',
+      'Min Age': p.minAge || '',
+      'Max Age': p.maxAge || '',
+      'Hosted At': p.hostedAt || '',
+      'Created': p.createdAt,
+    }));
+
+    if (csvData.length === 0) {
+      csvData.push({
+        Title: 'No programs found',
+        Organizer: '',
+        Description: '',
+        Address: '',
+        City: '',
+        Category: '',
+        Tags: '',
+        'Min Age': '',
+        'Max Age': '',
+        'Hosted At': '',
+        'Created': '',
+      });
+    }
+
+    const parser = new Parser({
+      fields: ['Title', 'Organizer', 'Description', 'Address', 'City', 'Category', 'Tags', 'Min Age', 'Max Age', 'Hosted At', 'Created'],
+    });
+    const csv = parser.parse(csvData);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="programs-export-${DateTime.now().toFormat('yyyy-MM-dd')}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    logger.error({ err: error, context: 'org-programs-export' }, 'Error exporting programs');
+    res.status(500).json({ error: 'Failed to export programs' });
+  }
+});
+
 // Create org-scoped program
 router.post('/programs', verifyOrgAccess, async (req, res) => {
   try {
