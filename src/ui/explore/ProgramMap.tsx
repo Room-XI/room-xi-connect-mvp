@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import { MapPin, ExternalLink, List, Navigation } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '@/lib/api';
 import 'leaflet/dist/leaflet.css';
 
@@ -68,6 +69,7 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 export default function ProgramMap({ userLocation, locationEnabled = false, radiusKm = 2 }: ProgramMapProps) {
+  const { t } = useTranslation();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
@@ -132,12 +134,12 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
     return (
       <div className="space-y-4">
         <div className="cosmic-card p-6">
-          <div className="h-64 bg-sage/10 rounded-xl animate-pulse flex items-center justify-center">
+          <div className="h-64 bg-sage/20 rounded-xl animate-pulse flex items-center justify-center">
             <MapPin className="w-8 h-8 text-sage/50" />
           </div>
         </div>
         <div className="text-center text-sm text-textSecondaryLight">
-          Loading map...
+          {t('explore.map.loading')}
         </div>
       </div>
     );
@@ -149,12 +151,12 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
         <MapPin className="w-12 h-12 text-sage/50 mx-auto" />
         <div className="space-y-2">
           <h3 className="font-semibold text-deepSage">
-            {mapError ? 'Map Unavailable' : 'No Programs with Locations'}
+            {mapError ? t('explore.map.unavailable') : t('explore.map.noLocations')}
           </h3>
           <p className="text-textSecondaryLight">
             {mapError 
-              ? 'Unable to load the map. Please try again later.'
-              : 'No programs have location data available for mapping.'
+              ? t('explore.map.unavailableDescription')
+              : t('explore.map.noLocationsDescription')
             }
           </p>
         </div>
@@ -162,7 +164,7 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
           to="/explore"
           className="inline-block text-sm font-medium text-teal hover:text-teal/80 transition-colors"
         >
-          View all programs →
+          {t('explore.map.viewAllPrograms')}
         </Link>
       </div>
     );
@@ -223,7 +225,7 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
                       
                       {program.organizer && (
                         <p className="text-sm text-textSecondaryLight">
-                          by {program.organizer}
+                          {t('explore.card.by', { organizer: program.organizer })}
                         </p>
                       )}
                       
@@ -236,14 +238,14 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
 
                       {program.distance !== undefined && (
                         <p className="text-sm text-teal font-medium">
-                          {program.distance.toFixed(1)}km away
+                          {t('explore.card.distanceAway', { distance: program.distance.toFixed(1) })}
                         </p>
                       )}
                       
                       <div className="flex items-center justify-between pt-2">
                         {program.free && (
                           <span className="text-xs font-medium text-teal">
-                            Free
+                            {t('programs.free')}
                           </span>
                         )}
                         
@@ -251,7 +253,7 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
                           to={`/program/${program.id}`}
                           className="text-xs font-medium text-teal hover:text-teal/80 transition-colors flex items-center space-x-1"
                         >
-                          <span>View details</span>
+                          <span>{t('explore.viewDetails')}</span>
                           <ExternalLink className="w-3 h-3" />
                         </Link>
                       </div>
@@ -274,15 +276,17 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
           <div className="flex items-center space-x-2">
             <MapPin className="w-4 h-4 text-teal" />
             <span className="text-sm font-medium text-deepSage">
-              {filteredPrograms.length} program{filteredPrograms.length !== 1 ? 's' : ''}
-              {locationEnabled && userLocation && ` within ${radiusKm}km`}
+              {locationEnabled && userLocation 
+                ? t('explore.map.programsWithinRadius', { count: filteredPrograms.length, radius: radiusKm })
+                : t('explore.map.programsCount', { count: filteredPrograms.length })
+              }
             </span>
           </div>
           
           {locationEnabled && userLocation && (
             <div className="flex items-center space-x-1 text-xs text-textSecondaryLight">
               <Navigation className="w-3 h-3" />
-              <span>Your location</span>
+              <span>{t('explore.map.yourLocation')}</span>
             </div>
           )}
         </div>
@@ -291,14 +295,14 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-deepSage">
-            {locationEnabled && userLocation ? 'Nearby Programs' : 'Programs on Map'}
+            {locationEnabled && userLocation ? t('explore.map.nearbyPrograms') : t('explore.map.programsOnMap')}
           </h3>
           <Link 
             to="/explore/programs"
             className="text-sm text-teal hover:text-teal/80 flex items-center gap-1"
           >
             <List className="w-4 h-4" />
-            List view
+            {t('explore.map.listView')}
           </Link>
         </div>
         <div className="space-y-2">
@@ -323,13 +327,13 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
                     
                     <div className="flex items-center space-x-2 flex-shrink-0 ml-3">
                       {program.distance !== undefined && (
-                        <span className="text-xs font-medium text-sage bg-sage/10 px-2 py-1 rounded-full">
+                        <span className="text-xs font-medium text-sageText bg-sage/10 px-2 py-1 rounded-full">
                           {program.distance.toFixed(1)}km
                         </span>
                       )}
                       {program.free && (
                         <span className="text-xs font-medium text-teal bg-teal/10 px-2 py-1 rounded-full">
-                          Free
+                          {t('programs.free')}
                         </span>
                       )}
                     </div>
@@ -340,7 +344,7 @@ export default function ProgramMap({ userLocation, locationEnabled = false, radi
           ))}
           {filteredPrograms.length > 10 && (
             <p className="text-center text-sm text-textSecondaryLight py-2">
-              +{filteredPrograms.length - 10} more programs
+              {t('explore.map.morePrograms', { count: filteredPrograms.length - 10 })}
             </p>
           )}
         </div>

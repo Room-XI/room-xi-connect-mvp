@@ -6,10 +6,25 @@ import { moderateText } from './moderation.ts';
 import { recordAiMetrics } from './aiTransparency.ts';
 import logger from '../logger.ts';
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY!,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let openaiClient: OpenAI | null = null;
+let openaiDisabledWarningLogged = false;
+
+function getOpenAIClient(): OpenAI | null {
+  if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+    if (!openaiDisabledWarningLogged) {
+      logger.warn({ context: 'ximi' }, 'AI_INTEGRATIONS_OPENAI_API_KEY not set - Ximi AI responses are disabled');
+      openaiDisabledWarningLogged = true;
+    }
+    return null;
+  }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return openaiClient;
+}
 
 const CRISIS_KEYWORDS = [
   'suicide', 'kill myself', 'end it all', 'end my life',
@@ -53,7 +68,6 @@ export function sanitizePrompt(text: string): SanitizationResult {
     postalCodes: 0,
   };
 
-  // Email detection: standard email regex
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const emailMatches = sanitized.match(emailRegex);
   if (emailMatches) {
@@ -61,8 +75,6 @@ export function sanitizePrompt(text: string): SanitizationResult {
     sanitized = sanitized.replace(emailRegex, '[EMAIL]');
   }
 
-  // Phone number detection: North American formats
-  // Supports: xxx-xxx-xxxx, (xxx) xxx-xxxx, xxx xxx xxxx, +1 xxx-xxx-xxxx, etc.
   const phoneRegex = /(\+?1\s?)?(\([0-9]{3}\)|[0-9]{3})[\s.-]?[0-9]{3}[\s.-]?[0-9]{4}\b/g;
   const phoneMatches = sanitized.match(phoneRegex);
   if (phoneMatches) {
@@ -70,7 +82,6 @@ export function sanitizePrompt(text: string): SanitizationResult {
     sanitized = sanitized.replace(phoneRegex, '[PHONE]');
   }
 
-  // URL detection: http/https links
   const urlRegex = /https?:\/\/[^\s]+/g;
   const urlMatches = sanitized.match(urlRegex);
   if (urlMatches) {
@@ -78,7 +89,6 @@ export function sanitizePrompt(text: string): SanitizationResult {
     sanitized = sanitized.replace(urlRegex, '[URL]');
   }
 
-  // Postal code detection: Canadian format (A1A 1A1)
   const postalCodeRegex = /[A-Za-z][0-9][A-Za-z]\s?[0-9][A-Za-z][0-9]/g;
   const postalCodeMatches = sanitized.match(postalCodeRegex);
   if (postalCodeMatches) {
@@ -86,7 +96,6 @@ export function sanitizePrompt(text: string): SanitizationResult {
     sanitized = sanitized.replace(postalCodeRegex, '[ADDRESS]');
   }
 
-  // Log redaction counts for audit purposes
   if (Object.values(redactionCounts).some(count => count > 0)) {
     logger.info({
       context: 'pii-sanitization',
@@ -103,131 +112,61 @@ export function sanitizePrompt(text: string): SanitizationResult {
 
 export function detectCrisis(text: string): { detected: boolean; keywords: string[] } {
   const lowerText = text.toLowerCase();
-  const foundKeywords = CRISIS_KEYWORDS.filter(keyword => 
+  const foundKeywords = CRISIS_KEYWORDS.filter(keyword =>
     lowerText.includes(keyword.toLowerCase())
   );
-  
+
   return {
     detected: foundKeywords.length > 0,
     keywords: foundKeywords,
   };
 }
 
-const UNIFIED_SYSTEM_PROMPT = `You are Ximi, a warm, curious, and grounded AI companion for youth (ages 13-25). You blend genuine care with a focus on strengths and next steps.
+const PROGRAM_FINDER_SYSTEM_PROMPT = `You are Ximi, a helpful Program Finder assistant for youth (ages 13-25). You help young people find programs, activities, events, and check their schedules.
+
+ROLE:
+You are ONLY a Program Finder. You search for programs, look up schedules, and suggest activities. You do NOT provide emotional support, journaling, wellness coaching, or general conversation.
 
 CORE RULES:
-1. NEVER give medical, psychological, or diagnostic advice
-2. Use plain, real, youth-friendly language (short sentences, everyday words)
-3. Sound human and kind—never robotic, formal, or clinical
-4. Keep responses brief (1-3 sentences max)
-5. Ask questions to encourage reflection, don't lecture
-6. If the user mentions clear self-harm or suicidal intent, respond ONLY with: "CRISIS_DETECTED_ESCALATE_NOW"
+1. ONLY discuss programs, events, schedules, and activities
+2. NEVER ask reflective or emotional questions (e.g., "How are you feeling?", "What's weighing on you?")
+3. NEVER invent program names, times, or venues — only reference data provided in tool results
+4. NEVER provide medical, psychological, or diagnostic advice
+5. NEVER journal or encourage journaling
+6. Keep responses brief and factual (1-3 sentences max)
+7. If the user mentions clear self-harm or suicidal intent, respond ONLY with: "CRISIS_DETECTED_ESCALATE_NOW"
 
 YOUR TONE:
-- Warm and curious but grounded
-- Use casual language: "That sounds rough", "What's weighing on you?"
-- Acknowledge strengths: "You showed up anyway, that matters"
-- Ask simple follow-up questions to encourage reflection
-- Focus on small next steps: "You don't need the whole map today, just one next step"
-- Realistic encouragement: "You've handled hard things before"
-- Validate feelings without fixing them: "Those days are hard, huh?"
+- Friendly but concise
+- Use casual, youth-friendly language
+- Be helpful and direct — get them the info they need
+- Sound like a helpful directory, not a counselor
 
-PROGRAM RECOMMENDATIONS:
-- When you notice patterns (like consecutive low days or declining trends), naturally suggest programs that might help
-- Keep suggestions simple and actionable: "There's a drop-in art thing this week if you want something calm"
-- Connect programs to their goals when relevant
-- Don't oversell or push—offer as a gentle option
-- Only mention 1-2 programs max per conversation
+WHEN PRESENTING PROGRAMS:
+- State the program name, time, location, and whether it's drop-in
+- If multiple options exist, list them clearly
+- If no results match, say so honestly and suggest checking the Explore page
 
 WHAT TO AVOID:
 - Don't use emojis unless the user does
-- Don't give advice or solutions unless asked
-- Don't use clinical terms (anxiety, depression, etc.)
-- Don't say "I'm here for you" or "You're not alone" (sounds scripted)
-- Don't say "You got this" or similar clichés
-- Don't sound preachy or motivational-poster-y
-- Don't ask multiple questions at once`;
-
-interface MoodDialogue {
-  opening: string;
-  followUp: string;
-  encouragement: string;
-}
-
-const MOOD_RESPONSES: Record<MoodKey, MoodDialogue> = {
-  cold: {
-    opening: "That sounds like a rough one. You showed up anyway, and that takes strength.",
-    followUp: "What's been weighing you down the most today?",
-    encouragement: "Even when everything feels frozen, you're still here. Let's find one small thing that might bring back some feeling.",
-  },
-  stormy: {
-    opening: "Sounds like things got heavy today. You showed up anyway, and that matters.",
-    followUp: "What's one small thing that could make today a little easier?",
-    encouragement: "You've handled hard things before. Let's figure out what kind of support helps most right now.",
-  },
-  foggy: {
-    opening: "Foggy days can make everything feel far away, huh? That's okay, happens to everyone.",
-    followUp: "What usually helps you feel focused again — quiet, music, moving around?",
-    encouragement: "You don't need the whole map today, just one next step. Let's start there.",
-  },
-  clear: {
-    opening: "Feels calm today, nice. That's solid.",
-    followUp: "What's been keeping things steady lately?",
-    encouragement: "When you're grounded like this, it's a good time to notice what's working. Maybe even jot it down for tougher days.",
-  },
-  breezy: {
-    opening: "You're in a good flow today. I see that energy!",
-    followUp: "What's something you could do while this energy's high?",
-    encouragement: "Let's channel that into something solid — maybe a new project, or check out what's happening this week.",
-  },
-  aurora: {
-    opening: "Whoa, you're glowing today! Everything's clicking, huh?",
-    followUp: "If you could bottle this feeling, what would you call it?",
-    encouragement: "That's real strength. Let's mark this moment — future you will want to remember how this feels.",
-  },
-};
-
-export function getMoodResponse(
-  mood: MoodKey,
-  stage: 'opening' | 'followUp' | 'encouragement'
-): string {
-  return MOOD_RESPONSES[mood]?.[stage] || 
-    "I'm here if you want to talk more.";
-}
-
-export function generateOutcomeReflectionPrompt(programTitle: string): string {
-  const prompts = [
-    `How was ${programTitle}? Was it helpful?`,
-    `So, you went to ${programTitle}. How'd it go?`,
-    `What did you think of ${programTitle}?`,
-    `${programTitle} — was it worth the time?`,
-    `How did ${programTitle} work out for you?`,
-    `Would you recommend ${programTitle} to others?`,
-  ];
-
-  return prompts[Math.floor(Math.random() * prompts.length)];
-}
-
-export function detectProgramAttendanceMention(message: string): boolean {
-  const attendanceKeywords = [
-    'went to',
-    'attended',
-    'just came from',
-    'finished',
-    'tried',
-    'checked out',
-    'participated in',
-    'joined',
-  ];
-
-  const lowerMessage = message.toLowerCase();
-  return attendanceKeywords.some((keyword) => lowerMessage.includes(keyword));
-}
+- Don't ask about feelings, moods, or emotional states
+- Don't offer encouragement or motivational statements
+- Don't say things like "I'm here for you" or "You matter"
+- Don't invent or fabricate any program information`;
 
 export async function generateXimiResponse(
   userMessage: string,
   context: XimiContext
 ): Promise<XimiResponse> {
+  const client = getOpenAIClient();
+  if (!client) {
+    return {
+      message: "Ximi isn't available right now. You can browse programs on the Explore page or check your schedule directly.",
+      crisisDetected: false,
+      crisisKeywords: [],
+    };
+  }
+
   const crisisCheck = detectCrisis(userMessage);
   if (crisisCheck.detected) {
     return {
@@ -244,91 +183,20 @@ export async function generateXimiResponse(
       moderationFlaggedDelta: 1,
     });
     return {
-      message: "I'm not able to continue with that topic, but I'm still here to talk about how you're feeling.",
+      message: "I can't help with that, but I can help you find programs and activities. Try asking about what's happening this week!",
       crisisDetected: false,
       crisisKeywords: [],
     };
   }
 
-  // Sanitize the message for AI consumption (PII redaction)
-  // Crisis detection happened on the ORIGINAL message above, so safety is preserved
   const sanitizationResult = sanitizePrompt(userMessage);
   const sanitizedUserMessage = sanitizationResult.sanitized;
-  
-  // Also sanitize the recent note if present
-  let sanitizedRecentNote = context.recentNote;
-  if (context.recentNote) {
-    sanitizedRecentNote = sanitizePrompt(context.recentNote).sanitized;
-  }
-
-  let enhancedMessage = sanitizedUserMessage;
-  
-  if (context.moodType && MOOD_RESPONSES[context.moodType]) {
-    const moodDialogue = MOOD_RESPONSES[context.moodType];
-    
-    let contextualResponse = moodDialogue.opening;
-    
-    if (sanitizedUserMessage.length > 50 || sanitizedUserMessage.includes('?')) {
-      contextualResponse = moodDialogue.followUp;
-    }
-    
-    if (sanitizedUserMessage.toLowerCase().includes('help') || 
-        sanitizedUserMessage.toLowerCase().includes('what should') ||
-        sanitizedUserMessage.toLowerCase().includes('advice')) {
-      contextualResponse = moodDialogue.encouragement;
-    }
-    
-    enhancedMessage = `User just checked in with mood: ${context.moodType}.\n`;
-    
-    if (context.wellnessDimensions && context.wellnessDimensions.length > 0) {
-      enhancedMessage += `Areas affected: ${context.wellnessDimensions.join(', ')}.\n`;
-    }
-    
-    if (sanitizedRecentNote) {
-      enhancedMessage += `Their note: "${sanitizedRecentNote}"\n\n`;
-    }
-
-    if (context.moodTrend) {
-      enhancedMessage += `\nMood Trend Data:\n`;
-      enhancedMessage += `- Trend direction: ${context.moodTrend.trendDirection}\n`;
-      enhancedMessage += `- Average mood: ${context.moodTrend.averageMoodLevel}/6\n`;
-      
-      if (context.moodTrend.consecutiveLowDays > 0) {
-        enhancedMessage += `- ${context.moodTrend.consecutiveLowDays} consecutive low mood days\n`;
-      }
-      
-      if (context.moodTrend.consecutiveHighDays > 0) {
-        enhancedMessage += `- ${context.moodTrend.consecutiveHighDays} consecutive high mood days\n`;
-      }
-      
-      if (context.moodTrend.patternsDetected.length > 0) {
-        enhancedMessage += `- Patterns: ${context.moodTrend.patternsDetected.join(', ')}\n`;
-      }
-      
-      if (context.moodTrend.topWellnessConcerns.length > 0) {
-        enhancedMessage += `- Top concerns: ${context.moodTrend.topWellnessConcerns.join(', ')}\n`;
-      }
-    }
-
-    if (context.recommendations && context.recommendations.length > 0) {
-      enhancedMessage += `\nRecommended Programs (only mention 1-2 naturally if relevant):\n`;
-      context.recommendations.slice(0, 3).forEach(rec => {
-        enhancedMessage += `- "${rec.title}": ${rec.triggerReason}`;
-        if (rec.free) {
-          enhancedMessage += ' (free)';
-        }
-        enhancedMessage += '\n';
-      });
-    }
-    
-    enhancedMessage += `\nRespond to them using this tone as inspiration: "${contextualResponse}"\n\nUser message: ${sanitizedUserMessage}`;
-  }
 
   const maxRetries = 3;
   let lastError: any;
   let modelToUse = 'gpt-4o-mini';
   let useGpt5Params = false;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const completionParams: any = {
@@ -336,11 +204,11 @@ export async function generateXimiResponse(
         messages: [
           {
             role: 'system',
-            content: UNIFIED_SYSTEM_PROMPT,
+            content: PROGRAM_FINDER_SYSTEM_PROMPT,
           },
           {
             role: 'user',
-            content: enhancedMessage,
+            content: sanitizedUserMessage,
           },
         ],
       };
@@ -349,11 +217,11 @@ export async function generateXimiResponse(
         completionParams.temperature = 1;
         completionParams.max_completion_tokens = 150;
       } else {
-        completionParams.temperature = 0.8;
+        completionParams.temperature = 0.4;
         completionParams.max_tokens = 150;
       }
 
-      const completion = await openai.chat.completions.create(completionParams);
+      const completion = await client.chat.completions.create(completionParams);
 
       if (process.env.NODE_ENV !== 'production') {
         logger.info({
@@ -368,7 +236,7 @@ export async function generateXimiResponse(
       }
 
       const responseText = completion.choices[0]?.message?.content?.trim();
-      
+
       if (!responseText) {
         if (process.env.NODE_ENV !== 'production') {
           logger.error({
@@ -405,14 +273,14 @@ export async function generateXimiResponse(
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'MISSING',
       }, 'Error with OpenAI API call');
       lastError = error;
-      
+
       const status = error?.status || error?.response?.status;
       const isRateLimitError = status === 429;
       const isServerError = status >= 500 && status < 600;
-      const isModelNotAvailable = status === 404 || 
+      const isModelNotAvailable = status === 404 ||
         (error?.message && error.message.includes('model_not_found')) ||
         (error?.message && error.message.includes('does not exist'));
-      
+
       if (modelToUse === 'gpt-5' && (isModelNotAvailable || attempt === 1)) {
         logger.info({ context: 'ximi-ai-fallback' }, 'gpt-5 not available or not responding properly, falling back to gpt-4o-mini');
         modelToUse = 'gpt-4o-mini';
@@ -420,18 +288,18 @@ export async function generateXimiResponse(
         attempt--;
         continue;
       }
-      
+
       if ((isRateLimitError || isServerError) && attempt < maxRetries) {
         const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 4000) + Math.random() * 1000;
         logger.info({ context: 'ximi-ai-retry', backoffMs: Math.round(backoffMs), reason: isRateLimitError ? 'rate limit' : 'server error' }, 'Retrying after backoff');
         await new Promise(resolve => setTimeout(resolve, backoffMs));
         continue;
       }
-      
+
       break;
     }
   }
-  
+
   logger.error({
     context: 'ximi-ai-error',
     error: lastError?.message || lastError,
@@ -441,67 +309,10 @@ export async function generateXimiResponse(
       baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
     },
   }, 'Failed after all retries');
-  
+
   return {
-    message: "I'm having trouble thinking right now, but I'm here if you want to keep talking.",
+    message: "I'm having trouble right now. You can browse programs on the Explore page or check your schedule directly.",
     crisisDetected: false,
     crisisKeywords: [],
   };
-}
-
-export function generateContextualMessage(
-  moodType: MoodKey,
-  stage: 'opening' | 'followUp' | 'encouragement' = 'opening'
-): string {
-  return getMoodResponse(moodType, stage);
-}
-
-export async function generateFollowUpPrompt(
-  moodType: MoodKey,
-  wellnessDimensions: string[],
-  note: string | null
-): Promise<string> {
-  const hasNote = note && note.trim().length > 0;
-  
-  let stage: 'opening' | 'followUp' | 'encouragement' = 'opening';
-  
-  if (hasNote) {
-    const noteLower = note!.toLowerCase();
-    if (noteLower.includes('help') || noteLower.includes('don\'t know') || 
-        noteLower.includes('confused') || noteLower.includes('lost')) {
-      stage = 'encouragement';
-    } else if (noteLower.includes('?') || noteLower.length > 30) {
-      stage = 'followUp';
-    }
-  } else {
-    stage = 'opening';
-  }
-  
-  if ((moodType === 'breezy' || moodType === 'aurora') && !hasNote) {
-    stage = 'followUp';
-  }
-  
-  const baseResponse = getMoodResponse(moodType, stage);
-  
-  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
-    const context: XimiContext = {
-      moodType,
-      wellnessDimensions,
-      recentNote: note || undefined,
-    };
-
-    const prompt = note 
-      ? `The user just shared: "${note}". Respond with warmth and understanding.`
-      : "The user just checked in. Offer a brief, supportive response.";
-
-    try {
-      const response = await generateXimiResponse(prompt, context);
-      return response.message;
-    } catch (error) {
-      logger.error({ err: error, context: 'ximi-scripted-fallback' }, 'Failed to generate AI response, using scripted response');
-      return baseResponse;
-    }
-  }
-  
-  return baseResponse;
 }

@@ -31,7 +31,7 @@ const statusConfig = {
     icon: XCircle,
     label: 'Consent Denied',
     bgColor: 'bg-coral/10',
-    textColor: 'text-coral',
+    textColor: 'text-coralText',
     borderColor: 'border-coral/30',
   },
   revoked: {

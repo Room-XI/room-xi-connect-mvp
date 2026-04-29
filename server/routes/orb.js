@@ -46,7 +46,7 @@ router.get('/summary', async (req, res) => {
     };
 
     recentCheckins.forEach(checkin => {
-      if (checkin.mood && moodCounts.hasOwnProperty(checkin.mood)) {
+      if (checkin.mood && Object.prototype.hasOwnProperty.call(moodCounts, checkin.mood)) {
         moodCounts[checkin.mood]++;
       }
     });

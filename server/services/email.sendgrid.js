@@ -1,4 +1,5 @@
 import sgMail from "@sendgrid/mail";
+import logger from '../logger.ts';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
 
@@ -44,6 +45,6 @@ export async function verifyEmailConfig() {
     console.warn('[Email] WARNING: SENDGRID_API_KEY not set - email functionality will be disabled');
     return false;
   }
-  console.log('[Email] SendGrid configured successfully');
+  logger.info({ context: 'email-sendgrid' }, 'SendGrid configured successfully');
   return true;
 }

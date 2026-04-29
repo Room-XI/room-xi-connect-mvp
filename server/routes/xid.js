@@ -4,6 +4,7 @@ import { db } from '../db.js';
 import { xids, attendance } from '../schema.js';
 import { eq, and, isNull } from 'drizzle-orm';
 import logger from '../logger.ts';
+import { awardXipPoints } from './xip.ts';
 
 const router = express.Router();
 
@@ -132,6 +133,10 @@ router.post('/attendance', async (req, res) => {
         site: site || null,
       })
       .returning();
+
+    // Award XiP points for attendance (fire-and-forget)
+    awardXipPoints(req.session.userId, 'program_attendance', { programId, attendanceId: record.id })
+      .catch(err => logger.error({ err, context: 'xid-xip' }, 'XiP point award failed'));
 
     res.status(201).json(record);
   } catch (error) {

@@ -136,7 +136,7 @@ export default function SafetyPlanShare() {
       <div className="min-h-screen flex items-center justify-center bg-cream p-4">
         <div className="cosmic-card p-8 max-w-md text-center space-y-4">
           <div className="w-16 h-16 bg-coral/10 rounded-full flex items-center justify-center mx-auto">
-            <AlertCircle className="w-8 h-8 text-coral" />
+            <AlertCircle className="w-8 h-8 text-coralText" />
           </div>
           <h1 className="text-xl font-bold text-deepSage">Unable to View Plan</h1>
           <p className="text-textSecondaryLight">
@@ -173,7 +173,7 @@ export default function SafetyPlanShare() {
       >
         <button
           onClick={() => setShowCrisisSheet(true)}
-          className="w-full flex items-center justify-center space-x-2 text-coral font-bold"
+          className="w-full flex items-center justify-center space-x-2 text-coralText font-bold"
         >
           <Phone className="w-5 h-5" />
           <span>Need Immediate Help? Tap for Crisis Support</span>
@@ -300,7 +300,7 @@ export default function SafetyPlanShare() {
           <div className="pl-13 space-y-3">
             <button
               onClick={() => setShowCrisisSheet(true)}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-coral/10 text-coral rounded-lg hover:bg-coral/20 transition-colors font-medium"
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-coral/10 text-coralText rounded-lg hover:bg-coral/20 transition-colors font-medium"
             >
               <Phone className="w-5 h-5" />
               <span>View Crisis Support Lines</span>
@@ -359,7 +359,7 @@ export default function SafetyPlanShare() {
             )}
             {planData.notesForOthers?.whatDoesntHelp && (
               <div>
-                <div className="text-sm font-medium text-coral mb-1 flex items-center space-x-2">
+                <div className="text-sm font-medium text-coralText mb-1 flex items-center space-x-2">
                   <AlertTriangle className="w-4 h-4" />
                   <span>What doesn't help</span>
                 </div>

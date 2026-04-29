@@ -2,27 +2,39 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, MapPin, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ExploreTabs from '@/ui/explore/ExploreTabs';
 import TodayList from '@/ui/explore/TodayList';
+import ThisWeekList from '@/ui/explore/ThisWeekList';
 import ProgramList from '@/ui/explore/ProgramList';
 import ProgramMap from '@/ui/explore/ProgramMap';
 import SavedList from '@/ui/explore/SavedList';
 import XimiDock from '@/ui/explore/XimiDock';
 import LocationToggle from '@/ui/explore/LocationToggle';
+import QuickFilterChips from '@/ui/explore/QuickFilterChips';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
 import { useSession } from '@/lib/session';
 import { useExploreGate } from '@/hooks/useExploreGate';
 import api from '@/lib/api';
 
 export default function Explore() {
+  const { t } = useTranslation();
   const { view } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, needsGuardianVerification } = useSession();
   const { isGateOpen, needsCheckIn, isLoading } = useExploreGate();
-  const currentView = view === 'today' ? 'today' : view === 'map' ? 'map' : view === 'saved' ? 'saved' : 'programs';
-  const [crisisOpen, setCrisisOpen] = useState(false);
 
+  const resolveView = (): 'today' | 'thisWeek' | 'programs' | 'map' | 'saved' => {
+    if (view === 'today') return 'today';
+    if (view === 'this-week') return 'thisWeek';
+    if (view === 'map') return 'map';
+    if (view === 'saved') return 'saved';
+    return 'programs';
+  };
+  const currentView = resolveView();
+
+  const [crisisOpen, setCrisisOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const [locationEnabled, setLocationEnabled] = useState<boolean>(() => {
@@ -35,7 +47,6 @@ export default function Explore() {
     return saved ? parseInt(saved, 10) : 2;
   });
 
-  // Recommendations state
   const [recommendations, setRecommendations] = useState<Array<{
     eventId: string;
     programId: string;
@@ -54,26 +65,22 @@ export default function Explore() {
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState<boolean | null>(null);
 
-  // 8am Gate Check - we now show a banner instead of redirecting
-  // Don't show check-in prompt for unconsented youth (they can't complete check-ins anyway)
-  // This allows youth without guardian consent to still browse programs/events
+  const [quickFilters, setQuickFilters] = useState<Set<string>>(new Set());
+
   const showCheckInPrompt = user && !needsGuardianVerification && !isLoading && needsCheckIn && !isGateOpen && searchParams.get('skip_gate') !== 'true';
 
-  // Persist locationEnabled changes to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('locationPreference', locationEnabled.toString());
     }
   }, [locationEnabled]);
 
-  // Persist radiusKm changes to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('locationRadiusKm', radiusKm.toString());
     }
   }, [radiusKm]);
 
-  // Restore permission state from sessionStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedPermission = sessionStorage.getItem('locationPermission') as 'granted' | 'denied' | null;
@@ -82,7 +89,6 @@ export default function Explore() {
     }
   }, []);
 
-  // Persist permission state changes to sessionStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (locationPermission !== 'prompt') {
@@ -96,7 +102,6 @@ export default function Explore() {
     }
   }, [locationEnabled]);
 
-  // Fetch recommendations for authenticated users with check-ins
   useEffect(() => {
     if (!user) {
       setRecommendations([]);
@@ -112,7 +117,6 @@ export default function Explore() {
         const { data, error } = await api.events.recommendations(lat, lng);
         
         if (error) {
-          console.error('Failed to fetch recommendations:', error);
           setHasCheckedIn(false);
           setRecommendations([]);
           return;
@@ -133,6 +137,15 @@ export default function Explore() {
 
     fetchRecommendations();
   }, [user, userLocation, locationEnabled]);
+
+  useEffect(() => {
+    if (quickFilters.has('thisWeek') && currentView !== 'thisWeek') {
+      navigate('/explore/this-week');
+    }
+    if (quickFilters.has('nearMe') && !locationEnabled) {
+      setLocationEnabled(true);
+    }
+  }, [quickFilters]);
 
   const requestUserLocation = () => {
     const cachedLocation = sessionStorage.getItem('userLocation');
@@ -177,13 +190,28 @@ export default function Explore() {
   };
 
   const handleRetryLocation = () => {
-    // Clear cached location and permission to force a fresh request
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('userLocation');
       sessionStorage.removeItem('locationPermission');
     }
     setLocationPermission('prompt');
     setUserLocation(null);
+    setLocationEnabled(true);
+  };
+
+  const handleQuickFilterToggle = (filter: string) => {
+    setQuickFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(filter)) {
+        next.delete(filter);
+      } else {
+        next.add(filter);
+      }
+      return next;
+    });
+  };
+
+  const handleNearMeRequest = () => {
     setLocationEnabled(true);
   };
 
@@ -195,17 +223,15 @@ export default function Explore() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Header */}
         <div className="space-y-4">
           <h1 className="text-2xl font-display font-bold text-deepSage">
-            Explore
+            {t('explore.title')}
           </h1>
           <p className="text-textSecondaryLight">
-            Discover programs, events, and activities in your community
+            {t('explore.description')}
           </p>
         </div>
 
-        {/* Check-in Required Gate - blocks content for authenticated users who haven't checked in */}
         {showCheckInPrompt && (
           <motion.div
             className="cosmic-card p-6 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center"
@@ -219,10 +245,10 @@ export default function Explore() {
               </svg>
             </div>
             <h2 className="text-lg font-semibold text-amber-800 mb-2">
-              Complete a quick check-in to unlock Explore
+              {t('explore.checkInGate.title')}
             </h2>
             <p className="text-sm text-amber-700 mb-4 max-w-md mx-auto">
-              Take a moment to share how you're feeling today. It only takes a few seconds and helps us support you better!
+              {t('explore.checkInGate.description')}
             </p>
             <button
               onClick={() => navigate('/home')}
@@ -231,12 +257,11 @@ export default function Explore() {
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Do my check-in
+              {t('explore.checkInGate.button')}
             </button>
           </motion.div>
         )}
 
-        {/* Guest Notice Banner */}
         {!user && (
           <motion.div
             className="cosmic-card p-4 bg-gradient-to-r from-teal/10 to-sage/10 border-l-4 border-teal"
@@ -252,17 +277,16 @@ export default function Explore() {
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium text-deepSage">
-                  Sign in to see all upcoming programs
+                  {t('explore.guest.title')}
                 </p>
                 <p className="text-sm text-textSecondaryLight">
-                  Guests can browse today's programs only. Create an account or sign in to view all future programs and events.
+                  {t('explore.guest.description')}
                 </p>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* Recommended for You Section - Only for authenticated users with check-ins */}
         {user && hasCheckedIn && !showCheckInPrompt && (
           <motion.div
             className="space-y-4"
@@ -272,7 +296,7 @@ export default function Explore() {
           >
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-teal" />
-              <h2 className="text-lg font-semibold text-deepSage">Recommended for You</h2>
+              <h2 className="text-lg font-semibold text-deepSage">{t('explore.recommended')}</h2>
             </div>
 
             {recommendationsLoading ? (
@@ -315,7 +339,7 @@ export default function Explore() {
                           </span>
                         )}
                         <span className={`px-2 py-1 rounded-full ${rec.free ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {rec.free ? 'Free' : rec.cost}
+                          {rec.free ? t('programs.free') : rec.cost}
                         </span>
                       </div>
 
@@ -323,7 +347,7 @@ export default function Explore() {
                         to={`/program/${rec.programId}`}
                         className="inline-flex items-center gap-1 text-sm font-medium text-teal hover:text-teal/80 transition-colors"
                       >
-                        View Program
+                        {t('explore.viewProgram')}
                         <ArrowRight className="w-4 h-4" />
                       </Link>
                     </div>
@@ -334,10 +358,15 @@ export default function Explore() {
           </motion.div>
         )}
 
-        {/* Only show Explore content if gate is open or user is not required to check in */}
         {!showCheckInPrompt && (
           <>
-            {/* Location Toggle */}
+            <QuickFilterChips
+              activeFilters={quickFilters}
+              onToggle={handleQuickFilterToggle}
+              onNearMeRequest={handleNearMeRequest}
+              locationEnabled={locationEnabled}
+            />
+
             <LocationToggle
               enabled={locationEnabled}
               onToggle={handleLocationToggle}
@@ -347,10 +376,8 @@ export default function Explore() {
               onRetryPermission={handleRetryLocation}
             />
 
-            {/* Segmented Control */}
             <ExploreTabs current={currentView} />
             
-            {/* Content based on current view */}
             <motion.div
               key={currentView}
               initial={{ opacity: 0, x: 20 }}
@@ -363,6 +390,16 @@ export default function Explore() {
                   locationPermission={locationPermission}
                   locationEnabled={locationEnabled}
                   radiusKm={radiusKm}
+                  quickFilters={quickFilters}
+                />
+              )}
+              {currentView === 'thisWeek' && (
+                <ThisWeekList
+                  userLocation={userLocation}
+                  locationPermission={locationPermission}
+                  locationEnabled={locationEnabled}
+                  radiusKm={radiusKm}
+                  quickFilters={quickFilters}
                 />
               )}
               {currentView === 'programs' && (
@@ -371,6 +408,7 @@ export default function Explore() {
                   locationPermission={locationPermission}
                   locationEnabled={locationEnabled}
                   radiusKm={radiusKm}
+                  quickFilters={quickFilters}
                 />
               )}
               {currentView === 'map' && (
@@ -385,11 +423,10 @@ export default function Explore() {
           </>
         )}
 
-        {/* Footer Links Section */}
         <div className="mt-12 pt-8 border-t border-gray-200">
           <div className="text-center space-y-4">
             <p className="text-sm text-gray-600">
-              Room XI is committed to transparency and privacy protection
+              {t('explore.footer.commitment')}
             </p>
             <a
               href="/transparency"
@@ -398,22 +435,19 @@ export default function Explore() {
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              View Transparency Dashboard
+              {t('explore.footer.viewDashboard')}
             </a>
             <p className="text-xs text-gray-500">
-              See aggregated community statistics with privacy protection
+              {t('explore.footer.statsDescription')}
             </p>
           </div>
         </div>
         
-        {/* Spacer for floating dock */}
         <div className="h-32" />
       </motion.div>
       
-      {/* Ximi Dock - Floating AI assistant (authenticated users only) */}
       {user && <XimiDock onCrisis={() => setCrisisOpen(true)} />}
       
-      {/* Crisis Support Sheet */}
       <CrisisSheet open={crisisOpen} onClose={() => setCrisisOpen(false)} />
     </>
   );

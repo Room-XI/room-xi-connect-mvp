@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import bcrypt from 'bcrypt';
+import { pinRegisterSchema, pinLoginSchema, setPinSchema } from '../schemas/auth';
 
 vi.mock('../db.js', () => ({
   db: {
@@ -309,5 +310,85 @@ describe('Authentication - Age Calculation', () => {
     
     expect(age).toBeGreaterThanOrEqual(15);
     expect(age).toBeLessThanOrEqual(17);
+  });
+});
+
+describe('Authentication - PIN Schema Validation (6-Digit Migration)', () => {
+  const validBase = {
+    displayName: 'TestUser',
+    dateOfBirth: '2005-06-15',
+  };
+
+  describe('pinRegisterSchema', () => {
+    it('should accept exactly 6-digit PIN for registration', () => {
+      const result = pinRegisterSchema.safeParse({ ...validBase, pin: '123456' });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject 4-digit PIN for registration', () => {
+      const result = pinRegisterSchema.safeParse({ ...validBase, pin: '1234' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject 5-digit PIN for registration', () => {
+      const result = pinRegisterSchema.safeParse({ ...validBase, pin: '12345' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject 7-digit PIN for registration', () => {
+      const result = pinRegisterSchema.safeParse({ ...validBase, pin: '1234567' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject non-numeric PIN for registration', () => {
+      const result = pinRegisterSchema.safeParse({ ...validBase, pin: 'abcdef' });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('pinLoginSchema', () => {
+    // SOT §04: strict 6-digit PIN across all pilot auth surfaces.
+    // Legacy 4-/5-digit leniency removed — pilot lockdown requires 6 digits.
+    it('should reject 4-digit PIN for login (pilot: strict 6-digit)', () => {
+      const result = pinLoginSchema.safeParse({ loginCode: 'STAR-MOON-42', pin: '1234' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject 5-digit PIN for login (pilot: strict 6-digit)', () => {
+      const result = pinLoginSchema.safeParse({ loginCode: 'STAR-MOON-42', pin: '12345' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept 6-digit PIN for login', () => {
+      const result = pinLoginSchema.safeParse({ loginCode: 'STAR-MOON-42', pin: '123456' });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject 3-digit PIN for login', () => {
+      const result = pinLoginSchema.safeParse({ loginCode: 'STAR-MOON-42', pin: '123' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject 7-digit PIN for login', () => {
+      const result = pinLoginSchema.safeParse({ loginCode: 'STAR-MOON-42', pin: '1234567' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should require loginCode or email', () => {
+      const result = pinLoginSchema.safeParse({ pin: '123456' });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('setPinSchema', () => {
+    it('should accept exactly 6-digit PIN', () => {
+      const result = setPinSchema.safeParse({ pin: '123456' });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject 4-digit PIN', () => {
+      const result = setPinSchema.safeParse({ pin: '1234' });
+      expect(result.success).toBe(false);
+    });
   });
 });

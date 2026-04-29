@@ -147,7 +147,7 @@ export function generateResponse(analysis: MessageAnalysis, _userMessage: string
       return "Hello! It's great to meet you. I'm here to help you navigate the app and find what you need. Is there something specific you'd like to explore?";
       
     default:
-      return "That's interesting! I'm still learning, but I'm here to help however I can. You might find what you're looking for in the Explore section, or feel free to ask me anything else.";
+      return "I can help you find programs, check your schedule, or answer questions about activities. What are you looking for?";
   }
 }
 

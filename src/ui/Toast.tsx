@@ -50,7 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className={`
                 pointer-events-auto
                 mb-3 p-4 rounded-2xl shadow-lg border flex items-start space-x-3
-                ${toast.type === 'error' ? 'bg-coral/10 border-coral/20 text-coral' : ''}
+                ${toast.type === 'error' ? 'bg-coral/10 border-coral/20 text-coralText' : ''}
                 ${toast.type === 'success' ? 'bg-teal/10 border-teal/20 text-teal' : ''}
                 ${toast.type === 'warning' ? 'bg-gold/10 border-gold/20 text-gold' : ''}
                 ${toast.type === 'info' ? 'bg-sage/10 border-sage/20 text-sage' : ''}

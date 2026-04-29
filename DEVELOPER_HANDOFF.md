@@ -26,11 +26,11 @@
 
 ### What is Room XI Connect?
 
-Room XI Connect is a youth mental health and wellness application designed for ages 13-25. It helps young people:
+Room XI Connect is a youth-safe platform designed for ages 13-25. It helps young people:
 - Track their daily mood and wellness
 - Discover local programs and community resources (98 real Edmonton programs)
 - Access real-time event discovery ("Happening Now" finder)
-- Access an AI companion (Ximi) for support
+- Find programs with Ximi, an AI Program Finder
 - Build healthy check-in habits through streaks
 - Access crisis support when needed
 
@@ -40,7 +40,7 @@ Room XI Connect is a youth mental health and wellness application designed for a
 - **Daily Check-Ins**: Multi-step mood tracking with SAMHSA wellness dimensions
 - **Real-Time Event Discovery**: 98 Edmonton programs with "Happening Now" filtering
 - **Program Discovery**: Browse local programs with map view and geolocation
-- **Ximi AI Companion**: Dual personality AI (Little Sibling + Peer Guide)
+- **Ximi AI Program Finder**: Dual personality AI (Little Sibling + Peer Guide)
 - **QR Attendance**: Quick check-in at programs via QR codes
 - **Living Journal**: Private writing + AI-assisted reflection
 - **Crisis Detection**: Real-time keyword scanning with safety resources
@@ -751,7 +751,7 @@ roomxi://program/{programId}
 │ • Email: user@example.com           │
 │ • Change Password                   │
 │                                     │
-│ Ximi AI Companion                   │
+│ Ximi AI Program Finder               │
 │ • ✓ Ximi consent granted            │
 │ • Default mode: Little Sibling      │
 │                                     │
@@ -1116,7 +1116,7 @@ export async function updateStreak(userId: string, checkInTimestamp: Date) {
 
 ---
 
-### 4. Ximi AI Companion
+### 4. Ximi AI Program Finder
 
 **Dual Personality System:**
 
@@ -1134,7 +1134,7 @@ export async function updateStreak(userId: string, checkInTimestamp: Date) {
 
 ```typescript
 const SYSTEM_PROMPTS = {
-  sibling: `You are Ximi, a warm and supportive AI companion for youth aged 13-25.
+  sibling: `You are Ximi, an AI Program Finder for youth aged 13-25.
     
     PERSONALITY:
     - Tone: Casual, curious, encouraging (like a caring younger sibling)

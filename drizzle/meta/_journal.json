@@ -29,6 +29,83 @@
       "when": 1767746283716,
       "tag": "0003_light_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771266429902,
+      "tag": "0004_bright_norrin_radd",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775353329803,
+      "tag": "0005_blue_union_jack",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775353921174,
+      "tag": "0006_wealthy_pepper_potts",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775355498998,
+      "tag": "0007_ordinary_nightshade",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775356800000,
+      "tag": "0008_event_rsvps_status_check",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775356971229,
+      "tag": "0009_absurd_clea",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775358000000,
+      "tag": "0010_referrals_closed_loop",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775359000000,
+      "tag": "0011_fix_referrals_referred_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1775360000000,
+      "tag": "0012_verified_supply",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1775361000000,
+      "tag": "0013_report_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1775362000000,
+      "tag": "0014_org_school_safe_mode",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Loader2, XCircle } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function ParentAcceptInvite() {
   const { token } = useParams<{ token: string }>();
@@ -16,35 +17,12 @@ export default function ParentAcceptInvite() {
 
     const acceptInvite = async () => {
       try {
-        const response = await fetch(`/api/parent-auth/accept/${token}`, {
-          method: 'GET',
-          credentials: 'include',
-          redirect: 'manual',
-        });
-
-        if (response.type === 'opaqueredirect' || response.redirected) {
-          window.location.href = '/parent';
-          return;
-        }
-
-        if (response.ok) {
-          window.location.href = '/parent';
-          return;
-        }
-
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/html')) {
+        const res = await api.parent.acceptInvite(token!);
+        if (res.error) {
           setStatus('error');
-          setErrorMessage('This invitation link has expired or is invalid.');
+          setErrorMessage(res.friendlyError || res.error || 'Failed to accept invitation');
         } else {
-          try {
-            const data = await response.json();
-            setStatus('error');
-            setErrorMessage(data.error || data.message || 'Failed to accept invitation');
-          } catch {
-            setStatus('error');
-            setErrorMessage('This invitation link has expired or is invalid.');
-          }
+          window.location.href = '/parent';
         }
       } catch (error) {
         setStatus('error');

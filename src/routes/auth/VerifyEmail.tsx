@@ -19,7 +19,7 @@ export default function VerifyEmail() {
 
     const verifyToken = async () => {
       try {
-        const response = await fetch(`/api/auth/verify-email/${token}`, {
+        const response = await fetch(`/api/pilot/auth/youth/verify-email/${token}`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -99,7 +99,7 @@ export default function VerifyEmail() {
         {status === 'error' && (
           <>
             <div className="w-20 h-20 bg-coral/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <XCircle className="w-12 h-12 text-coral" />
+              <XCircle className="w-12 h-12 text-coralText" />
             </div>
             <h1 className="text-2xl font-bold text-deepSage mb-2">Verification Failed</h1>
             <p className="text-textSecondaryLight mb-6">{message}</p>

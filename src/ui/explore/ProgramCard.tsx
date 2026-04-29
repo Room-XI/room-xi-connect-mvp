@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { 
   MapPin, 
   DollarSign, 
@@ -8,7 +9,8 @@ import {
   BookmarkCheck,
   Calendar,
   Users,
-  Clock
+  Clock,
+  Share2
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -44,6 +46,9 @@ interface GroupedProgram {
   distance?: number | null;
   weeklySchedule: WeeklySchedule[];
   scheduleSummary: string;
+  matchScore?: number;
+  capacity?: number;
+  currentAttendance?: number;
 }
 
 interface ProgramEvent {
@@ -68,6 +73,7 @@ interface ProgramEvent {
   requiresRegistration: boolean;
   registrationUrl: string | null;
   capacity: number | null;
+  currentAttendance?: number;
   programId: string;
   programTitle: string;
   programDescription: string | null;
@@ -78,6 +84,7 @@ interface ProgramEvent {
   contactPhone: string | null;
   website: string | null;
   distance?: number | null;
+  matchScore?: number;
 }
 
 interface ProgramCardProps {
@@ -86,10 +93,12 @@ interface ProgramCardProps {
 }
 
 export default function ProgramCard({ program, event }: ProgramCardProps) {
+  const { t } = useTranslation();
   const { user } = useSession();
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const programId = program?.programId || event?.programId || '';
   const title = program?.programTitle || event?.eventName || '';
@@ -103,6 +112,11 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
   const isFree = program?.free || costCents === 0 || event?.cost === 'Free';
   const isDropIn = program?.isDropIn || event?.isDropIn || false;
   const distance = program?.distance ?? event?.distance;
+  const matchScore = program?.matchScore ?? event?.matchScore;
+  const capacity = program?.capacity ?? event?.capacity;
+  const currentAttendance = program?.currentAttendance ?? event?.currentAttendance ?? 0;
+  const spotsLeft = capacity ? Math.max(0, capacity - currentAttendance) : null;
+  const spotsWarning = spotsLeft !== null && spotsLeft < 10;
 
   useEffect(() => {
     if (user && programId) {
@@ -175,6 +189,37 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
     }
   };
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (isSharing) return;
+    
+    setIsSharing(true);
+    
+    try {
+      const shareUrl = `${window.location.origin}/program/${programId}`;
+      const shareData = {
+        title: title,
+        text: description ? `${title} - ${description.substring(0, 100)}...` : title,
+        url: shareUrl,
+      };
+
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy link to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+      }
+    } catch (error: any) {
+      // Handle user canceling share dialog
+      if (error.name !== 'AbortError') {
+        console.error('Error sharing:', error);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   const formatEventTime = (startTime: string, endTime: string) => {
     try {
       const formatTime = (timeStr: string) => {
@@ -196,11 +241,6 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
     if (min && !max) return `${min}+`;
     if (!min && max) return `Up to ${max}`;
     return `${min}-${max}`;
-  };
-
-  const formatCost = (cents: number, free?: boolean) => {
-    if (cents === 0 || free) return 'Free';
-    return `$${(cents / 100).toFixed(2)}`;
   };
 
   const getShortDayName = (day: string) => {
@@ -227,49 +267,81 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
   return (
     <Link 
       to={`/program/${programId}`}
-      aria-label={`View details for ${title}${organizer ? ` by ${organizer}` : ''}${isFree ? ', Free' : ''}${isDropIn ? ', Drop-in available' : ''}`}
+      aria-label={`${t('programs.viewDetails')} ${title}${organizer ? ` by ${organizer}` : ''}${isFree ? ', ' + t('programs.free') : ''}${isDropIn ? ', Drop-in available' : ''}`}
     >
       <motion.div
         className="cosmic-card p-5 hover:shadow-soft transition-all duration-200 relative focus-within:ring-2 focus-within:ring-teal focus-within:ring-offset-2"
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
       >
-        <motion.button
-          onClick={toggleSave}
-          disabled={isToggling}
-          className={`absolute top-4 right-4 p-3 rounded-lg transition-all duration-200 ${
-            isSaved 
-              ? 'text-gold bg-gold/10 hover:bg-gold/20' 
-              : 'text-textSecondaryLight hover:text-gold hover:bg-gold/10'
-          }`}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          aria-label={isSaved ? 'Remove from saved' : 'Save program'}
-        >
-          {isToggling ? (
-            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
-          ) : isSaved ? (
-            <BookmarkCheck className="w-5 h-5" aria-hidden="true" />
-          ) : (
-            <Bookmark className="w-5 h-5" aria-hidden="true" />
+        <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+          {matchScore !== undefined && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-teal/20 text-teal">
+              {t('explore.matchScore', { score: matchScore })}
+            </span>
           )}
-        </motion.button>
+          
+          <div className="flex items-center gap-1">
+            <motion.button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="p-3 rounded-lg transition-all duration-200 text-textSecondaryLight hover:text-cyan-500 hover:bg-cyan-500/10"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              aria-label={t('explore.share')}
+            >
+              {isSharing ? (
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+              ) : (
+                <Share2 className="w-5 h-5" aria-hidden="true" />
+              )}
+            </motion.button>
 
-        <div className="space-y-4 pr-12">
+            <motion.button
+              onClick={toggleSave}
+              disabled={isToggling}
+              className={`p-3 rounded-lg transition-all duration-200 ${
+                isSaved 
+                  ? 'text-gold bg-gold/10 hover:bg-gold/20' 
+                  : 'text-textSecondaryLight hover:text-gold hover:bg-gold/10'
+              }`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              aria-label={isSaved ? t('explore.card.removeFromSaved') : t('explore.bookmark')}
+            >
+              {isToggling ? (
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+              ) : isSaved ? (
+                <BookmarkCheck className="w-5 h-5" aria-hidden="true" />
+              ) : (
+                <Bookmark className="w-5 h-5" aria-hidden="true" />
+              )}
+            </motion.button>
+          </div>
+        </div>
+
+        <div className="space-y-4 pr-24">
           <div className="space-y-2">
             <h3 className="font-semibold text-deepSage text-lg leading-tight">
               {title}
             </h3>
             {organizer && (
               <p className="text-sm text-textSecondaryLight">
-                by {organizer}
+                {t('explore.card.by', { organizer })}
               </p>
             )}
-            {isDropIn && (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-teal/10 text-teal">
-                Drop-In
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {isDropIn && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-teal/10 text-teal">
+                  {t('explore.card.dropIn')}
+                </span>
+              )}
+              {spotsWarning && spotsLeft !== null && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600">
+                  {t('explore.spotsLeft', { count: spotsLeft })}
+                </span>
+              )}
+            </div>
           </div>
 
           {description && (
@@ -319,21 +391,21 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
               }`}>
                 <DollarSign className="w-4 h-4" aria-hidden="true" />
                 <span className="font-medium">
-                  {formatCost(costCents, isFree)}
+                  {isFree || costCents === 0 ? t('programs.free') : `$${(costCents / 100).toFixed(2)}`}
                 </span>
               </div>
 
               {ageRange && (
                 <div className="flex items-center space-x-1 text-textSecondaryLight">
                   <Users className="w-4 h-4" aria-hidden="true" />
-                  <span>Ages {ageRange}</span>
+                  <span>{t('explore.card.ages', { range: ageRange })}</span>
                 </div>
               )}
 
               {distance !== undefined && distance !== null && (
                 <div className="flex items-center space-x-1 text-textSecondaryLight">
                   <MapPin className="w-4 h-4" aria-hidden="true" />
-                  <span>{distance}km away</span>
+                  <span>{t('explore.card.distanceAway', { distance })}</span>
                 </div>
               )}
             </div>
@@ -351,7 +423,7 @@ export default function ProgramCard({ program, event }: ProgramCardProps) {
               ))}
               {tags.length > 4 && (
                 <span className="cosmic-chip text-xs">
-                  +{tags.length - 4} more
+                  {t('explore.card.moreTags', { count: tags.length - 4 })}
                 </span>
               )}
             </div>

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Phone, MessageCircle, AlertCircle } from 'lucide-react';
+import useFocusTrap from '@/hooks/useFocusTrap';
 
 interface CrisisDetectionModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface CrisisDetectionModalProps {
  */
 export default function CrisisDetectionModal({ isOpen, onClose, message }: CrisisDetectionModalProps) {
   const navigate = useNavigate();
+  const focusTrapRef = useFocusTrap(isOpen);
 
   useEffect(() => {
     // Auto-focus on the modal for accessibility
@@ -39,7 +41,7 @@ export default function CrisisDetectionModal({ isOpen, onClose, message }: Crisi
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div ref={focusTrapRef} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="crisis-modal-title">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -52,7 +54,7 @@ export default function CrisisDetectionModal({ isOpen, onClose, message }: Crisi
               <Heart className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">You're Not Alone</h2>
+              <h2 id="crisis-modal-title" className="text-2xl font-bold text-gray-900">You're Not Alone</h2>
               <p className="text-sm text-gray-600">Help is available right now</p>
             </div>
           </div>
@@ -113,7 +115,7 @@ export default function CrisisDetectionModal({ isOpen, onClose, message }: Crisi
           {/* Close button */}
           <button
             onClick={onClose}
-            className="w-full text-gray-600 hover:text-gray-900 py-2 rounded-lg font-medium transition-colors"
+            className="w-full text-gray-600 hover:text-gray-900 py-3 rounded-lg font-medium transition-colors min-h-[44px]"
           >
             Close
           </button>

@@ -37,7 +37,7 @@ export const FEATURES = {
   // Push notifications (requires VAPID keys)
   PUSH_NOTIFICATIONS: String(getEnv('VITE_ENABLE_PUSH', 'false')).toLowerCase() === 'true',
   
-  // Ximi AI companion
+  // Ximi AI Program Finder
   XIMI_ENABLED: String(getEnv('VITE_ENABLE_XIMI', 'true')).toLowerCase() === 'true',
   
   // Demographics disclosure system

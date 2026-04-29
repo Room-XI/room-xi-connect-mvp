@@ -87,6 +87,7 @@
     @apply transition-all duration-200 ease-out;
     @apply hover:bg-sage/10 hover:text-deepSage hover:border-sage;
     @apply active:scale-95;
+    @apply focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2;
   }
   
   /* Chip/Tag styling */
@@ -187,6 +188,15 @@
   /* Header button focus states */
   header button:focus-visible {
     @apply ring-2 ring-offset-2 ring-offset-surface outline-none;
+  }
+  
+  /* Sidebar nav link focus and touch targets */
+  aside nav a {
+    @apply min-h-[44px] flex items-center;
+  }
+  
+  aside nav a:focus-visible {
+    @apply ring-2 ring-teal ring-offset-2 outline-none;
   }
 }
 

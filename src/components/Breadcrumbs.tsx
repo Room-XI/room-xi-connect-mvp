@@ -10,6 +10,7 @@ const portalLabels: Record<string, string> = {
   admin: 'Admin Portal',
   org: 'Org Portal',
   parent: 'Parent Portal',
+  worker: 'Youth Worker Portal',
   'youth-worker': 'Youth Worker Portal',
 };
 
@@ -19,12 +20,19 @@ const sectionLabels: Record<string, string> = {
   users: 'Users',
   'audit-logs': 'Audit Logs',
   compliance: 'Breach/Compliance',
-  'ai-interventions': 'AI Interventions',
+  'feature-flags': 'Feature Flags',
+  incidents: 'Incidents',
+  'system-status': 'System Status',
   dashboard: 'Dashboard',
   'program-management': 'Program Management',
   referrals: 'Referrals',
+  'support-inbox': 'Support Inbox',
   reports: 'Reports',
   'staff-management': 'Staff Management',
+  'consent-requests': 'Consent Requests',
+  'case-notes': 'Case Notes',
+  attendance: 'Attendance',
+  settings: 'Settings',
 };
 
 export function Breadcrumbs() {

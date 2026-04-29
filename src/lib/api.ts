@@ -53,6 +53,21 @@ export interface ProgramRecommendation {
   contactPhone: string | null;
 }
 
+export type XimiChatResultType = 'program_results' | 'schedule_results' | 'suggestions' | 'redirect' | 'crisis';
+
+export interface XimiChatResponse {
+  id: string;
+  userId: string;
+  userMessage: string;
+  ximiResponse: string;
+  crisisDetected: boolean;
+  resultType: XimiChatResultType;
+  trendContext: MoodTrendData | null;
+  recommendationsIncluded: boolean;
+  createdAt: string;
+  [key: string]: any;
+}
+
 export interface MoodTrendData {
   userId: string;
   windowType: 'week' | 'month' | 'quarter';
@@ -70,18 +85,24 @@ export interface MoodTrendData {
 }
 
 // CSRF token cache per namespace (user, parent, admin have separate sessions)
-type CsrfNamespace = 'user' | 'parent' | 'admin';
+type CsrfNamespace = 'user' | 'parent' | 'admin' | 'org' | 'worker';
 const csrfTokens: Record<CsrfNamespace, string | null> = {
   user: null,
   parent: null,
   admin: null,
+  org: null,
+  worker: null,
 };
 
-// CSRF token endpoint paths per namespace
+// CSRF token endpoint paths per namespace.
+// Pilot cutover (T010): user + parent CSRF now sourced from the canonical
+// pilot auth surface. Admin/org/worker portals keep their dedicated paths.
 const csrfEndpoints: Record<CsrfNamespace, string> = {
-  user: '/auth/csrf-token',
-  parent: '/parent-auth/csrf-token',
+  user: '/pilot/auth/youth/csrf',
+  parent: '/pilot/auth/parent/csrf',
   admin: '/admin/csrf-token',
+  org: '/org/csrf-token',
+  worker: '/youth-workers/csrf-token',
 };
 
 /**
@@ -91,8 +112,20 @@ function getNamespaceForEndpoint(endpoint: string): CsrfNamespace {
   if (endpoint.startsWith('/admin/') || endpoint.startsWith('/admin')) {
     return 'admin';
   }
-  if (endpoint.startsWith('/parent-auth/') || endpoint.startsWith('/parent-portal/')) {
+  if (
+    endpoint.startsWith('/parent-auth/') ||
+    endpoint.startsWith('/parent-portal/') ||
+    endpoint.startsWith('/consent-wallet/') ||
+    endpoint.startsWith('/pilot/consent/') ||
+    endpoint.startsWith('/pilot/auth/parent/')
+  ) {
     return 'parent';
+  }
+  if (endpoint.startsWith('/org/') || endpoint.startsWith('/org')) {
+    return 'org';
+  }
+  if (endpoint.startsWith('/youth-workers/') || endpoint.startsWith('/youth-workers')) {
+    return 'worker';
   }
   return 'user';
 }
@@ -218,46 +251,83 @@ export function clearCsrfToken(namespace?: CsrfNamespace) {
     csrfTokens.user = null;
     csrfTokens.parent = null;
     csrfTokens.admin = null;
+    csrfTokens.org = null;
+    csrfTokens.worker = null;
   }
 }
 
 export const api = {
   // Auth
   auth: {
-    register: (email: string, password: string, profile?: any) =>
-      fetchApi('/auth/register', {
+    register: (_email: string, _password: string, _profile?: any) =>
+      Promise.resolve({
+        error: 'PASSWORD_LOGIN_DISABLED',
+        friendlyError:
+          'Password sign-up has been retired. Please create your account with a 6-digit PIN.',
+      } as ApiResponse),
+    login: (_email: string, _password: string) =>
+      Promise.resolve({
+        error: 'PASSWORD_LOGIN_DISABLED',
+        friendlyError:
+          'Password sign-in has been retired. Please sign in with your login code (or email) and 6-digit PIN.',
+      } as ApiResponse),
+    registerWithPin: (data: { displayName: string; pin: string; dateOfBirth: string; email?: string; guardianEmail?: string; guardianName?: string; postalCode?: string }) =>
+      fetchApi('/pilot/auth/youth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, password, ...profile }),
+        body: JSON.stringify(data),
       }),
-    login: (email: string, password: string) =>
-      fetchApi('/auth/login', {
+    loginWithPin: (pin: string, opts: { loginCode?: string; email?: string }) =>
+      fetchApi('/pilot/auth/youth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ ...opts, pin }),
       }),
+    setPin: (_pin: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Setting a PIN after registration has been retired. Choose your 6-digit PIN at signup.',
+      } as ApiResponse),
     logout: async () => {
       clearCsrfToken('user');
-      return fetchApi('/auth/logout', {
+      return fetchApi('/pilot/auth/youth/logout', {
         method: 'POST',
       });
     },
-    getUser: () => fetchApi('/auth/me'),
-    resetPassword: (email: string) =>
-      fetchApi('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-      }),
-    validateResetToken: (token: string) =>
-      fetchApi(`/auth/reset-password/${token}/validate`),
-    completePasswordReset: (token: string, newPassword: string) =>
-      fetchApi('/auth/update-password', {
-        method: 'POST',
-        body: JSON.stringify({ token, newPassword }),
-      }),
-    updatePassword: (newPassword: string) =>
-      fetchApi('/auth/update-password', {
-        method: 'POST',
-        body: JSON.stringify({ newPassword }),
-      }),
+    getUser: () => fetchApi('/pilot/auth/youth/me'),
+    resetPassword: (_email: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password reset has been retired. Sign in with your login code (or email) and 6-digit PIN.',
+      } as ApiResponse),
+    validateResetToken: (_token: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password reset has been retired. Sign in with your login code (or email) and 6-digit PIN.',
+      } as ApiResponse),
+    completePasswordReset: (_token: string, _newPassword: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password reset has been retired. Sign in with your login code (or email) and 6-digit PIN.',
+      } as ApiResponse),
+    updatePassword: (_newPassword: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password update has been retired. Authenticate with your 6-digit PIN.',
+      } as ApiResponse),
+    changePassword: (_currentPassword: string, _newPassword: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password change has been retired. Authenticate with your 6-digit PIN.',
+      } as ApiResponse),
+    verifyEmail: (token: string) =>
+      fetchApi(`/pilot/auth/youth/verify-email/${token}`),
+    resendVerification: () =>
+      fetchApi('/pilot/auth/youth/resend-verification', { method: 'POST' }),
     deleteAccount: (confirm: string) =>
       fetchApi('/auth/account', {
         method: 'DELETE',
@@ -420,12 +490,21 @@ export const api = {
         conversations: any[]; 
         pagination: { total: number; limit: number; offset: number; hasMore: boolean } 
       }>(`/ximi/conversations?limit=${limit}&offset=${offset}`),
-    chat: async (data: { message: string; checkinId?: string; moodType?: string; wellnessDimensions?: string[] }) => {
+    chat: async (data: {
+      message: string;
+      checkinId?: string;
+      moodType?: string;
+      wellnessDimensions?: string[];
+      timeframe?: 'today' | 'next_7_days';
+      lat?: number;
+      lng?: number;
+    }) => {
       return await fetchApi('/ximi/chat', {
         method: 'POST',
         body: JSON.stringify(data),
       });
     },
+    /** @deprecated Follow-up endpoint has been removed. Returns 410 Gone. Use chat with program-related questions instead. */
     getFollowUp: (checkinId: string) =>
       fetchApi('/ximi/follow-up', {
         method: 'POST',
@@ -561,6 +640,26 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+    getWorkerRequests: () => fetchApi('/privacy/worker-requests'),
+
+    respondToWorkerRequest: (id: string, action: 'grant' | 'deny' | 'revoke', consentLevel?: {
+      share_mood_timeline?: boolean;
+      share_program_engagement?: boolean;
+      share_checkin_streak?: boolean;
+    }) => fetchApi(`/privacy/worker-requests/${id}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ action, consentLevel }),
+    }),
+
+    updateWorkerConsentLevel: (id: string, consentLevel: {
+      share_mood_timeline?: boolean;
+      share_program_engagement?: boolean;
+      share_checkin_streak?: boolean;
+    }) => fetchApi(`/privacy/worker-requests/${id}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'grant', consentLevel }),
+    }),
   },
 
   // Outcomes - program feedback and reflections
@@ -589,10 +688,26 @@ export const api = {
 
   // Organization Dashboard
   org: {
+    login: (email: string, password: string) =>
+      fetchApi('/org/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    logout: async () => {
+      clearCsrfToken('org');
+      return fetchApi('/org/logout', { method: 'POST' });
+    },
+    getMe: () => fetchApi('/org/me'),
+    updateOrganization: (data: { name?: string; contactEmail?: string; contactPhone?: string; website?: string }) =>
+      fetchApi('/org/organization', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
     getDashboardStats: () => fetchApi('/org/dashboard/stats'),
     getDashboard: () => fetchApi('/org/dashboard'),
     exportAttendance: (timeRange: '7days' | '30days' | 'all' = '30days') =>
       fetchApi(`/org/attendance/export?timeRange=${timeRange}`),
+    getReportHistory: () => fetchApi('/org/reports/history'),
     getPrograms: () => fetchApi('/org/programs'),
     createProgram: (data: any) =>
       fetchApi('/org/programs', {
@@ -640,6 +755,49 @@ export const api = {
       fetchApi('/org/referrals', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    updateReferralStatus: (id: string, status: string, reason?: string) =>
+      fetchApi(`/org/referrals/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, reason }),
+      }),
+    previewImport: (csvText: string) =>
+      fetchApi('/org/imports/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: csvText,
+      }),
+    uploadImport: (csvText: string) =>
+      fetchApi('/org/imports/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: csvText,
+      }),
+    getImports: () => fetchApi('/org/imports'),
+    getImport: (id: string) => fetchApi(`/org/imports/${id}`),
+    getVerifications: (status?: string) => {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      return fetchApi(`/org/verifications?${params}`);
+    },
+    verifyListing: (id: string, notes?: string) =>
+      fetchApi(`/org/verifications/${id}/verify`, {
+        method: 'POST',
+        body: JSON.stringify({ notes }),
+      }),
+    rejectListing: (id: string, notes?: string) =>
+      fetchApi(`/org/verifications/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ notes }),
+      }),
+    requestListingChanges: (id: string, changeRequested: string, notes?: string) =>
+      fetchApi(`/org/verifications/${id}/request-changes`, {
+        method: 'POST',
+        body: JSON.stringify({ changeRequested, notes }),
+      }),
+    resubmitListing: (id: string) =>
+      fetchApi(`/org/verifications/${id}/resubmit`, {
+        method: 'POST',
       }),
   },
 
@@ -806,6 +964,13 @@ export const api = {
       const query = params.toString();
       return fetchApi(`/events/today${query ? `?${query}` : ''}`);
     },
+    thisWeek: (userLat?: number, userLng?: number) => {
+      const params = new URLSearchParams();
+      if (userLat !== undefined) params.set('userLat', userLat.toString());
+      if (userLng !== undefined) params.set('userLng', userLng.toString());
+      const query = params.toString();
+      return fetchApi(`/events/this-week${query ? `?${query}` : ''}`);
+    },
     thisWeekend: (userLat?: number, userLng?: number) => {
       const params = new URLSearchParams();
       if (userLat !== undefined) params.set('userLat', userLat.toString());
@@ -848,50 +1013,137 @@ export const api = {
   },
 
   // Parent Auth
+  // Pilot cutover (T010 + T026): all parent auth flows now route through
+  // /api/pilot/auth/parent/* (magic-link, password fallback, /me, logout)
+  // and /api/pilot/auth/youth/parent-invite* (youth-initiated invite).
+  // Parent password setup/reset/forgot/change-password are out of scope
+  // for pilot v1 — gated behind ENABLE_PARENT_PASSWORD_FALLBACK and stubbed
+  // here so callers receive a uniform PILOT_DISABLED response instead of a
+  // 410 from the retired /parent-auth surface.
   parentAuth: {
     sendInvite: (email: string) =>
-      fetchApi('/parent-auth/invite', {
+      fetchApi('/pilot/auth/youth/parent-invite', {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
-    getPendingInvites: () => fetchApi('/parent-auth/invites/pending'),
-    getStatus: () => fetchApi('/parent-auth/status'),
+    getPendingInvites: () => fetchApi('/pilot/auth/youth/parent-invites/pending'),
+    getStatus: () => fetchApi('/pilot/auth/parent/me'),
     logout: async () => {
       clearCsrfToken('parent');
-      return fetchApi('/parent-auth/logout', {
+      return fetchApi('/pilot/auth/parent/logout', {
         method: 'POST',
       });
     },
     login: (email: string, password: string) =>
-      fetchApi<{ success: boolean; parentId: string; email: string; name: string | null }>('/parent-auth/login', {
+      fetchApi<{ success: boolean; parentId: string; email: string; name: string | null }>('/pilot/auth/parent/password', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       }),
-    validateSetupToken: (token: string) =>
-      fetchApi<{ valid: boolean; email: string; name: string | null }>(`/parent-auth/validate-setup-token/${token}`),
-    setPassword: (token: string, password: string, name?: string) =>
-      fetchApi<{ success: boolean; parentId: string }>('/parent-auth/set-password', {
-        method: 'POST',
-        body: JSON.stringify({ token, password, name }),
-      }),
-    forgotPassword: (email: string) =>
-      fetchApi<{ success: boolean; message: string }>('/parent-auth/forgot-password', {
+    validateSetupToken: (_token: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password setup is not available in this pilot. Please use the magic-link sign-in instead.',
+      } as ApiResponse<{ valid: boolean; email: string; name: string | null }>),
+    setPassword: (_token: string, _password: string, _name?: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password setup is not available in this pilot. Please use the magic-link sign-in instead.',
+      } as ApiResponse<{ success: boolean; parentId: string }>),
+    forgotPassword: (_email: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password reset is not available in this pilot. Please use the magic-link sign-in instead.',
+      } as ApiResponse<{ success: boolean; message: string }>),
+    requestMagicLink: (email: string) =>
+      fetchApi<{ success: boolean; message: string }>('/pilot/auth/parent/magic-link', {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
-    validateResetToken: (token: string) =>
-      fetchApi<{ valid: boolean; email: string }>(`/parent-auth/validate-reset-token/${token}`),
-    resetPassword: (token: string, password: string) =>
-      fetchApi<{ success: boolean; message: string }>('/parent-auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ token, password }),
-      }),
+    validateResetToken: (_token: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password reset is not available in this pilot. Please use the magic-link sign-in instead.',
+      } as ApiResponse<{ valid: boolean; email: string }>),
+    resetPassword: (_token: string, _password: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password reset is not available in this pilot. Please use the magic-link sign-in instead.',
+      } as ApiResponse<{ success: boolean; message: string }>),
     me: () =>
-      fetchApi<{ authenticated: boolean; parent: { id: string; email: string; name: string | null; lastLoginAt: string | null }; linkedYouth: any[] }>('/parent-auth/me'),
+      fetchApi<{ authenticated: boolean; parent: { id: string; email: string; name: string | null; lastLoginAt: string | null }; linkedYouth: any[] }>('/pilot/auth/parent/me'),
+    changePassword: (_currentPassword: string, _newPassword: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password change is not available in this pilot. Please use the magic-link sign-in instead.',
+      } as ApiResponse),
+  },
+
+  // Pilot Auth (canonical pilot path — strict 6-digit PIN, non-enumerating)
+  pilotAuth: {
+    youth: {
+      register: (data: {
+        displayName: string;
+        dateOfBirth: string;
+        pin: string;
+        email?: string;
+        guardianEmail?: string;
+        guardianName?: string;
+        guardianPhone?: string;
+        postalCode?: string;
+      }) =>
+        fetchApi('/pilot/auth/youth/register', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      login: (pin: string, opts: { loginCode?: string; email?: string }) =>
+        fetchApi('/pilot/auth/youth/login', {
+          method: 'POST',
+          body: JSON.stringify({ ...opts, pin }),
+        }),
+      logout: async () => {
+        clearCsrfToken('user');
+        return fetchApi('/pilot/auth/youth/logout', { method: 'POST' });
+      },
+    },
+    parent: {
+      requestMagicLink: (email: string) =>
+        fetchApi<{ success: boolean; message: string }>(
+          '/pilot/auth/parent/magic-link',
+          {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+          }
+        ),
+      // Magic-link consume is a GET visited from the email; no client wrapper needed.
+      passwordLogin: (email: string, password: string) =>
+        fetchApi('/pilot/auth/parent/password', {
+          method: 'POST',
+          body: JSON.stringify({ email, password }),
+        }),
+      logout: async () => {
+        clearCsrfToken('parent');
+        return fetchApi('/pilot/auth/parent/logout', { method: 'POST' });
+      },
+    },
   },
 
   // Parent Portal (filtered youth data based on privacy settings)
   parentPortal: {
+    getSession: () => fetchApi('/parent-portal/session'),
+    getDashboard: () => fetchApi('/parent-portal/dashboard'),
+    getChildren: () => fetchApi('/parent-portal/children'),
+    getDocuments: () => fetchApi('/parent-portal/documents'),
+    signDocument: (documentId: string, signature: string) =>
+      fetchApi(`/parent-portal/documents/${documentId}/sign`, {
+        method: 'POST',
+        body: JSON.stringify({ signature }),
+      }),
     getYouthData: (youthId?: string) => 
       youthId 
         ? fetchApi(`/parent-portal/youth-data/${youthId}`)
@@ -935,6 +1187,160 @@ export const api = {
       fetchApi(`/parent-portal/data/delete/${youthId}`, {
         method: 'POST',
         body: JSON.stringify({ reason }),
+      }),
+    getNotificationPreferences: () =>
+      fetchApi<{ success: boolean; preferences: { consentRequests: boolean; referrals: boolean; documents: boolean; moodAlerts: boolean } }>('/parent-portal/notification-preferences'),
+    updateNotificationPreferences: (prefs: { consentRequests?: boolean; referrals?: boolean; documents?: boolean; moodAlerts?: boolean }) =>
+      fetchApi('/parent-portal/notification-preferences', {
+        method: 'PUT',
+        body: JSON.stringify(prefs),
+      }),
+  },
+
+  // Parent Auth & Portal
+  // Pilot cutover (T010): /status, /me, /logout proxied to pilot router.
+  parent: {
+    login: (email: string, password: string) =>
+      fetchApi('/pilot/auth/parent/password', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    logout: async () => {
+      clearCsrfToken('parent');
+      return fetchApi('/pilot/auth/parent/logout', { method: 'POST' });
+    },
+    getStatus: () => fetchApi('/pilot/auth/parent/me'),
+    getMe: () => fetchApi('/pilot/auth/parent/me'),
+    changePassword: (_currentPassword: string, _newPassword: string) =>
+      Promise.resolve({
+        error: 'PILOT_DISABLED',
+        friendlyError:
+          'Password change is not available in this pilot. Please use the magic-link sign-in instead.',
+      } as ApiResponse),
+    acceptInvite: (token: string) => fetchApi(`/pilot/auth/parent/accept/${token}`),
+    getSession: () => fetchApi('/parent-portal/session'),
+    getDashboard: () => fetchApi('/parent-portal/dashboard'),
+    getChildren: () => fetchApi('/parent-portal/children'),
+    getDocuments: () => fetchApi('/parent-portal/documents'),
+    signDocument: (docId: string, data: any) =>
+      fetchApi(`/parent-portal/documents/${docId}/sign`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  consentWallet: {
+    getRequests: (status?: string) =>
+      fetchApi(`/consent-wallet/requests${status ? `?status=${status}` : ''}`),
+    signRequest: (id: string, signature?: string) =>
+      fetchApi(`/consent-wallet/requests/${id}/sign`, {
+        method: 'POST',
+        body: JSON.stringify({ signature }),
+      }),
+    declineRequest: (id: string, reason?: string) =>
+      fetchApi(`/consent-wallet/requests/${id}/decline`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    withdrawRequest: (id: string, reason?: string) =>
+      fetchApi(`/consent-wallet/requests/${id}/withdraw`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    getWallet: () => fetchApi('/consent-wallet/wallet'),
+    getAudit: (requestId: string) => fetchApi(`/consent-wallet/audit/${requestId}`),
+    getYouthStatus: () => fetchApi('/consent-status/youth-status'),
+  },
+
+  /**
+   * Canonical pilot consent wallet — identical surface to `consentWallet`
+   * but routed at `/api/pilot/consent/*`. Use this from the pilot UI;
+   * the legacy alias above remains for cutover compatibility only.
+   */
+  pilotConsent: {
+    getRequests: (status?: string) =>
+      fetchApi(`/pilot/consent/requests${status ? `?status=${status}` : ''}`),
+    signRequest: (id: string, signature?: string) =>
+      fetchApi(`/pilot/consent/requests/${id}/sign`, {
+        method: 'POST',
+        body: JSON.stringify({ signature }),
+      }),
+    declineRequest: (id: string, reason?: string) =>
+      fetchApi(`/pilot/consent/requests/${id}/decline`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    withdrawRequest: (id: string, reason?: string) =>
+      fetchApi(`/pilot/consent/requests/${id}/withdraw`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    getWallet: () => fetchApi('/pilot/consent/wallet'),
+    getAudit: (requestId: string) => fetchApi(`/pilot/consent/audit/${requestId}`),
+  },
+
+  eventRsvps: {
+    create: (eventId: string) =>
+      fetchApi('/event-rsvps', {
+        method: 'POST',
+        body: JSON.stringify({ eventId }),
+      }),
+    cancel: (id: string, reason?: string) =>
+      fetchApi(`/event-rsvps/${id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    getMyRsvps: () => fetchApi('/event-rsvps/me'),
+  },
+
+  // Youth Worker
+  worker: {
+    login: (email: string, password: string) =>
+      fetchApi('/youth-workers/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    logout: async () => {
+      clearCsrfToken('worker');
+      return fetchApi('/youth-workers/logout', { method: 'POST' });
+    },
+    getMyYouth: () => fetchApi('/youth-workers/my-youth'),
+    getYouthProfile: (youthId: string) => fetchApi(`/youth-workers/youth/${youthId}`),
+    assignYouth: (youthEmail: string) =>
+      fetchApi('/youth-workers/assign', {
+        method: 'POST',
+        body: JSON.stringify({ youthEmail }),
+      }),
+    getProfile: () => fetchApi('/youth-workers/profile'),
+    changePassword: (currentPassword: string, newPassword: string) =>
+      fetchApi('/youth-workers/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+    listCaseNotes: (youthId: string) =>
+      fetchApi(`/youth-workers/case-notes?youthId=${encodeURIComponent(youthId)}`),
+    createCaseNote: (payload: { youthId: string; note: string; category?: string | null; tags?: string[] }) =>
+      fetchApi('/youth-workers/case-notes', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    caseNotesSummary: (params: { timeRange: '7days' | '30days' | 'all'; youthId?: string }) => {
+      const qs = new URLSearchParams();
+      qs.set('timeRange', params.timeRange);
+      if (params.youthId) qs.set('youthId', params.youthId);
+      return fetchApi(`/youth-workers/case-notes/summary?${qs.toString()}`);
+    },
+    exportCaseNotes: (params: { timeRange: '7days' | '30days' | 'all'; youthId?: string }) => {
+      const qs = new URLSearchParams();
+      qs.set('timeRange', params.timeRange);
+      if (params.youthId) qs.set('youthId', params.youthId);
+      return fetchApi(`/youth-workers/case-notes/export?${qs.toString()}`);
+    },
+    getConsentRequests: () => fetchApi('/youth-workers/consent-requests'),
+    createConsentRequest: (youthId: string, requestedScopes?: string[]) =>
+      fetchApi('/youth-workers/consent-requests', {
+        method: 'POST',
+        body: JSON.stringify({ youthId, requestedScopes }),
       }),
   },
 
@@ -1174,6 +1580,12 @@ export const api = {
       }),
     getMyConsents: () => fetchApi('/partner-consent/my-consents'),
   },
+
+  rsvp: {
+    myRsvps: () => fetchApi('/programs/user/rsvps'),
+  },
+
+  // api.tournaments removed per pilot lockdown. /api/tournaments returns 410.
 
   get: <T = any>(endpoint: string) => fetchApi<T>(endpoint),
   post: <T = any>(endpoint: string, data: any) =>

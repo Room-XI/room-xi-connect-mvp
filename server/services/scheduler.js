@@ -1,15 +1,25 @@
 import { DateTime } from 'luxon';
-import { captureAllWeeklySnapshots } from '../routes/orbSnapshots.js';
-import { checkMorningNudges } from '../routes/notifications.js';
+import { checkMorningNudges } from '../routes/notifications.ts';
 import { sendCheckinReminder, pushEnabled } from './pushNotification.ts';
 import { computeTrendsForAllUsers } from './moodTrends.ts';
 import { computePeerInsightsForAllPrograms } from './peerInsights.ts';
 import { checkAndSendFollowups } from './crisisFollowup.ts';
 import { db } from '../db.js';
-import { privacyConsents, checkins, profiles, ximiConversations, guardianVerifications } from '../schema.js';
-import { eq, and, lt, sql } from 'drizzle-orm';
+import { privacyConsents, checkins, profiles, ximiConversations, guardianVerifications, programs } from '../schema.js';
+import { eq, and, lt, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendGuardianVerificationEmail } from './email.js';
 import { getPublicUrl } from '../utils/publicUrl.ts';
+import logger from '../logger.ts';
+
+// T033: orbSnapshots route + service deleted (out-of-pilot). The scheduled
+// weekly-snapshot job is intentionally retained as a no-op so the cron
+// timing/log surface stays stable; if orb snapshots ever return to scope,
+// re-import the real implementation here. Logs `skipped: true` so ops can
+// see the job ran without doing work.
+const captureAllWeeklySnapshots = async () => {
+  logger.info({ context: 'scheduler', feature: 'orb-snapshots' }, 'Weekly snapshot job invoked but feature is out-of-pilot — skipping');
+  return { skipped: true, reason: 'orb-snapshots out-of-pilot' };
+};
 
 // Store the interval ID for the scheduler
 let schedulerInterval = null;
@@ -107,14 +117,14 @@ function shouldRunPeerInsights() {
 async function sendCheckinReminders() {
   try {
     if (!pushEnabled) {
-      console.log('[Scheduler] Push notifications disabled - skipping check-in reminders');
+      logger.info({ context: 'scheduler' }, 'Push notifications disabled - skipping check-in reminders');
       return;
     }
 
     const now = DateTime.now().setZone('America/Edmonton');
     const today = now.toISODate();
     
-    console.log(`[Scheduler] Sending check-in reminders at ${now.toISO()}`);
+    logger.info({ context: 'scheduler' }, `Sending check-in reminders at ${now.toISO()}`);
 
     // Get users with notifications enabled
     const usersWithNotifications = await db
@@ -151,13 +161,13 @@ async function sendCheckinReminders() {
           skippedCount++;
         }
       } catch (error) {
-        console.error(`[Scheduler] Error sending reminder to user ${user.userId}:`, error);
+        logger.error({ err: error, context: 'scheduler', userId: user.userId }, 'Error sending reminder to user');
       }
     }
 
-    console.log(`[Scheduler] Check-in reminders sent: ${sentCount}, skipped: ${skippedCount}`);
+    logger.info({ context: 'scheduler', sentCount, skippedCount }, 'Check-in reminders completed');
   } catch (error) {
-    console.error('[Scheduler] Error sending check-in reminders:', error);
+    logger.error({ err: error, context: 'scheduler' }, 'Error sending check-in reminders');
   }
 }
 
@@ -166,94 +176,105 @@ async function sendCheckinReminders() {
  */
 async function runScheduledTasks() {
   try {
-    console.log('[Scheduler] Checking scheduled tasks at', 
-      DateTime.now().setZone('America/Edmonton').toString());
+    logger.debug({ context: 'scheduler' }, `Checking scheduled tasks at ${DateTime.now().setZone('America/Edmonton').toString()}`);
     
     // Check if we should run weekly snapshot
     if (shouldRunWeeklySnapshot()) {
-      console.log('[Scheduler] Running weekly orb snapshots...');
+      logger.info({ context: 'scheduler' }, 'Running weekly orb snapshots...');
       
       try {
         const result = await captureAllWeeklySnapshots();
-        console.log('[Scheduler] Weekly snapshots completed:', result);
+        logger.info({ context: 'scheduler', result }, 'Weekly snapshots completed');
       } catch (error) {
-        console.error('[Scheduler] Failed to capture weekly snapshots:', error);
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to capture weekly snapshots');
       }
     }
     
     // Check if we should send check-in reminders at 8:00 AM
     if (shouldRunCheckinReminder()) {
-      console.log('[Scheduler] Sending check-in reminders...');
+      logger.info({ context: 'scheduler' }, 'Sending check-in reminders...');
       
       try {
         await sendCheckinReminders();
-        console.log('[Scheduler] Check-in reminders completed');
+        logger.info({ context: 'scheduler' }, 'Check-in reminders completed');
       } catch (error) {
-        console.error('[Scheduler] Failed to send check-in reminders:', error);
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to send check-in reminders');
       }
     }
     
     // Check if we should run morning nudges at 10:00 AM
     if (shouldRunMorningNudge()) {
-      console.log('[Scheduler] Running morning nudge check...');
+      logger.info({ context: 'scheduler' }, 'Running morning nudge check...');
       
       try {
         await checkMorningNudges();
-        console.log('[Scheduler] Morning nudge check completed');
+        logger.info({ context: 'scheduler' }, 'Morning nudge check completed');
       } catch (error) {
-        console.error('[Scheduler] Failed to check morning nudges:', error);
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to check morning nudges');
       }
     }
     
     // Check if we should run trend computation at 9:00 AM on Mondays
     if (shouldRunTrendComputation()) {
-      console.log('[Scheduler] Running mood trend computation for all users...');
+      logger.info({ context: 'scheduler' }, 'Running mood trend computation for all users...');
       
       try {
         await computeTrendsForAllUsers();
-        console.log('[Scheduler] Trend computation completed');
+        logger.info({ context: 'scheduler' }, 'Trend computation completed');
       } catch (error) {
-        console.error('[Scheduler] Failed to compute trends:', error);
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to compute trends');
       }
     }
     
     // Check if we should run peer insights computation at 9:30 AM on Mondays
     if (shouldRunPeerInsights()) {
-      console.log('[Scheduler] Running peer insights computation for all programs...');
+      logger.info({ context: 'scheduler' }, 'Running peer insights computation for all programs...');
       
       try {
         await computePeerInsightsForAllPrograms();
-        console.log('[Scheduler] Peer insights computation completed');
+        logger.info({ context: 'scheduler' }, 'Peer insights computation completed');
       } catch (error) {
-        console.error('[Scheduler] Failed to compute peer insights:', error);
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to compute peer insights');
       }
     }
     
+    // Auto-sunset stale listings at 4:00 AM daily
+    if (shouldRunAutoSunset()) {
+      logger.info({ context: 'scheduler' }, 'Running auto-sunset check...');
+      
+      try {
+        const result = await runAutoSunset();
+        logger.info({ context: 'scheduler', result }, 'Auto-sunset check completed');
+      } catch (error) {
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to run auto-sunset');
+      }
+    }
+
     // Data retention cleanup at 3:00 AM daily
     if (shouldRunDataRetention()) {
-      console.log('[Scheduler] Running data retention cleanup...');
+      logger.info({ context: 'scheduler' }, 'Running data retention cleanup...');
       
       try {
         await runDataRetentionCleanup();
-        console.log('[Scheduler] Data retention cleanup completed');
+        logger.info({ context: 'scheduler' }, 'Data retention cleanup completed');
       } catch (error) {
-        console.error('[Scheduler] Failed to run data retention cleanup:', error);
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to run data retention cleanup');
       }
     }
     
     // Crisis follow-ups run every 15 minutes to check for due check-ins
     if (shouldRunCrisisFollowups()) {
-      console.log('[Scheduler] Checking crisis follow-ups...');
+      logger.info({ context: 'scheduler' }, 'Checking crisis follow-ups...');
       
       try {
         await checkAndSendFollowups();
-        console.log('[Scheduler] Crisis follow-ups check completed');
+        logger.info({ context: 'scheduler' }, 'Crisis follow-ups check completed');
       } catch (error) {
-        console.error('[Scheduler] Failed to check crisis follow-ups:', error);
+        logger.error({ err: error, context: 'scheduler' }, 'Failed to check crisis follow-ups');
       }
     }
   } catch (error) {
-    console.error('[Scheduler] Error in scheduled tasks:', error);
+    logger.error({ err: error, context: 'scheduler' }, 'Error in scheduled tasks');
   }
 }
 
@@ -326,7 +347,7 @@ async function runDataRetentionCleanup() {
     results.orphanedSessions = sessionResult.rowCount || 0;
     
     // TASK 5: Optional cleanup of old Ximi conversations
-    const ximiDays = parseInt(process.env.RETENTION_XIMI_DAYS || '0', 10);
+    const ximiDays = parseInt(process.env.RETENTION_XIMI_DAYS || '180', 10);
     if (ximiDays > 0) {
       const ximiResult = await db.execute(sql`
         DELETE FROM ximi_conversations
@@ -336,7 +357,7 @@ async function runDataRetentionCleanup() {
     }
     
     // TASK 5: Optional cleanup of old check-ins
-    const checkinDays = parseInt(process.env.RETENTION_CHECKINS_DAYS || '0', 10);
+    const checkinDays = parseInt(process.env.RETENTION_CHECKINS_DAYS || '365', 10);
     if (checkinDays > 0) {
       const checkinResult = await db.execute(sql`
         DELETE FROM checkins
@@ -348,10 +369,10 @@ async function runDataRetentionCleanup() {
     // TASK 11: Send guardian verification reminders after 7 days
     results.guardianReminders = await sendGuardianReminders();
     
-    console.log('[DataRetention] Cleanup results:', results);
+    logger.info({ context: 'scheduler', results }, 'Data retention cleanup results');
     return results;
   } catch (error) {
-    console.error('[DataRetention] Cleanup error:', error);
+    logger.error({ err: error, context: 'scheduler' }, 'Data retention cleanup error');
     throw error;
   }
 }
@@ -391,21 +412,70 @@ async function sendGuardianReminders() {
         
         sentCount++;
       } catch (err) {
-        console.error('[GuardianReminder] Failed to send reminder:', {
-          id: row.id,
-          error: err,
-        });
+        logger.error({ err, context: 'scheduler', reminderId: row.id }, 'Failed to send guardian reminder');
       }
     }
     
     if (sentCount > 0) {
-      console.log(`[GuardianReminder] Sent ${sentCount} reminder emails`);
+      logger.info({ context: 'scheduler', sentCount }, 'Guardian reminder emails sent');
     }
   } catch (error) {
-    console.error('[GuardianReminder] Error:', error);
+    logger.error({ err: error, context: 'scheduler' }, 'Guardian reminder error');
   }
   
   return sentCount;
+}
+
+/**
+ * Check if current time matches 4:00 AM for auto-sunset
+ */
+function shouldRunAutoSunset() {
+  const now = DateTime.now().setZone('America/Edmonton');
+  return now.hour === 4 && now.minute >= 0 && now.minute < 5;
+}
+
+/**
+ * Auto-sunset stale listings:
+ * 1. Verified listings not re-verified in 90 days -> flag as stale
+ * 2. Stale listings with 14-day grace period expired -> sunset (hide from Explore)
+ */
+async function runAutoSunset() {
+  const results = { flaggedStale: 0, sunset: 0 };
+
+  try {
+    const staleDays = parseInt(process.env.STALE_LISTING_DAYS || '90', 10);
+    const graceDays = parseInt(process.env.SUNSET_GRACE_DAYS || '14', 10);
+
+    const staleThreshold = DateTime.now().minus({ days: staleDays }).toJSDate();
+    const staleResult = await db.execute(sql`
+      UPDATE programs
+      SET stale_at = NOW(), verification_status = 'stale', updated_at = NOW()
+      WHERE verification_status = 'verified'
+        AND verified_at IS NOT NULL
+        AND verified_at < ${staleThreshold}
+        AND stale_at IS NULL
+    `);
+    results.flaggedStale = staleResult.rowCount || 0;
+
+    const sunsetThreshold = DateTime.now().minus({ days: graceDays }).toJSDate();
+    const sunsetResult = await db.execute(sql`
+      UPDATE programs
+      SET sunset_at = NOW(), verification_status = 'sunset', updated_at = NOW()
+      WHERE verification_status = 'stale'
+        AND stale_at IS NOT NULL
+        AND stale_at < ${sunsetThreshold}
+        AND sunset_at IS NULL
+    `);
+    results.sunset = sunsetResult.rowCount || 0;
+
+    if (results.flaggedStale > 0 || results.sunset > 0) {
+      logger.info({ context: 'scheduler', ...results }, 'Auto-sunset completed');
+    }
+  } catch (error) {
+    logger.error({ err: error, context: 'scheduler' }, 'Auto-sunset error');
+  }
+
+  return results;
 }
 
 /**
@@ -413,11 +483,11 @@ async function sendGuardianReminders() {
  */
 export function initializeScheduler() {
   if (schedulerInterval) {
-    console.log('[Scheduler] Scheduler already initialized');
+    logger.info({ context: 'scheduler' }, 'Scheduler already initialized');
     return;
   }
   
-  console.log('[Scheduler] Initializing scheduler...');
+  logger.info({ context: 'scheduler' }, 'Initializing scheduler...');
   
   // Calculate when the next snapshot should run
   const msUntilNext = msUntilNextSundaySnapshot();
@@ -425,7 +495,7 @@ export function initializeScheduler() {
     .setZone('America/Edmonton')
     .plus({ milliseconds: msUntilNext });
     
-  console.log(`[Scheduler] Next weekly snapshot scheduled for: ${nextRun.toString()}`);
+  logger.info({ context: 'scheduler', nextRun: nextRun.toString() }, 'Next weekly snapshot scheduled');
   
   // Run the scheduler every 60 seconds to check if tasks need to run
   schedulerInterval = setInterval(runScheduledTasks, 60 * 1000); // Every minute
@@ -433,7 +503,7 @@ export function initializeScheduler() {
   // Run once on startup to check if we need to capture immediately
   runScheduledTasks();
   
-  console.log('[Scheduler] Scheduler initialized successfully');
+  logger.info({ context: 'scheduler' }, 'Scheduler initialized successfully');
 }
 
 /**
@@ -443,7 +513,7 @@ export function stopScheduler() {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('[Scheduler] Scheduler stopped');
+    logger.info({ context: 'scheduler' }, 'Scheduler stopped');
   }
 }
 
@@ -451,13 +521,13 @@ export function stopScheduler() {
  * Manually trigger weekly snapshots (for testing)
  */
 export async function triggerWeeklySnapshots() {
-  console.log('[Scheduler] Manually triggering weekly snapshots...');
+  logger.info({ context: 'scheduler' }, 'Manually triggering weekly snapshots...');
   try {
     const result = await captureAllWeeklySnapshots();
-    console.log('[Scheduler] Manual weekly snapshots completed:', result);
+    logger.info({ context: 'scheduler', result }, 'Manual weekly snapshots completed');
     return result;
   } catch (error) {
-    console.error('[Scheduler] Failed to capture weekly snapshots:', error);
+    logger.error({ err: error, context: 'scheduler' }, 'Failed to capture weekly snapshots');
     throw error;
   }
 }

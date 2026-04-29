@@ -53,7 +53,7 @@ export default function Sparkline({ data }: SparklineProps) {
                   </span>
                 ))}
                 {data.affects.length > 3 && (
-                  <span className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full">
+                  <span className="text-xs px-2 py-1 bg-sage/10 text-sageText rounded-full">
                     +{data.affects.length - 3}
                   </span>
                 )}

@@ -1,3 +1,40 @@
+/**
+ * server/routes/consent.js — SIGNUP-TIME consent + DSAR surface.
+ *
+ * This file is NOT the pilot consent runtime. Pilot program-consent
+ * decisions (sign / decline / withdraw) live exclusively in
+ * `server/pilot/consent/consentEngine.ts`, exposed via
+ * `/api/pilot/consent` (mounted in server/index.js).
+ *
+ * What lives here:
+ *   - Guardian-token verification flow consumed by `src/routes/VerifyConsent.tsx`:
+ *       GET  /details/:token       JSON for the React verifier
+ *       POST /submit/:token        Guardian submits the verification PIN
+ *       GET  /view/:token          Server-rendered HTML landing page
+ *       POST /agree/:token         Server-rendered HTML form submit
+ *       GET  /confirm/:token       Server-rendered HTML confirmation page
+ *       GET  /guardian-status      Youth checks "is my guardian verified?"
+ *       POST /resend-guardian      Youth re-sends the verification email
+ *   - Platform legal-consent + DSAR surface consumed by
+ *     `src/routes/Settings.tsx` and `src/ui/me/PrivacyDashboard.tsx`:
+ *       GET  /                     List user's platform consents
+ *       GET  /my-consents          Same data as a {type: value} map
+ *       POST /                     Update a platform consent value
+ *       GET  /audit-trail          User-scoped consent audit
+ *       GET  /export-data          DSAR export (PIPA right of access)
+ *       POST /delete-account       DSAR delete (PIPA right of erasure)
+ *       GET  /consent-audit/export Admin-only CSV of consent audit log
+ *   - Older guardian helpers retained for compatibility:
+ *       POST /guardian/request-verification, POST /guardian/verify/:token,
+ *       GET  /guardian/status
+ *
+ * What was REMOVED in T041 (now served by the late 410 lockdown via
+ * `PILOT_DISABLED_CONSENT_PREFIXES` in `server/pilot/flags.ts`):
+ *   - POST /withdraw                 → /api/pilot/consent/requests/:id/withdraw
+ *   - GET  /mature-minor/status      → none (out-of-pilot)
+ *   - POST /mature-minor/submit      → none (out-of-pilot)
+ *   - GET  /mature-minor/questions   → none (out-of-pilot)
+ */
 import express from 'express';
 import { db } from '../db.js';
 import { consents, consentEvents, profiles, consentAuditLog, xids, guardianVerifications, users, matureMinorAssessments } from '../schema.js';
@@ -1129,363 +1166,29 @@ router.get('/consent-audit/export', async (req, res) => {
   }
 });
 
-// ========== SOFT CONSENT WITHDRAWAL FLOW ==========
 
-/**
- * POST /consent/withdraw
- * Allow guardian to withdraw consent (soft withdrawal - youth keeps access)
- * This triggers the mature minor assessment on next youth login
+/* ──────────────────────────────────────────────────────────────────── */
+/* RETIRED HANDLERS — covered by PILOT_DISABLED_CONSENT_PREFIXES        */
+/* ──────────────────────────────────────────────────────────────────── */
+/*
+ * The following routes have been removed from this router. Under
+ * PILOT_MODE they are served by the early 410 lockdown registered in
+ * `mountPilotRoutes` (see `server/pilot/flags.ts`
+ * PILOT_DISABLED_CONSENT_PREFIXES):
+ *
+ *   POST /api/consent/withdraw          → /api/pilot/consent/requests/:id/withdraw
+ *   GET  /api/consent/mature-minor/*    → none (out-of-pilot)
+ *   POST /api/consent/mature-minor/*    → none (out-of-pilot)
+ *
+ * Pilot consent decisions (sign / decline / withdraw) live in
+ * `server/pilot/consent/consentEngine.ts` and are exposed via the
+ * canonical wallet at `/api/pilot/consent`. The handlers that remain in
+ * this file are the SIGNUP-TIME guardian-token verification flow
+ * (/details, /submit, /view, /agree, /confirm, /guardian-status,
+ * /resend-guardian) and the LEGAL/DSAR surface (/, /my-consents,
+ * /audit-trail, /export-data, /delete-account, /consent-audit/export).
+ * Those handlers are NOT pilot consent runtime — they are identity and
+ * data-rights endpoints, intentionally NOT in the disabled list.
  */
-router.post('/withdraw', async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const userAgent = req.headers['user-agent'];
-    const withdrawalTimestamp = new Date();
-
-    // Find the guardian verification for this user (could be parent session or youth session with verification)
-    const { youthUserId } = req.body;
-    const targetUserId = youthUserId || req.session.userId;
-
-    // Get the guardian verification
-    const [verification] = await db.select()
-      .from(guardianVerifications)
-      .where(eq(guardianVerifications.userId, targetUserId))
-      .limit(1);
-
-    if (!verification) {
-      return res.status(404).json({ error: 'No guardian verification found for this user' });
-    }
-
-    // Verify the request is from an authorized source (the guardian's email match or admin)
-    // For now, we allow the youth to request withdrawal on behalf of the parent 
-    // (parent would have clicked a link in email that sets up this session)
-
-    if (verification.status === 'consent_withdrawn') {
-      return res.status(400).json({ error: 'Consent has already been withdrawn' });
-    }
-
-    // Update guardian verification to withdrawn status
-    await db.update(guardianVerifications)
-      .set({
-        status: 'consent_withdrawn',
-        withdrawnAt: withdrawalTimestamp,
-        withdrawalIp: ipAddress,
-        withdrawalUserAgent: userAgent,
-      })
-      .where(eq(guardianVerifications.id, verification.id));
-
-    // Get youth and user details for notification
-    const [profile] = await db.select({
-      firstName: profiles.firstName,
-      lastName: profiles.lastName,
-    })
-    .from(profiles)
-    .where(eq(profiles.userId, targetUserId))
-    .limit(1);
-
-    const [user] = await db.select({
-      email: users.email,
-    })
-    .from(users)
-    .where(eq(users.id, targetUserId))
-    .limit(1);
-
-    const youthName = profile?.firstName 
-      ? `${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}`
-      : 'Youth User';
-
-    // Log to consent events
-    await db.insert(consentEvents).values({
-      userId: targetUserId,
-      actor: 'guardian',
-      eventType: 'consent_withdrawn',
-      consentKey: 'guardian_verification',
-      oldValue: true,
-      newValue: false,
-      ipAddress,
-      userAgent,
-      notes: `Soft consent withdrawal - youth retains app access. Parent portal disabled, third-party sharing stopped.`,
-    });
-
-    // Log to consent audit log
-    try {
-      const [userXid] = await db.select({ xidHash: xids.xidHash })
-        .from(xids)
-        .where(eq(xids.userId, targetUserId))
-        .limit(1);
-
-      const userXidHash = userXid?.xidHash || `user_${targetUserId.substring(0, 8)}`;
-      const ipHash = ipAddress 
-        ? crypto.createHash('sha256').update(ipAddress).digest('hex').substring(0, 16)
-        : null;
-
-      await db.insert(consentAuditLog).values({
-        userXid: userXidHash,
-        consentType: 'guardian_consent',
-        action: 'withdrawn',
-        previousValue: true,
-        newValue: false,
-        source: 'guardian',
-        ipAddressHash: ipHash,
-        userAgent,
-      });
-    } catch (auditError) {
-      logger.error({ err: auditError, context: 'consent-audit-log' }, 'Failed to log to consent audit log');
-    }
-
-    // Send staff notification email
-    try {
-      await sendConsentWithdrawalStaffNotification({
-        youthName,
-        youthEmail: user?.email || 'Unknown',
-        parentEmail: verification.guardianContactValue,
-        withdrawalTimestamp: withdrawalTimestamp.toLocaleString('en-CA', {
-          timeZone: 'America/Edmonton',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        youthId: targetUserId,
-      });
-    } catch (emailError) {
-      logger.error({ err: emailError, context: 'consent-withdraw-notification' }, 'Failed to send staff notification email');
-      // Don't fail the request if email fails
-    }
-
-    res.json({
-      success: true,
-      message: 'Consent withdrawn successfully. Youth retains access to the app.',
-      details: {
-        youthAccessMaintained: true,
-        parentPortalDisabled: true,
-        thirdPartySharingStopped: true,
-        matureMinorAssessmentRequired: true,
-      },
-    });
-  } catch (error) {
-    logger.error({ err: error, context: 'consent-withdraw' }, 'Consent withdrawal error');
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ========== MATURE MINOR ASSESSMENT ENDPOINTS ==========
-
-/**
- * GET /consent/mature-minor/status
- * Check if the current user needs to complete a mature minor assessment
- */
-router.get('/mature-minor/status', async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    // Check if there's a consent withdrawal for this user
-    const [verification] = await db.select({
-      id: guardianVerifications.id,
-      status: guardianVerifications.status,
-      withdrawnAt: guardianVerifications.withdrawnAt,
-    })
-    .from(guardianVerifications)
-    .where(eq(guardianVerifications.userId, req.session.userId))
-    .limit(1);
-
-    // If no verification or not withdrawn, no assessment needed
-    if (!verification || verification.status !== 'consent_withdrawn') {
-      return res.json({
-        assessmentRequired: false,
-        reason: verification ? 'consent_active' : 'no_guardian_verification',
-      });
-    }
-
-    // Check if assessment was already completed after withdrawal
-    const [existingAssessment] = await db.select({
-      id: matureMinorAssessments.id,
-      completedAt: matureMinorAssessments.completedAt,
-      meetsCapacityCriteria: matureMinorAssessments.meetsCapacityCriteria,
-    })
-    .from(matureMinorAssessments)
-    .where(
-      and(
-        eq(matureMinorAssessments.userId, req.session.userId),
-        eq(matureMinorAssessments.triggeredBy, 'consent_withdrawal')
-      )
-    )
-    .orderBy(desc(matureMinorAssessments.completedAt))
-    .limit(1);
-
-    // Check if assessment was completed after the withdrawal
-    if (existingAssessment && verification.withdrawnAt) {
-      const assessmentDate = new Date(existingAssessment.completedAt);
-      const withdrawalDate = new Date(verification.withdrawnAt);
-      
-      if (assessmentDate >= withdrawalDate) {
-        return res.json({
-          assessmentRequired: false,
-          assessmentCompleted: true,
-          completedAt: existingAssessment.completedAt,
-          meetsCapacityCriteria: existingAssessment.meetsCapacityCriteria,
-        });
-      }
-    }
-
-    // Assessment is required
-    res.json({
-      assessmentRequired: true,
-      reason: 'consent_withdrawn',
-      withdrawnAt: verification.withdrawnAt,
-    });
-  } catch (error) {
-    logger.error({ err: error, context: 'consent-mature-minor-status' }, 'Mature minor status check error');
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * POST /consent/mature-minor/submit
- * Submit the mature minor assessment responses
- */
-router.post('/mature-minor/submit', async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const { responses } = req.body;
-
-    if (!responses || typeof responses !== 'object') {
-      return res.status(400).json({ error: 'Assessment responses are required' });
-    }
-
-    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const userAgent = req.headers['user-agent'];
-    const completedAt = new Date();
-
-    // Get the guardian verification to link the assessment
-    const [verification] = await db.select({
-      id: guardianVerifications.id,
-    })
-    .from(guardianVerifications)
-    .where(eq(guardianVerifications.userId, req.session.userId))
-    .limit(1);
-
-    // Calculate assessment score
-    // Each question has: answer (yes/no/unsure), explanation (optional)
-    // Questions that should have "yes" answers for capacity: q1, q2, q3, q4, q5
-    const expectedAnswers = {
-      q1_understands_purpose: 'yes',
-      q2_not_substitute_professional: 'yes',
-      q3_knows_crisis_resources: 'yes',
-      q4_data_security_awareness: 'yes',
-      q5_can_make_decisions: 'yes',
-    };
-
-    let correctAnswers = 0;
-    const totalQuestions = Object.keys(expectedAnswers).length;
-
-    for (const [key, expectedValue] of Object.entries(expectedAnswers)) {
-      if (responses[key]?.answer === expectedValue) {
-        correctAnswers++;
-      }
-    }
-
-    const assessmentScore = Math.round((correctAnswers / totalQuestions) * 100);
-    const meetsCapacityCriteria = assessmentScore >= 80; // 4 out of 5 correct
-
-    // Store the assessment
-    const [assessment] = await db.insert(matureMinorAssessments).values({
-      userId: req.session.userId,
-      triggeredBy: 'consent_withdrawal',
-      guardianVerificationId: verification?.id || null,
-      responses,
-      assessmentScore,
-      meetsCapacityCriteria,
-      ipAddress,
-      userAgent,
-      completedAt,
-    }).returning();
-
-    // Log to consent events
-    await db.insert(consentEvents).values({
-      userId: req.session.userId,
-      actor: 'self',
-      eventType: 'mature_minor_assessment_completed',
-      consentKey: 'mature_minor_capacity',
-      newValue: meetsCapacityCriteria,
-      ipAddress,
-      userAgent,
-      notes: `Assessment score: ${assessmentScore}%. Meets capacity criteria: ${meetsCapacityCriteria}`,
-    });
-
-    res.json({
-      success: true,
-      assessmentId: assessment.id,
-      assessmentScore,
-      meetsCapacityCriteria,
-      message: meetsCapacityCriteria 
-        ? 'Assessment completed. You have demonstrated understanding of the app and your rights.'
-        : 'Assessment completed. Some answers suggest you may benefit from additional support. Staff may reach out.',
-    });
-  } catch (error) {
-    logger.error({ err: error, context: 'consent-mature-minor-submit' }, 'Mature minor assessment submission error');
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * GET /consent/mature-minor/questions
- * Get the mature minor assessment questions
- */
-router.get('/mature-minor/questions', async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const questions = [
-      {
-        id: 'q1_understands_purpose',
-        text: 'Do you understand that Room XI Connect is for finding programs and tracking your wellness?',
-        description: 'This app helps you discover local programs, track your mood, and access wellness resources.',
-        type: 'yes_no_explain',
-      },
-      {
-        id: 'q2_not_substitute_professional',
-        text: 'Do you understand this app is not a substitute for professional help?',
-        description: 'Room XI Connect provides resources and support, but it does not replace professional counseling or medical care.',
-        type: 'yes_no_explain',
-      },
-      {
-        id: 'q3_knows_crisis_resources',
-        text: 'If you are in crisis, do you know how to reach a crisis helpline?',
-        description: 'In an emergency, you can call 988 (Suicide & Crisis Lifeline) or 911. The app also provides crisis resources.',
-        type: 'yes_no_explain',
-      },
-      {
-        id: 'q4_data_security_awareness',
-        text: 'Do you understand your data is stored securely and you can delete your account anytime?',
-        description: 'Your information is encrypted and stored in Canada. You can request to delete all your data at any time.',
-        type: 'yes_no_explain',
-      },
-      {
-        id: 'q5_can_make_decisions',
-        text: 'Are you able to make decisions about your personal information?',
-        description: 'This means you can decide what information to share and understand the consequences of those decisions.',
-        type: 'yes_no_explain',
-      },
-    ];
-
-    res.json({ questions });
-  } catch (error) {
-    logger.error({ err: error, context: 'consent-mature-minor-questions' }, 'Mature minor questions fetch error');
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 export default router;

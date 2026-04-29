@@ -139,3 +139,11 @@ attached_assets/
 
 # Temporary logs
 /tmp/logs/
+
+# Local artifacts & non-prod files
+*.zip
+.local/
+attached_assets/
+
+.cache/
+.upm/

@@ -138,7 +138,7 @@ export default function AddGuardianForm({ onGuardianAdded }: { onGuardianAdded?:
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center gap-2 p-3 bg-coral/10 border border-coral/20 rounded-xl text-coral text-sm"
+                  className="flex items-center gap-2 p-3 bg-coral/10 border border-coral/20 rounded-xl text-coralText text-sm"
                 >
                   <AlertCircle className="w-4 h-4" />
                   <span>{error}</span>

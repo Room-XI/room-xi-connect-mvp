@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import GradientMoodOrb from '@/components/GradientMoodOrb';
 import { AmbientMoodTint } from '@/components/AmbientMoodTint';
@@ -7,11 +8,14 @@ import { OrbExportModal } from '@/components/OrbExportModal';
 import CheckInForm from '@/ui/home/CheckInForm';
 import SuggestedPrograms from '@/ui/home/SuggestedPrograms';
 import QuickActions from '@/ui/home/QuickActions';
+import MyNextThing from '@/ui/home/MyNextThing';
 import XimiDock from '@/ui/explore/XimiDock';
 import CrisisSheet from '@/ui/crisis/CrisisSheet';
 import StreakPerks from '@/components/StreakPerks';
 import QuoteCard from '@/components/QuoteCard';
 import MilestoneOrb from '@/components/MilestoneOrb';
+import { ForYouRecommendations } from '@/components/ForYouRecommendations';
+// XiPWidget removed per pilot lockdown (Prompt 1). XiP is out of pilot v1.
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useMoodGradient } from '@/hooks/useMoodGradient';
@@ -37,6 +41,7 @@ interface PrivacyConsents {
 }
 
 export default function Home() {
+  const { t } = useTranslation();
   const { user } = useSession();
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [crisisOpen, setCrisisOpen] = useState(false);
@@ -130,9 +135,11 @@ export default function Home() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    const name = user?.name || 'there';
+    
+    if (hour < 12) return t('home.greetingMorning', { name });
+    if (hour < 17) return t('home.greetingAfternoon', { name });
+    return t('home.greetingEvening', { name });
   };
 
   const hasCheckedInToday = () => {
@@ -146,12 +153,15 @@ export default function Home() {
     return (
       <div className="py-8 space-y-6">
         <div className="text-center space-y-4">
-          <div className="w-48 h-48 mx-auto bg-sage/10 rounded-full animate-pulse" />
-          <div className="h-6 bg-sage/10 rounded animate-pulse" />
+          <div className="w-48 h-48 mx-auto bg-sage/20 rounded-full animate-pulse" />
+          <div className="h-6 bg-sage/20 rounded animate-pulse" />
         </div>
       </div>
     );
   }
+
+  // First-time user with no check-ins yet
+  const isFirstTime = !lastCheckIn;
 
   return (
     <>
@@ -167,7 +177,7 @@ export default function Home() {
           transition={{ duration: 0.6 }}
         >
           <h1 className="text-2xl font-display font-bold text-deepSage">
-            {getGreeting()}!
+            {getGreeting()}
           </h1>
           {profile && profile.streak_count > 0 && (
             <motion.div
@@ -177,14 +187,61 @@ export default function Home() {
               transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
             >
               <span className="text-sm font-medium text-deepSage">
-                🔥 {profile.streak_count} day streak
+                🔥 {t('home.streakMessage', { count: profile.streak_count })}
               </span>
             </motion.div>
           )}
         </motion.div>
 
-        {/* Mood Orb or Milestone Orb - Central Feature */}
-        {showMilestoneOrb && profile ? (
+        {/* First-time user empty state or Mood Orb */}
+        {isFirstTime ? (
+          <motion.div
+            className="flex flex-col items-center justify-center py-12 px-6 space-y-6 rounded-xl bg-gradient-to-br from-teal/5 via-sage/5 to-transparent"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+          >
+            <motion.div
+              className="w-24 h-24 rounded-full bg-gradient-to-br from-teal/20 to-sage/20 flex items-center justify-center"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 150 }}
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+              >
+                <svg className="w-12 h-12 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                  <circle cx="12" cy="12" r="5" fill="currentColor" opacity={0.3} />
+                </svg>
+              </motion.div>
+            </motion.div>
+            
+            <div className="text-center space-y-3">
+              <h2 className="text-2xl font-display font-bold text-deepSage">
+                {t('home.firstTimeTitle', { defaultValue: 'Your journey starts here' })}
+              </h2>
+              <p className="text-textSecondaryLight max-w-md">
+                {t('home.firstTimeDescription', { 
+                  defaultValue: "Check in with how you're feeling. Over time, you'll see your emotional patterns and get personalized program suggestions." 
+                })}
+              </p>
+            </div>
+            
+            <motion.button
+              onClick={() => setCheckInOpen(true)}
+              className="cosmic-button inline-flex items-center space-x-2 px-6 py-3"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span>{t('home.doFirstCheckIn', { defaultValue: 'Do Your First Check-In' })}</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </motion.button>
+          </motion.div>
+        ) : showMilestoneOrb && profile ? (
           <motion.div
             className="flex flex-col items-center"
             initial={{ opacity: 0, scale: 0.8 }}
@@ -234,19 +291,19 @@ export default function Home() {
               {hasCheckedInToday() ? (
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-deepSage">
-                    Your week at a glance
+                    {t('home.weekAtAGlance')}
                   </p>
                   <p className="text-xs text-textSecondaryLight">
-                    Tap the orb to update your mood
+                    {t('home.tapToCheckIn')}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-deepSage">
-                    How are you feeling today?
+                    {t('home.howAreYouFeeling')}
                   </p>
                   <p className="text-xs text-textSecondaryLight">
-                    Tap to explore your week
+                    {t('home.tapToCheckIn')}
                   </p>
                 </div>
               )}
@@ -272,17 +329,17 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
           >
-            <h3 className="font-semibold text-deepSage mb-3">Recent Check-in</h3>
+            <h3 className="font-semibold text-deepSage mb-3">{t('home.recentCheckIn')}</h3>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-textSecondaryLight">Mood Level</span>
+                <span className="text-sm text-textSecondaryLight">{t('home.moodLevel')}</span>
                 <span className="text-sm font-medium text-deepSage">
                   {lastCheckIn.moodLevel16}/6
                 </span>
               </div>
               {lastCheckIn.affectTags && lastCheckIn.affectTags.length > 0 && (
                 <div className="space-y-1">
-                  <span className="text-sm text-textSecondaryLight">Feelings</span>
+                  <span className="text-sm text-textSecondaryLight">{t('home.feelings')}</span>
                   <div className="flex flex-wrap gap-1">
                     {lastCheckIn.affectTags.slice(0, 3).map(tag => (
                       <span
@@ -293,8 +350,8 @@ export default function Home() {
                       </span>
                     ))}
                     {lastCheckIn.affectTags.length > 3 && (
-                      <span className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full">
-                        +{lastCheckIn.affectTags.length - 3} more
+                      <span className="text-xs px-2 py-1 bg-sage/10 text-sageText rounded-full">
+                        {t('home.moreItems', { count: lastCheckIn.affectTags.length - 3 })}
                       </span>
                     )}
                   </div>
@@ -302,7 +359,7 @@ export default function Home() {
               )}
               {lastCheckIn.note && (
                 <div className="space-y-1">
-                  <span className="text-sm text-textSecondaryLight">Note</span>
+                  <span className="text-sm text-textSecondaryLight">{t('home.note')}</span>
                   <p className="text-sm text-deepSage italic">
                     "{lastCheckIn.note}"
                   </p>
@@ -312,7 +369,16 @@ export default function Home() {
           </motion.div>
         )}
 
-        {/* Quick Actions */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45, duration: 0.6 }}
+          >
+            <MyNextThing />
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -321,7 +387,8 @@ export default function Home() {
           <QuickActions />
         </motion.div>
 
-        {/* Suggested Programs */}
+        {/* XiPWidget removed per pilot lockdown (Prompt 1). */}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -329,6 +396,17 @@ export default function Home() {
         >
           <SuggestedPrograms />
         </motion.div>
+
+        {/* Personalized Program Recommendations */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.6 }}
+          >
+            <ForYouRecommendations />
+          </motion.div>
+        )}
 
         {/* Spacer for floating dock */}
         <div className="h-32" />

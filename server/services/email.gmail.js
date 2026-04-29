@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import logger from '../logger.ts';
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -47,7 +48,7 @@ export async function verifyEmailConfig() {
   }
   try {
     await transporter.verify();
-    console.log('[Email] Gmail configured successfully');
+    logger.info({ context: 'email-gmail' }, 'Gmail configured successfully');
     return true;
   } catch (err) {
     console.warn('[Email] WARNING: Gmail verification failed -', err.message);

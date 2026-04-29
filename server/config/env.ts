@@ -15,7 +15,7 @@ const envSchema = z.object({
   XID_PEPPER: z.string().optional(), // Required in production (validated at module load)
   
   // Email Configuration
-  EMAIL_PROVIDER: z.enum(['sendgrid', 'gmail']).default('gmail'),
+  EMAIL_PROVIDER: z.enum(['sendgrid', 'gmail', 'console']).default('gmail'),
   GMAIL_USER: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
   SENDGRID_API_KEY: z.string().optional(),
@@ -56,6 +56,14 @@ const envSchema = z.object({
   RETENTION_CHECKINS_DAYS: z.coerce.number().default(0),
 });
 
+function stripEmptyEnvVars(): void {
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === 'string' && value.trim().length === 0) {
+      delete process.env[key];
+    }
+  }
+}
+
 function validateEnv() {
   const isDev = process.env.NODE_ENV !== 'production';
   
@@ -72,6 +80,7 @@ function validateEnv() {
     }
   }
   
+  stripEmptyEnvVars();
   const parsed = envSchema.safeParse(process.env);
   
   if (!parsed.success) {
@@ -108,6 +117,10 @@ function validateEnv() {
     // ALLOWED_ORIGINS is required in production for CORS security
     if (!env.ALLOWED_ORIGINS) {
       throw new Error('ALLOWED_ORIGINS is required in production - set to your deployed domain(s), comma-separated');
+    }
+    
+    if (env.EMAIL_PROVIDER === 'console') {
+      throw new Error('EMAIL_PROVIDER=console is not allowed in production');
     }
     
     if (env.EMAIL_PROVIDER === 'gmail') {

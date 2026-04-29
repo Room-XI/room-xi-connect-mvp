@@ -28,7 +28,7 @@
 
 ### What is Room XI Connect?
 
-Room XI Connect is a youth mental health and wellness platform designed for young people ages 13-25 in Edmonton, Alberta. The application empowers youth by connecting them with community resources, providing daily wellness check-ins, offering AI-assisted support, and ensuring access to crisis resources when needed.
+Room XI Connect is a youth-safe platform designed for young people ages 13-25 in Edmonton, Alberta. The application empowers youth by connecting them with community resources, providing daily check-ins, offering AI-powered program search, and ensuring access to crisis resources when needed.
 
 ### Key Metrics
 
@@ -45,14 +45,14 @@ Room XI Connect is a youth mental health and wellness platform designed for youn
 - **Feel Seen:** Daily mood tracking with a beautiful, trauma-informed interface
 - **Build Capacity:** Streak-based engagement and wellness dimension tracking
 - **Find Community:** Discover 98+ local programs, events, and activities
-- **Get Support:** 24/7 crisis resources and AI companion (Ximi)
+- **Get Support:** 24/7 crisis resources and AI Program Finder (Ximi)
 
 ### Key Differentiators
 
 1. **Privacy-First Design:** PIPA/PIPEDA compliant with granular consent controls
 2. **Trauma-Informed UX:** Calm, non-judgmental interface with cosmic garden aesthetic
 3. **Programs-First Approach:** Browse programs without login; authentication for personalized features
-4. **AI Companion (Ximi):** Dual-personality AI with crisis detection
+4. **AI Program Finder (Ximi):** AI-powered program search with crisis detection
 5. **Personal Safety Plans:** Secure, shareable crisis support plans
 6. **Offline-First PWA:** Works without internet with automatic sync
 
@@ -68,7 +68,7 @@ Room XI Connect exists to ensure every young person in Edmonton has access to th
 
 ### Vision
 
-To become the trusted digital companion for youth wellness in Alberta, connecting young people with the programs, resources, and support systems that help them navigate life's challenges.
+To become the trusted youth-safe platform in Alberta, connecting young people with the programs, resources, and support systems that help them navigate life's challenges.
 
 ### Guiding Principles
 
@@ -175,14 +175,14 @@ Browse 98+ local programs and events in Edmonton.
 - Cost, age range, accessibility notes
 - Tags and wellness dimensions
 
-### 4.3 Ximi AI Companion
+### 4.3 Ximi AI Program Finder
 
 Dual-personality AI assistant for wellness support.
 
 | Mode | Personality | Use Case |
 |------|-------------|----------|
 | Little Sibling | Playful, casual, emoji-friendly | Light conversations, daily check-ins |
-| Peer Guide | Mature, thoughtful, supportive | Journaling, deeper discussions |
+| Peer Guide | Mature, thoughtful, supportive | Program recommendations, deeper questions |
 
 **Safety Features:**
 - Consent gating (explicit opt-in required)
@@ -333,7 +333,7 @@ Full offline functionality with automatic sync.
 |------------|---------|
 | Neon PostgreSQL | Primary database |
 | Replit | Hosting (Autoscale deployment) |
-| Replit AI | Ximi AI companion (OpenAI-compatible) |
+| Replit AI | Ximi AI Program Finder (OpenAI-compatible) |
 
 #### PWA & Mobile
 
@@ -354,7 +354,7 @@ room-xi-connect/
 │   │   ├── auth.js              # Authentication
 │   │   ├── checkins.js          # Mood check-ins
 │   │   ├── programs.js          # Program discovery
-│   │   ├── ximi.ts              # AI companion
+│   │   ├── ximi.ts              # AI Program Finder
 │   │   ├── safetyPlans.ts       # Safety plans
 │   │   └── admin.js             # Admin dashboard
 │   ├── services/                # Business logic
@@ -437,7 +437,7 @@ Home Dashboard (/home)
     ├─→ Quick Actions
     │     ├─→ Get Help → Crisis Sheet
     │     ├─→ Find Programs → Explore
-    │     └─→ Journal → Journal Page
+    │     └─→ Check-in History → History Page
     │
     ├─→ Ximi Button → AI Chat Overlay
     │
@@ -542,7 +542,7 @@ Me Page (/me)
 | first_name | TEXT | Display name |
 | age | INTEGER | Age in years |
 | streak_count | INTEGER | Current check-in streak |
-| ximi_consent | BOOLEAN | AI companion consent |
+| ximi_consent | BOOLEAN | AI Program Finder consent |
 | is_admin | BOOLEAN | Admin role flag |
 
 #### checkins

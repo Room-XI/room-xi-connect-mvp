@@ -120,7 +120,7 @@ export default function QuoteCard({ className = '', onClose }: QuoteCardProps) {
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-2">
               <div className="p-2 bg-sage/10 rounded-lg">
-                <Quote className="w-4 h-4 text-sage" />
+                <Quote className="w-4 h-4 text-sageText" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-deepSage">Daily Reflection</h3>
@@ -178,7 +178,7 @@ export default function QuoteCard({ className = '', onClose }: QuoteCardProps) {
                 className={`
                   p-2 rounded-lg transition-all
                   ${liked 
-                    ? 'bg-coral/10 text-coral' 
+                    ? 'bg-coral/10 text-coralText' 
                     : 'hover:bg-sage/10 text-textSecondaryLight'}
                 `}
                 whileTap={{ scale: 0.95 }}
@@ -200,7 +200,7 @@ export default function QuoteCard({ className = '', onClose }: QuoteCardProps) {
             </div>
             
             {quote.category && (
-              <span className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full">
+              <span className="text-xs px-2 py-1 bg-sage/10 text-sageText rounded-full">
                 #{quote.category.replace('_', ' ')}
               </span>
             )}

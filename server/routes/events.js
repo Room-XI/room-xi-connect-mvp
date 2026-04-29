@@ -10,6 +10,8 @@ import logger from '../logger.ts';
 
 const router = express.Router();
 
+const programNotHidden = sql`(${programs.verificationStatus} IS NULL OR ${programs.verificationStatus} NOT IN ('sunset', 'rejected', 'pending', 'changes_requested'))`;
+
 const DAY_ORDER = {
   'Monday': 1,
   'Tuesday': 2,
@@ -152,6 +154,7 @@ router.get('/happening-now', async (req, res) => {
       .where(
         and(
           eq(programEvents.active, true),
+          programNotHidden,
           // Handle overnight events: if start_time > end_time, event runs overnight
           or(
             // Normal event (ends same day): start <= current <= end
@@ -256,6 +259,7 @@ router.get('/today', async (req, res) => {
       .where(
         and(
           eq(programEvents.active, true),
+          programNotHidden,
           or(
             // One-time event happening today
             eq(programEvents.occursOnDate, new Date(currentDate)),
@@ -328,6 +332,7 @@ router.get('/this-weekend', async (req, res) => {
       .where(
         and(
           eq(programEvents.active, true),
+          programNotHidden,
           or(
             // One-time events happening on next Saturday or Sunday
             inArray(programEvents.occursOnDate, [new Date(nextSaturday), new Date(nextSunday)]),
@@ -369,6 +374,94 @@ router.get('/this-weekend', async (req, res) => {
   }
 });
 
+// GET /api/events/this-week
+// Returns all events in the next 7 days (today through +6 days)
+router.get('/this-week', async (req, res) => {
+  try {
+    const now = DateTime.now().setZone('America/Edmonton');
+    const currentDate = now.toFormat('yyyy-MM-dd');
+    
+    const userLat = req.query.userLat ? parseFloat(req.query.userLat) : null;
+    const userLng = req.query.userLng ? parseFloat(req.query.userLng) : null;
+
+    const endDate = now.plus({ days: 6 }).toFormat('yyyy-MM-dd');
+
+    const nextSevenDays = [];
+    for (let i = 0; i <= 6; i++) {
+      const futureDate = now.plus({ days: i });
+      nextSevenDays.push(futureDate.toFormat('EEEE'));
+    }
+    const uniqueDays = [...new Set(nextSevenDays)];
+
+    debugLog('this-week', `Date range: ${currentDate} to ${endDate}, Days: ${uniqueDays.join(', ')}`);
+
+    const weekEvents = await db
+      .select()
+      .from(programEvents)
+      .innerJoin(programs, eq(programEvents.programId, programs.id))
+      .where(
+        and(
+          eq(programEvents.active, true),
+          programNotHidden,
+          or(
+            and(
+              gte(programEvents.occursOnDate, new Date(currentDate)),
+              lte(programEvents.occursOnDate, new Date(endDate))
+            ),
+            and(
+              isNull(programEvents.occursOnDate),
+              inArray(programEvents.dayOfWeek, uniqueDays),
+              or(
+                isNull(programEvents.effectiveFrom),
+                lte(programEvents.effectiveFrom, new Date(endDate))
+              ),
+              or(
+                isNull(programEvents.effectiveTo),
+                gte(programEvents.effectiveTo, new Date(currentDate))
+              )
+            )
+          )
+        )
+      );
+
+    debugLog('this-week', `Found ${weekEvents.length} events`);
+
+    const formattedEvents = weekEvents.map(row => 
+      formatEventWithProgram(row.program_events, row.programs, userLat, userLng)
+    );
+
+    const sortedEvents = formattedEvents.sort((a, b) => {
+      const aIndex = nextSevenDays.indexOf(a.dayOfWeek);
+      const bIndex = nextSevenDays.indexOf(b.dayOfWeek);
+      
+      if (aIndex !== bIndex) {
+        return aIndex - bIndex;
+      }
+      
+      if (a.startTime < b.startTime) return -1;
+      if (a.startTime > b.startTime) return 1;
+      
+      if (userLat !== null && userLng !== null) {
+        if (a.distance !== null && b.distance !== null) {
+          return a.distance - b.distance;
+        }
+      }
+      return 0;
+    });
+
+    res.json({
+      events: sortedEvents,
+      count: sortedEvents.length,
+      timestamp: now.toISO(),
+      filter: 'this-week',
+      dateRange: { start: currentDate, end: endDate }
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'events-this-week' }, 'Error fetching this week events');
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/events/later
 // Returns upcoming events in next 7 days (ordered by day/time)
 router.get('/later', async (req, res) => {
@@ -404,6 +497,7 @@ router.get('/later', async (req, res) => {
       .where(
         and(
           eq(programEvents.active, true),
+          programNotHidden,
           or(
             // One-time events within the next 7 days
             and(
@@ -580,12 +674,12 @@ router.get('/programs-grouped', async (req, res) => {
     const now = DateTime.now().setZone('America/Edmonton');
     const currentDate = now.toFormat('yyyy-MM-dd');
 
-    // Query all active events
+    // Query all active events (excluding sunset/rejected programs)
     let query = db
       .select()
       .from(programEvents)
       .innerJoin(programs, eq(programEvents.programId, programs.id))
-      .where(eq(programEvents.active, true));
+      .where(and(eq(programEvents.active, true), programNotHidden));
 
     if (!isAuthenticated) {
       // Guest users: Show events for the next 30 days
@@ -599,6 +693,7 @@ router.get('/programs-grouped', async (req, res) => {
         .where(
           and(
             eq(programEvents.active, true),
+            programNotHidden,
             or(
               // Recurring events within effective date range
               and(
@@ -782,7 +877,7 @@ router.get('/program-occurrences', async (req, res) => {
       .select()
       .from(programEvents)
       .innerJoin(programs, eq(programEvents.programId, programs.id))
-      .where(eq(programEvents.active, true));
+      .where(and(eq(programEvents.active, true), programNotHidden));
 
     if (!isAuthenticated) {
       // Guest users: Show events for the next 30 days (privacy-first with reasonable access)
@@ -903,6 +998,36 @@ router.get('/recommendations', requireResearchConsent(), async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error, context: 'events-recommendations' }, 'Error fetching recommendations');
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/program/:programId', async (req, res) => {
+  try {
+    const { programId } = req.params;
+
+    const programEventsResult = await db
+      .select({
+        eventId: programEvents.id,
+        eventName: programEvents.eventName,
+        dayOfWeek: programEvents.dayOfWeek,
+        startTime: programEvents.startTime,
+        endTime: programEvents.endTime,
+        locationName: programEvents.locationName,
+        isDropIn: programEvents.isDropIn,
+        capacity: programEvents.capacity,
+        isRecurring: programEvents.isRecurring,
+        occursOnDate: programEvents.occursOnDate,
+      })
+      .from(programEvents)
+      .where(and(
+        eq(programEvents.programId, programId),
+        eq(programEvents.active, true)
+      ));
+
+    res.json({ events: programEventsResult });
+  } catch (error) {
+    logger.error({ err: error, context: 'events-by-program' }, 'Error fetching program events');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

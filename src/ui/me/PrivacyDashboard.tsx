@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Shield, Download, Trash2, Eye, AlertCircle, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Shield, Download, Trash2, Eye, AlertCircle, CheckCircle2, ChevronRight, Users, Clock, XCircle, Check, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface WorkerRequest {
+  id: string;
+  consentStatus: string;
+  consentLevel: any;
+  requestedAt: string;
+  respondedAt: string | null;
+  workerFirstName: string;
+  workerLastName: string;
+  organizationName: string;
+}
 
 export default function PrivacyDashboard() {
   const [consents, setConsents] = useState<Record<string, boolean>>({});
@@ -10,9 +21,17 @@ export default function PrivacyDashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [workerRequests, setWorkerRequests] = useState<{
+    pending: WorkerRequest[];
+    granted: WorkerRequest[];
+    denied: WorkerRequest[];
+    revoked: WorkerRequest[];
+  }>({ pending: [], granted: [], denied: [], revoked: [] });
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
   
   useEffect(() => {
     loadPrivacyData();
+    loadWorkerRequests();
   }, []);
   
   const loadPrivacyData = async () => {
@@ -33,6 +52,43 @@ export default function PrivacyDashboard() {
       console.error('Failed to load privacy data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkerRequests = async () => {
+    try {
+      const response = await fetch('/api/privacy/worker-requests', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWorkerRequests(data);
+      }
+    } catch (error) {
+      console.error('Failed to load worker requests:', error);
+    }
+  };
+
+  const handleWorkerResponse = async (requestId: string, action: 'grant' | 'deny' | 'revoke') => {
+    setRespondingTo(requestId);
+    try {
+      const response = await fetch(`/api/privacy/worker-requests/${requestId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to respond to request');
+      }
+      
+      await loadWorkerRequests();
+    } catch (error) {
+      console.error('Failed to respond to worker request:', error);
+      alert('Failed to update access. Please try again.');
+    } finally {
+      setRespondingTo(null);
     }
   };
   
@@ -132,6 +188,94 @@ export default function PrivacyDashboard() {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Youth Worker Access Requests */}
+      {(workerRequests.pending.length > 0 || workerRequests.granted.length > 0) && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-3 mb-4">
+            <Users className="text-teal-600" size={20} />
+            <h3 className="font-semibold text-gray-900">Youth Worker Access</h3>
+          </div>
+          
+          {workerRequests.pending.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-amber-700 flex items-center gap-2 mb-2">
+                <Clock size={16} />
+                Pending Requests ({workerRequests.pending.length})
+              </p>
+              <div className="space-y-2">
+                {workerRequests.pending.map((request) => (
+                  <div key={request.id} className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {request.workerFirstName} {request.workerLastName}
+                        </p>
+                        <p className="text-xs text-gray-600">{request.organizationName}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Requested {new Date(request.requestedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleWorkerResponse(request.id, 'grant')}
+                          disabled={respondingTo === request.id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
+                        >
+                          <Check size={14} />
+                          Allow
+                        </button>
+                        <button
+                          onClick={() => handleWorkerResponse(request.id, 'deny')}
+                          disabled={respondingTo === request.id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <X size={14} />
+                          Deny
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workerRequests.granted.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-green-700 flex items-center gap-2 mb-2">
+                <CheckCircle2 size={16} />
+                Active Access ({workerRequests.granted.length})
+              </p>
+              <div className="space-y-2">
+                {workerRequests.granted.map((request) => (
+                  <div key={request.id} className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {request.workerFirstName} {request.workerLastName}
+                        </p>
+                        <p className="text-xs text-gray-600">{request.organizationName}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Granted {request.respondedAt ? new Date(request.respondedAt).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleWorkerResponse(request.id, 'revoke')}
+                        disabled={respondingTo === request.id}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                      >
+                        <XCircle size={14} />
+                        Revoke
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
       

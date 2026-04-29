@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-Room XI Connect is a youth wellness application serving users ages 13-25 in Edmonton, Alberta. The platform enables mood check-ins, program discovery, and AI-assisted wellness conversations through an AI companion named "Ximi."
+Room XI Connect is a youth-safe platform serving users ages 13-25 in Edmonton, Alberta. The platform enables mood check-ins, program discovery, and AI-powered program search through an AI Program Finder named "Ximi."
 
 ### Security Philosophy
 
@@ -413,7 +413,7 @@ Account lockout works alongside rate limiting:
 
 | Aspect | Implementation |
 |--------|----------------|
-| Purpose | AI companion for wellness conversations |
+| Purpose | AI Program Finder for program search |
 | Model | gpt-4o-mini (with fallback handling) |
 | Data Sent | Mood type, anonymized context, user message |
 | PII Excluded | Names, emails, locations, identifiers |
@@ -569,9 +569,9 @@ Room XI Connect collects wellness data (mood check-ins) that may be considered h
 
 ## 11. Cross-Border Data Processing (PIPEDA Compliance)
 
-### 11.1 AI Companion (Ximi) Data Processing
+### 11.1 AI Program Finder (Ximi) Data Processing
 
-The Ximi AI companion utilizes OpenAI's GPT models for natural language processing. This involves cross-border data transfer subject to PIPEDA requirements.
+The Ximi AI Program Finder utilizes OpenAI's GPT models for natural language processing. This involves cross-border data transfer subject to PIPEDA requirements.
 
 | Aspect | Implementation |
 |--------|----------------|

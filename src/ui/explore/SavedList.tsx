@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bookmark, Heart, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import ProgramCard from './ProgramCard';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -34,6 +35,7 @@ interface SavedProgram {
 }
 
 export default function SavedList() {
+  const { t } = useTranslation();
   const { user } = useSession();
   const [savedPrograms, setSavedPrograms] = useState<SavedProgram[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +88,6 @@ export default function SavedList() {
     }
   };
 
-  // Show sign-in prompt for unauthenticated users
   if (!user) {
     return (
       <motion.div
@@ -102,10 +103,10 @@ export default function SavedList() {
           
           <div className="space-y-2">
             <h3 className="text-lg font-semibold text-deepSage">
-              Sign in to Save Programs
+              {t('explore.saved.signInToSave')}
             </h3>
             <p className="text-textSecondaryLight max-w-sm mx-auto">
-              Create a free account to save your favorite programs and access them from any device.
+              {t('explore.saved.signInDescription')}
             </p>
           </div>
         </div>
@@ -115,13 +116,13 @@ export default function SavedList() {
             to="/auth/register"
             className="inline-block cosmic-button"
           >
-            Create Account
+            {t('auth.createAccount')}
           </Link>
           
           <p className="text-sm text-textSecondaryLight">
-            Already have an account?{' '}
+            {t('auth.alreadyHaveAccount')}{' '}
             <Link to="/auth/login" className="text-teal hover:text-teal/80 font-medium">
-              Sign in
+              {t('auth.signIn')}
             </Link>
           </p>
         </div>
@@ -133,8 +134,8 @@ export default function SavedList() {
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
-          <div className="w-5 h-5 bg-sage/10 rounded animate-pulse" />
-          <div className="h-6 bg-sage/10 rounded w-32 animate-pulse" />
+          <div className="w-5 h-5 bg-sage/20 rounded animate-pulse" />
+          <div className="h-6 bg-sage/20 rounded w-32 animate-pulse" />
         </div>
         
         <div className="space-y-3">
@@ -170,11 +171,10 @@ export default function SavedList() {
           
           <div className="space-y-2">
             <h3 className="text-lg font-semibold text-deepSage">
-              No Saved Programs Yet
+              {t('explore.saved.noSavedPrograms')}
             </h3>
             <p className="text-textSecondaryLight max-w-sm mx-auto">
-              Save programs you're interested in to easily find them later. 
-              Look for the bookmark icon on program cards.
+              {t('explore.saved.noSavedDescription')}
             </p>
           </div>
         </div>
@@ -184,17 +184,17 @@ export default function SavedList() {
             to="/explore"
             className="inline-block cosmic-button"
           >
-            Explore Programs
+            {t('landing.explorePrograms')}
           </Link>
           
           <div className="flex items-center justify-center space-x-4 text-sm text-textSecondaryLight">
             <div className="flex items-center space-x-1">
               <Bookmark className="w-4 h-4" />
-              <span>Save programs</span>
+              <span>{t('explore.saved.savePrograms')}</span>
             </div>
             <div className="flex items-center space-x-1">
               <Heart className="w-4 h-4" />
-              <span>Build your list</span>
+              <span>{t('explore.saved.buildYourList')}</span>
             </div>
           </div>
         </div>
@@ -204,7 +204,6 @@ export default function SavedList() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <motion.div
         className="flex items-center justify-between"
         initial={{ opacity: 0, y: 20 }}
@@ -214,12 +213,12 @@ export default function SavedList() {
         <div className="flex items-center space-x-2">
           <Bookmark className="w-5 h-5 text-gold" />
           <h2 className="text-lg font-semibold text-deepSage">
-            Saved Programs
+            {t('explore.saved.title')}
           </h2>
         </div>
         
         <span className="text-sm text-textSecondaryLight">
-          {savedPrograms.length} saved
+          {t('explore.saved.count', { count: savedPrograms.length })}
         </span>
       </motion.div>
 
@@ -244,7 +243,6 @@ export default function SavedList() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Tips */}
       <motion.div
         className="cosmic-card p-4 bg-cosmic-gradient"
         initial={{ opacity: 0, y: 20 }}
@@ -255,17 +253,15 @@ export default function SavedList() {
           <Heart className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h4 className="font-medium text-deepSage">
-              Pro tip
+              {t('explore.saved.proTip')}
             </h4>
             <p className="text-sm text-textSecondaryLight">
-              Saved programs sync across all your devices and work offline. 
-              You can also share your saved list with friends and family.
+              {t('explore.saved.proTipDescription')}
             </p>
           </div>
         </div>
       </motion.div>
 
-      {/* Quick Actions */}
       <motion.div
         className="flex space-x-3"
         initial={{ opacity: 0, y: 20 }}
@@ -276,27 +272,26 @@ export default function SavedList() {
           to="/explore"
           className="flex-1 ghost-button text-center"
         >
-          Find More Programs
+          {t('explore.saved.findMore')}
         </Link>
         
         <Link
           to="/explore/map"
           className="flex-1 ghost-button text-center flex items-center justify-center space-x-1"
         >
-          <span>View on Map</span>
+          <span>{t('explore.saved.viewOnMap')}</span>
           <ExternalLink className="w-4 h-4" />
         </Link>
       </motion.div>
 
-      {/* Offline Notice */}
       {!navigator.onLine && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="cosmic-card p-4 bg-sage/10 border-sage/20"
         >
-          <p className="text-sm text-sage text-center">
-            You're offline. Your saved programs are cached and available to view.
+          <p className="text-sm text-sageText text-center">
+            {t('explore.saved.offlineNotice')}
           </p>
         </motion.div>
       )}

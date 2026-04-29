@@ -190,10 +190,10 @@ export default function QRScan() {
           {result.type === 'success' ? (
             <CheckCircle className="w-5 h-5 text-teal flex-shrink-0" />
           ) : (
-            <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 text-coralText flex-shrink-0" />
           )}
           <p className={`text-sm font-medium ${
-            result.type === 'success' ? 'text-teal' : 'text-coral'
+            result.type === 'success' ? 'text-teal' : 'text-coralText'
           }`}>
             {result.message}
           </p>
@@ -211,7 +211,7 @@ export default function QRScan() {
           {!isScanning ? (
             <div className="space-y-4">
               <div className="w-32 h-32 mx-auto bg-sage/10 rounded-2xl flex items-center justify-center">
-                <Camera className="w-12 h-12 text-sage" />
+                <Camera className="w-12 h-12 text-sageText" />
               </div>
               
               <div className="space-y-2">
@@ -378,7 +378,7 @@ export default function QRScan() {
           animate={{ opacity: 1, y: 0 }}
           className="cosmic-card p-4 bg-sage/10 border-sage/20"
         >
-          <p className="text-sm text-sage text-center">
+          <p className="text-sm text-sageText text-center">
             You're offline. Check-ins will be saved and synced when you're back online.
           </p>
         </motion.div>

@@ -32,7 +32,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
     isProduction
       ? "connect-src 'self' https:"
       : "connect-src 'self' ws: wss: https:",
-    "frame-ancestors 'none'",
+    isProduction ? "frame-ancestors 'none'" : "frame-ancestors *",
     "base-uri 'self'",
     "form-action 'self'",
     "upgrade-insecure-requests",
@@ -57,7 +57,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   res.setHeader('X-Content-Type-Options', 'nosniff');
   
   // X-Frame-Options - prevent clickjacking (backup to CSP frame-ancestors)
-  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Frame-Options', isProduction ? 'DENY' : 'SAMEORIGIN');
   
   // X-XSS-Protection - legacy XSS protection
   res.setHeader('X-XSS-Protection', '1; mode=block');

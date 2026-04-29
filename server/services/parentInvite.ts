@@ -20,7 +20,7 @@ async function sendParentInviteEmail(toEmail: string, token: string, youthName?:
     <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #FAF9F6;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h1 style="color: #2C4A3E; font-size: 28px; margin: 0;">Room XI Connect</h1>
-        <p style="color: #5FA8A3; font-size: 14px; margin: 4px 0 0;">Youth Mental Health & Wellness Platform</p>
+        <p style="color: #5FA8A3; font-size: 14px; margin: 4px 0 0;">Youth Program Access & Engagement Platform</p>
       </div>
       
       <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #E8E5DE;">
@@ -35,10 +35,10 @@ async function sendParentInviteEmail(toEmail: string, token: string, youthName?:
             Room XI Connect is a <strong>privacy-first</strong> platform that helps youth (ages 13-25) in Edmonton:
           </p>
           <ul style="color: #4A5F57; line-height: 1.8; margin: 12px 0 0; padding-left: 20px;">
-            <li>Track their mood and mental wellness</li>
+            <li>Track their mood and check in regularly</li>
             <li>Discover free youth programs in the community</li>
             <li>Access crisis support resources when needed</li>
-            <li>Connect with Ximi, our supportive AI companion</li>
+            <li>Find programs with Ximi, our AI Program Finder</li>
           </ul>
         </div>
         
@@ -85,7 +85,7 @@ async function sendParentInviteEmail(toEmail: string, token: string, youthName?:
       <hr style="border: none; border-top: 1px solid #E8E5DE; margin: 24px 0;">
       <p style="color: #7D8471; font-size: 12px; text-align: center; margin: 0;">
         Room XI Connect | Room Eleven Foundation | Edmonton, Alberta, Canada<br/>
-        A non-profit initiative supporting youth mental health and wellness
+        A non-profit initiative helping youth check in, find programs, and access support
       </p>
     </div>
   `;
@@ -112,24 +112,35 @@ export async function createOrRefreshParentInvite(
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const normalizedEmail = email.toLowerCase().trim();
 
-  const [invite] = await db
-    .insert(parentInvites)
-    .values({
-      userId,
-      email: normalizedEmail,
-      token,
-      expiresAt,
-    })
-    .onConflictDoUpdate({
-      target: parentInvites.email,
-      set: {
+  // The parent_invites table has no unique constraint on email, so we
+  // can't rely on ON CONFLICT. Refresh in-place if a row already exists
+  // for (userId, email); otherwise insert a new one.
+  const [existing] = await db
+    .select()
+    .from(parentInvites)
+    .where(
+      and(eq(parentInvites.userId, userId), eq(parentInvites.email, normalizedEmail))
+    )
+    .limit(1);
+
+  let invite;
+  if (existing) {
+    [invite] = await db
+      .update(parentInvites)
+      .set({ token, expiresAt, acceptedAt: null })
+      .where(eq(parentInvites.id, existing.id))
+      .returning();
+  } else {
+    [invite] = await db
+      .insert(parentInvites)
+      .values({
         userId,
+        email: normalizedEmail,
         token,
         expiresAt,
-        acceptedAt: null,
-      },
-    })
-    .returning();
+      })
+      .returning();
+  }
 
   await sendParentInviteEmail(normalizedEmail, token, youthName);
 

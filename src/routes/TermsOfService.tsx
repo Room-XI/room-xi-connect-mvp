@@ -22,7 +22,7 @@ export default function TermsOfService() {
                 <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-900">
                   <p className="font-semibold mb-1">Youth-Friendly Summary</p>
-                  <p>By using Room XI Connect, you agree to treat yourself and others with respect, protect your privacy, and use this platform to support your mental health journey. We're here to help, not to judge or surveil.</p>
+                  <p>By using Room XI Connect, you agree to treat yourself and others with respect, protect your privacy, and use this platform to check in, find programs, and access support safely. We're here to help, not to judge or surveil.</p>
                 </div>
               </div>
             </div>
@@ -75,12 +75,12 @@ export default function TermsOfService() {
               <li>Use automated tools to scrape or harvest data</li>
             </ul>
 
-            <h2>5. Ximi AI Companion</h2>
+            <h2>5. Ximi AI Program Finder</h2>
             <p>
-              Ximi is an AI-powered companion designed to support you, but:
+              Ximi is an AI-powered Program Finder designed to help you discover programs and activities, but:
             </p>
             <ul>
-              <li><strong>Not a therapist:</strong> Ximi cannot diagnose mental health conditions or replace professional care</li>
+              <li><strong>Not a therapist:</strong> Ximi is not a therapist or counselor and cannot diagnose mental health conditions or replace professional care</li>
               <li><strong>Crisis detection:</strong> If Ximi detects crisis keywords, you'll be routed to real crisis support resources</li>
               <li><strong>Human oversight:</strong> You can flag any Ximi response for human review within 24 hours</li>
               <li><strong>Opt-in only:</strong> You must consent to use Ximi, and you can withdraw consent anytime</li>
@@ -91,7 +91,7 @@ export default function TermsOfService() {
               <li><strong>Daily limit:</strong> One check-in per day to prevent compulsive use</li>
               <li><strong>Optional sharing:</strong> You choose whether to share your check-in data with program staff</li>
               <li><strong>Encryption:</strong> Your mood notes and wellness ratings are encrypted</li>
-              <li><strong>Not medical records:</strong> Check-ins are for personal reflection, not clinical diagnosis</li>
+              <li><strong>Not medical records:</strong> Check-ins are for personal awareness, not clinical diagnosis</li>
             </ul>
 
             <h2>7. Program Discovery and Attendance</h2>

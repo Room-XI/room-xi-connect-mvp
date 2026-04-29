@@ -24,7 +24,7 @@ test.describe('Ximi Chat Authentication Tests', () => {
         'X-CSRF-Token': csrfToken,
       },
       data: {
-        message: 'Hello Ximi',
+        message: 'What programs are on today?',
         moodType: 'clear',
         wellnessDimensions: ['emotional'],
       },
@@ -32,7 +32,7 @@ test.describe('Ximi Chat Authentication Tests', () => {
     expect([401, 403]).toContain(response.status());
   });
 
-  test('POST /api/ximi/follow-up requires authentication', async ({ request }) => {
+  test('POST /api/ximi/follow-up is deprecated (returns 401 unauthenticated, 410 when authenticated)', async ({ request }) => {
     const response = await request.post(`${API_BASE}/ximi/follow-up`, {
       headers: {
         'Content-Type': 'application/json',
@@ -42,7 +42,7 @@ test.describe('Ximi Chat Authentication Tests', () => {
         checkinId: 'test-checkin-id',
       },
     });
-    expect([401, 403]).toContain(response.status());
+    expect([401, 403, 410]).toContain(response.status());
   });
 
   test('POST /api/ximi/consent requires authentication', async ({ request }) => {
@@ -85,21 +85,9 @@ test.describe('Ximi Chat CSRF Protection Tests', () => {
         'Content-Type': 'application/json',
       },
       data: {
-        message: 'Hello Ximi',
+        message: 'What programs are available?',
         moodType: 'clear',
         wellnessDimensions: ['emotional'],
-      },
-    });
-    expect([401, 403]).toContain(response.status());
-  });
-
-  test('POST /api/ximi/follow-up requires CSRF token', async ({ request }) => {
-    const response = await request.post(`${API_BASE}/ximi/follow-up`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      data: {
-        checkinId: 'test-checkin-id',
       },
     });
     expect([401, 403]).toContain(response.status());
@@ -333,7 +321,7 @@ test.describe('Ximi Chat Input Validation (Unauthenticated)', () => {
         'X-CSRF-Token': csrfToken,
       },
       data: {
-        message: 'Hello',
+        message: 'What programs are on today?',
         moodType: 'invalid-mood',
       },
     });
@@ -396,7 +384,7 @@ test.describe('Ximi Recommendations with Location', () => {
   });
 });
 
-test.describe('Ximi All Mood Types', () => {
+test.describe('Ximi Program Finder - All Mood Types', () => {
   let csrfToken: string;
 
   test.beforeAll(async ({ request }) => {
@@ -408,14 +396,14 @@ test.describe('Ximi All Mood Types', () => {
   const moodTypes = ['cold', 'stormy', 'foggy', 'clear', 'breezy', 'aurora'];
 
   for (const mood of moodTypes) {
-    test(`POST /api/ximi/chat with mood "${mood}" requires authentication`, async ({ request }) => {
+    test(`POST /api/ximi/chat with program search and mood "${mood}" requires authentication`, async ({ request }) => {
       const response = await request.post(`${API_BASE}/ximi/chat`, {
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrfToken,
         },
         data: {
-          message: `Feeling ${mood} today`,
+          message: `What programs are on today?`,
           moodType: mood,
           wellnessDimensions: ['emotional'],
         },
@@ -423,4 +411,168 @@ test.describe('Ximi All Mood Types', () => {
       expect([401, 403]).toContain(response.status());
     });
   }
+});
+
+test.describe('Ximi Program Finder - New Request Fields', () => {
+  let csrfToken: string;
+
+  test.beforeAll(async ({ request }) => {
+    const csrfResponse = await request.get(`${API_BASE}/auth/csrf-token`);
+    const csrfData = await csrfResponse.json();
+    csrfToken = csrfData.csrfToken;
+  });
+
+  test('POST /api/ximi/chat with timeframe field requires authentication', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'What programs are available?',
+        timeframe: 'today',
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('POST /api/ximi/chat with location fields requires authentication', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'What events are near me?',
+        lat: 53.5461,
+        lng: -113.4938,
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('POST /api/ximi/chat with next_7_days timeframe requires authentication', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'What programs are this week?',
+        timeframe: 'next_7_days',
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+});
+
+test.describe('Ximi Program Finder - Intent-Based Behavior (Unauthenticated)', () => {
+  let csrfToken: string;
+
+  test.beforeAll(async ({ request }) => {
+    const csrfResponse = await request.get(`${API_BASE}/auth/csrf-token`);
+    const csrfData = await csrfResponse.json();
+    csrfToken = csrfData.csrfToken;
+  });
+
+  test('Non-program message (redirect path) requires auth before redirect', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'How are you doing today?',
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('Program search message requires auth', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'What programs are happening today?',
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('Schedule lookup message requires auth', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'Show me my schedule',
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('Suggestion message requires auth', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'Suggest a program for me',
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('Crisis message requires auth before crisis detection', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/chat`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        message: 'I want to end my life',
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+});
+
+test.describe('Ximi Program Finder - Consent Path', () => {
+  let csrfToken: string;
+
+  test.beforeAll(async ({ request }) => {
+    const csrfResponse = await request.get(`${API_BASE}/auth/csrf-token`);
+    const csrfData = await csrfResponse.json();
+    csrfToken = csrfData.csrfToken;
+  });
+
+  test('Consent update requires authentication', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/consent`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        consent: true,
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('Consent revocation requires authentication', async ({ request }) => {
+    const response = await request.post(`${API_BASE}/ximi/consent`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      data: {
+        consent: false,
+      },
+    });
+    expect([401, 403]).toContain(response.status());
+  });
 });

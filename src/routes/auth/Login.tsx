@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink, UserCog, X } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Heart, MapPin, Shield, ArrowRight, Compass, ExternalLink, UserCog, X, Sparkles, Key } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/ui/Toast';
+
+type LoginMethod = 'loginCode' | 'emailPin';
 
 export default function Login() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('loginCode');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [loginCode, setLoginCode] = useState('');
+  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -21,10 +24,18 @@ export default function Login() {
   const [adminError, setAdminError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    return handlePinLogin(e);
+  };
+
+  const handlePinLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      setError('Please fill in all fields');
+
+    if (loginMethod === 'loginCode' && (!loginCode || !pin)) {
+      setError('Please enter your login code and PIN');
+      return;
+    }
+    if (loginMethod === 'emailPin' && (!email || !pin)) {
+      setError('Please enter your email and PIN');
       return;
     }
 
@@ -32,7 +43,10 @@ export default function Login() {
     setError(null);
 
     try {
-      const { data, error, friendlyError } = await api.auth.login(email.trim(), password);
+      const opts = loginMethod === 'loginCode'
+        ? { loginCode: loginCode.trim() }
+        : { email: email.trim() };
+      const { data, error, friendlyError } = await api.auth.loginWithPin(pin, opts);
 
       if (error) {
         setError(friendlyError || error);
@@ -42,14 +56,13 @@ export default function Login() {
       }
 
       if (data?.user) {
-        // Successful login - go to home page
         window.location.href = '/home';
       } else {
         setError('Login failed. Please try again.');
         setLoading(false);
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('PIN login error:', error);
       setError('An unexpected error occurred. Please try again.');
       setLoading(false);
     }
@@ -90,7 +103,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-dvh bg-cream">
+    <main className="min-h-dvh bg-cream" role="main" aria-label="Sign In">
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-deepSage/5 via-teal/5 to-cosmic/10 py-16 px-6">
         <motion.div
@@ -136,7 +149,7 @@ export default function Login() {
             href="https://www.zeffy.com/en-CA/donation-form/build-the-room-xi-youth-hub-in-edmonton"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 text-coral font-medium hover:text-coral/80 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 text-coralText font-medium hover:text-coral/80 transition-all"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -180,7 +193,7 @@ export default function Login() {
 
             <div className="cosmic-card p-6 space-y-3">
               <div className="w-12 h-12 bg-coral/10 rounded-full flex items-center justify-center">
-                <Heart className="w-6 h-6 text-coral" />
+                <Heart className="w-6 h-6 text-coralText" />
               </div>
               <h3 className="font-display font-bold text-deepSage">Get Help</h3>
               <p className="text-textSecondaryLight">
@@ -200,7 +213,7 @@ export default function Login() {
         >
           <div className="flex items-center space-x-3">
             <Shield className="w-8 h-8 text-teal" />
-            <h3 className="text-2xl font-display font-bold text-deepSage">Your privacy matters</h3>
+            <h2 className="text-2xl font-display font-bold text-deepSage">Your privacy matters</h2>
           </div>
           <p className="text-textSecondaryLight">
             We only collect what's needed to keep you safe at programs. You control what gets shared, and you can delete your data anytime.
@@ -218,11 +231,14 @@ export default function Login() {
           transition={{ duration: 0.6 }}
         >
           <div className="text-center space-y-2">
+            <div className="w-16 h-16 bg-teal/10 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Sparkles className="w-8 h-8 text-teal" />
+            </div>
             <h2 className="text-3xl font-display font-bold text-deepSage">Welcome Back</h2>
+            <p className="text-xs font-medium uppercase tracking-wider text-teal">Your youth platform</p>
             <p className="text-textSecondaryLight">Sign in to continue your journey</p>
           </div>
 
-          {/* Error Message */}
           {error && (
             <motion.div
               className="cosmic-card p-4 bg-coral/10 border-coral/20 flex items-center space-x-3"
@@ -232,86 +248,145 @@ export default function Login() {
               aria-live="assertive"
               id="login-error"
             >
-              <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" aria-hidden="true" />
-              <p className="text-sm text-coral">{error}</p>
+              <AlertCircle className="w-5 h-5 text-coralText flex-shrink-0" aria-hidden="true" />
+              <p className="text-sm text-coralText">{error}</p>
             </motion.div>
           )}
 
-          {/* Login Form */}
+          <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+            <button
+              onClick={() => { setLoginMethod('loginCode'); setError(null); }}
+              className={`flex-1 py-2.5 rounded-md font-medium text-sm transition flex items-center justify-center gap-1.5 ${
+                loginMethod === 'loginCode'
+                  ? 'bg-white text-deepSage shadow-sm'
+                  : 'text-textSecondaryLight hover:text-deepSage'
+              }`}
+            >
+              <Key className="w-4 h-4" />
+              Login Code
+            </button>
+            <button
+              onClick={() => { setLoginMethod('emailPin'); setError(null); }}
+              className={`flex-1 py-2.5 rounded-md font-medium text-sm transition flex items-center justify-center gap-1.5 ${
+                loginMethod === 'emailPin'
+                  ? 'bg-white text-deepSage shadow-sm'
+                  : 'text-textSecondaryLight hover:text-deepSage'
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              Email + PIN
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="cosmic-card p-6 space-y-6" aria-describedby={error ? 'login-error' : undefined}>
-            {/* Email Field */}
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-deepSage">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="cosmic-input pl-10"
-                  disabled={loading}
-                  autoComplete="email"
-                />
-              </div>
-            </div>
+            {loginMethod === 'loginCode' ? (
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="loginCode" className="block text-sm font-medium text-deepSage">
+                    Login Code
+                  </label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+                    <input
+                      id="loginCode"
+                      type="text"
+                      value={loginCode}
+                      onChange={(e) => setLoginCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. STAR-MOON-42"
+                      className="cosmic-input pl-10 font-mono uppercase"
+                      disabled={loading}
+                      autoComplete="username"
+                    />
+                  </div>
+                </div>
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-deepSage">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="cosmic-input pl-10 pr-10"
-                  disabled={loading}
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-textSecondaryLight hover:text-deepSage transition-colors"
-                  disabled={loading}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  aria-pressed={showPassword}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" aria-hidden="true" />
-                  ) : (
-                    <Eye className="w-5 h-5" aria-hidden="true" />
-                  )}
-                </button>
-              </div>
-            </div>
+                <div className="space-y-2">
+                  <label htmlFor="pin" className="block text-sm font-medium text-deepSage">
+                    PIN
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+                    <input
+                      id="pin"
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={pin}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setPin(val);
+                      }}
+                      placeholder="Your PIN"
+                      className="cosmic-input pl-10 text-center text-xl tracking-[0.3em] font-mono"
+                      disabled={loading}
+                      autoComplete="current-password"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : loginMethod === 'emailPin' ? (
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="emailPin" className="block text-sm font-medium text-deepSage">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+                    <input
+                      id="emailPin"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      className="cosmic-input pl-10"
+                      disabled={loading}
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
 
-            {/* Forgot Password Link */}
-            <div className="text-right">
-              <Link
-                to="/auth/reset"
-                className="text-sm font-medium text-teal hover:text-teal/80 transition-colors"
-              >
-                Forgot your password?
-              </Link>
-            </div>
+                <div className="space-y-2">
+                  <label htmlFor="emailPinInput" className="block text-sm font-medium text-deepSage">
+                    PIN
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-textSecondaryLight" />
+                    <input
+                      id="emailPinInput"
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={pin}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setPin(val);
+                      }}
+                      placeholder="Your PIN"
+                      className="cosmic-input pl-10 text-center text-xl tracking-[0.3em] font-mono"
+                      disabled={loading}
+                      autoComplete="current-password"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : null}
 
-            {/* Submit Button */}
             <motion.button
               type="submit"
-              disabled={loading || !email || !password}
+              disabled={loading || (
+                loginMethod === 'loginCode'
+                  ? (!loginCode || pin.length < 4 || pin.length > 6)
+                  : (!email || pin.length < 4 || pin.length > 6)
+              )}
               className={`w-full cosmic-button ${
-                loading || !email || !password ? 'opacity-50 cursor-not-allowed' : ''
+                loading || (
+                  loginMethod === 'loginCode'
+                    ? (!loginCode || pin.length < 4 || pin.length > 6)
+                    : (!email || pin.length < 4 || pin.length > 6)
+                ) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              whileHover={!loading && email && password ? { scale: 1.02 } : {}}
-              whileTap={!loading && email && password ? { scale: 0.98 } : {}}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               {loading ? (
                 <div className="flex items-center justify-center space-x-2">
@@ -381,7 +456,7 @@ export default function Login() {
       {/* Admin Login Modal */}
       <AnimatePresence>
         {showAdminModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="admin-login-modal-title">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -404,11 +479,12 @@ export default function Login() {
                   <div className="w-10 h-10 bg-cosmic/10 rounded-full flex items-center justify-center">
                     <UserCog className="w-5 h-5 text-cosmic" />
                   </div>
-                  <h2 className="text-xl font-display font-bold text-deepSage">Admin Login</h2>
+                  <h2 id="admin-login-modal-title" className="text-xl font-display font-bold text-deepSage">Admin Login</h2>
                 </div>
                 <button
                   onClick={() => setShowAdminModal(false)}
-                  className="text-textSecondaryLight hover:text-deepSage transition-colors"
+                  className="text-textSecondaryLight hover:text-deepSage transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  aria-label="Close admin login"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -421,8 +497,8 @@ export default function Login() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
-                  <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" />
-                  <p className="text-sm text-coral">{adminError}</p>
+                  <AlertCircle className="w-5 h-5 text-coralText flex-shrink-0" />
+                  <p className="text-sm text-coralText">{adminError}</p>
                 </motion.div>
               )}
 
@@ -519,6 +595,6 @@ export default function Login() {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink, Shield, Eye, Heart } from 'lucide-react';
+import { Settings, TrendingUp, Calendar, QrCode, UserCheck, ExternalLink, Shield, Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Sparkline from '@/ui/me/Sparkline';
 import PrivacyDashboard from '@/ui/me/PrivacyDashboard';
 import ProfileProgress from '@/components/ProfileProgress';
+import AttendanceHistoryModal from '@/components/AttendanceHistoryModal';
 import api from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { useQueue } from '@/lib/queue';
@@ -45,6 +46,7 @@ export default function Me() {
   const [attendanceCount, setAttendanceCount] = useState(0);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -93,7 +95,7 @@ export default function Me() {
         year: 'numeric',
       });
     } catch {
-      return 'Unknown date';
+      return t('common.unknownDate');
     }
   };
 
@@ -105,7 +107,7 @@ export default function Me() {
         minute: '2-digit',
       });
     } catch {
-      return 'Unknown time';
+      return t('common.unknownTime');
     }
   };
 
@@ -113,8 +115,8 @@ export default function Me() {
     return (
       <div className="py-6 space-y-6">
         <div className="flex items-center justify-between">
-          <div className="h-8 bg-sage/10 rounded w-32 animate-pulse" />
-          <div className="w-10 h-10 bg-sage/10 rounded-lg animate-pulse" />
+          <div className="h-8 bg-sage/20 rounded w-32 animate-pulse" />
+          <div className="w-10 h-10 bg-sage/20 rounded-lg animate-pulse" />
         </div>
         
         {[...Array(3)].map((_, i) => (
@@ -139,7 +141,7 @@ export default function Me() {
         transition={{ duration: 0.6 }}
       >
         <h1 className="text-2xl font-display font-bold text-deepSage">
-          Your Journey
+          {t('me.title')}
         </h1>
         
         <div className="flex items-center space-x-3">
@@ -152,8 +154,8 @@ export default function Me() {
               transition={{ type: 'spring', stiffness: 200 }}
             >
               <div className="w-2 h-2 bg-coral rounded-full animate-pulse" />
-              <span className="text-xs font-medium text-sage">
-                {itemCount} item{itemCount !== 1 ? 's' : ''} syncing
+              <span className="text-xs font-medium text-sageText">
+                {t(`me.syncingItems${itemCount !== 1 ? 'Plural' : ''}`, { count: itemCount })}
               </span>
             </motion.div>
           )}
@@ -164,7 +166,7 @@ export default function Me() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Settings className="w-5 h-5 text-sage" />
+              <Settings className="w-5 h-5 text-sageText" />
             </motion.div>
           </Link>
         </div>
@@ -185,7 +187,7 @@ export default function Me() {
             {profile?.streak_count || 0}
           </div>
           <div className="text-sm text-textSecondaryLight">
-            Day streak
+            {t('me.dayStreak')}
           </div>
         </div>
         
@@ -194,7 +196,7 @@ export default function Me() {
             {attendanceCount}
           </div>
           <div className="text-sm text-textSecondaryLight">
-            Programs attended
+            {t('me.programsAttended')}
           </div>
         </div>
       </motion.div>
@@ -209,13 +211,13 @@ export default function Me() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <TrendingUp className="w-5 h-5 text-teal" />
-            <h2 className="text-lg font-semibold text-deepSage">Mood History</h2>
+            <h2 className="text-lg font-semibold text-deepSage">{t('me.moodHistory')}</h2>
           </div>
           <Link
-            to="/orb-timelapse"
+            to="/check-in-history"
             className="text-sm font-medium text-teal hover:text-teal/80 transition-colors"
           >
-            View 30-day timelapse →
+            {t('me.viewHistory')}
           </Link>
         </div>
         
@@ -223,19 +225,19 @@ export default function Me() {
           <div className="space-y-3">
             <Sparkline data={checkIns} />
             <p className="text-sm text-textSecondaryLight">
-              Your mood journey over the last {checkIns.length} check-ins
+              {t('me.moodJourneyDescription', { count: checkIns.length })}
             </p>
           </div>
         ) : (
           <div className="text-center py-8">
             <p className="text-textSecondaryLight">
-              No check-ins yet. Start tracking your mood to see your journey!
+              {t('me.noCheckInsMessage')}
             </p>
             <Link
               to="/home"
               className="inline-block mt-3 text-sm font-medium text-teal hover:text-teal/80 transition-colors"
             >
-              Check in now →
+              {t('me.checkInNow')}
             </Link>
           </div>
         )}
@@ -251,12 +253,15 @@ export default function Me() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Calendar className="w-5 h-5 text-gold" />
-            <h2 className="text-lg font-semibold text-deepSage">Recent Attendance</h2>
+            <h2 className="text-lg font-semibold text-deepSage">{t('me.recentAttendance')}</h2>
           </div>
           
-          {attendance.length > 5 && (
-            <button className="text-sm font-medium text-teal hover:text-teal/80 transition-colors">
-              View all
+          {attendanceCount > 5 && (
+            <button 
+              onClick={() => setShowAttendanceModal(true)}
+              className="text-sm font-medium text-teal hover:text-teal/80 transition-colors"
+            >
+              {t('common.viewAll')}
             </button>
           )}
         </div>
@@ -286,7 +291,7 @@ export default function Me() {
                   
                   <div className="space-y-1">
                     <div className="font-medium text-deepSage">
-                      {record.programs?.title || 'Unknown Program'}
+                      {record.programs?.title || t('me.unknownProgram')}
                     </div>
                     <div className="text-xs text-textSecondaryLight">
                       {formatDate(record.timestamp)} at {formatTime(record.timestamp)}
@@ -309,13 +314,13 @@ export default function Me() {
         ) : (
           <div className="text-center py-8">
             <p className="text-textSecondaryLight">
-              No program attendance yet. Scan QR codes to track your participation!
+              {t('me.noProgramAttendanceMessage')}
             </p>
             <Link
               to="/qr"
               className="inline-block mt-3 text-sm font-medium text-teal hover:text-teal/80 transition-colors"
             >
-              Scan QR code →
+              {t('me.scanQRCode')}
             </Link>
           </div>
         )}
@@ -331,12 +336,12 @@ export default function Me() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Heart className="w-5 h-5 text-rose-500" />
-            <h2 className="text-lg font-semibold text-deepSage">My Safety Plan</h2>
+            <h2 className="text-lg font-semibold text-deepSage">{t('me.safetyPlanTitle')}</h2>
           </div>
         </div>
         
         <p className="text-sm text-textSecondaryLight">
-          Create a personal safety plan for when you're feeling overwhelmed. Access it quickly when you need it, or share it with someone you trust.
+          {t('me.safetyPlanDescription')}
         </p>
         
         <Link
@@ -348,8 +353,8 @@ export default function Me() {
               <Heart className="w-5 h-5 text-rose-500" />
             </div>
             <div>
-              <div className="font-medium text-deepSage">View or Edit My Plan</div>
-              <div className="text-sm text-textSecondaryLight">Private and secure</div>
+              <div className="font-medium text-deepSage">{t('me.viewEditSafetyPlan')}</div>
+              <div className="text-sm text-textSecondaryLight">{t('me.privateAndSecure')}</div>
             </div>
           </div>
           <ExternalLink className="w-4 h-4 text-textSecondaryLight" />
@@ -363,7 +368,7 @@ export default function Me() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.6 }}
       >
-        <h2 className="text-lg font-semibold text-deepSage">Privacy & Transparency</h2>
+        <h2 className="text-lg font-semibold text-deepSage">{t('me.privacyAndTransparency')}</h2>
         <div className="space-y-3">
           <Link
             to="/privacy-center"
@@ -379,19 +384,6 @@ export default function Me() {
             <ExternalLink className="w-4 h-4 text-textSecondaryLight" />
           </Link>
           
-          <Link
-            to="/transparency"
-            className="flex items-center justify-between p-4 bg-surface rounded-lg border border-borderMutedLight/50 hover:bg-sage/10 transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              <Eye className="w-5 h-5 text-gold" />
-              <div>
-                <div className="font-medium text-deepSage">{t('transparency.title')}</div>
-                <div className="text-sm text-textSecondaryLight">{t('transparency.subtitle')}</div>
-              </div>
-            </div>
-            <ExternalLink className="w-4 h-4 text-textSecondaryLight" />
-          </Link>
         </div>
       </motion.div>
 
@@ -411,11 +403,16 @@ export default function Me() {
           animate={{ opacity: 1, y: 0 }}
           className="cosmic-card p-4 bg-sage/10 border-sage/20"
         >
-          <p className="text-sm text-sage text-center">
-            You're offline. Some data may not be up to date.
+          <p className="text-sm text-sageText text-center">
+            {t('me.offlineMessage')}
           </p>
         </motion.div>
       )}
+
+      <AttendanceHistoryModal
+        isOpen={showAttendanceModal}
+        onClose={() => setShowAttendanceModal(false)}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { api } from '@/lib/api';
 
 interface RequireParentSessionProps {
   children: React.ReactNode;
@@ -14,21 +15,9 @@ export default function RequireParentSession({ children }: RequireParentSessionP
   useEffect(() => {
     const checkParentSession = async () => {
       try {
-        const response = await fetch('/api/parent-auth/status', {
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.authenticated) {
-            setIsParentAuthenticated(true);
-          } else {
-            setIsParentAuthenticated(false);
-            navigate('/parent/login', { 
-              replace: true, 
-              state: { from: location.pathname } 
-            });
-          }
+        const res = await api.parent.getStatus();
+        if (!res.error && res.data?.authenticated) {
+          setIsParentAuthenticated(true);
         } else {
           setIsParentAuthenticated(false);
           navigate('/parent/login', { 

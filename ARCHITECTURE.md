@@ -1423,7 +1423,7 @@ function generateXID() {
 - **Admin Dashboard**: Audit logs, user management, breach tracking
 - **Organization Portal**: Program management, attendance reports
 - **Journal Entries**: Extended check-in reflections
-- **AI Companion (Ximi)**: Local heuristic chatbot for support
+- **AI Program Finder (Ximi)**: AI-powered program search and discovery
 
 ### API Endpoints to Implement
 ```

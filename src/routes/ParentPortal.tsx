@@ -1,88 +1,27 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Users, 
   Shield, 
   LogOut, 
   Loader, 
-  Heart, 
-  EyeOff, 
-  Calendar, 
-  MapPin,
-  TrendingUp,
   Info,
   ChevronDown,
   ChevronUp,
-  Bell,
   Phone,
-  Download,
   Trash2,
   Edit2,
   X,
   AlertTriangle,
   CheckCircle,
   Clock,
-  FileText,
   UserPlus,
-  History
+  History,
+  Bell,
+  XCircle,
+  FileText,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
-import ParentConsentManager from '@/components/ParentConsentManager';
-
-interface PrivacySettings {
-  moodVisible: boolean;
-  attendanceVisible: boolean;
-  demographicsVisible: boolean;
-  ximiChatsVisible: boolean;
-}
-
-interface MoodData {
-  recentCheckins: Array<{
-    date: string;
-    moodLevel: number;
-    moodType: string | null;
-  }>;
-  totalCheckins: number;
-  averageMood: number | null;
-  currentMood: string | null;
-  streakCount: number;
-  lastCheckinDate: string | null;
-}
-
-interface AttendanceRecord {
-  programId: string;
-  programTitle: string;
-  organizer: string | null;
-  timestamp: string;
-  method: string;
-}
-
-interface AttendanceData {
-  records: AttendanceRecord[];
-  totalAttendance: number;
-  hiddenProgramCount: number;
-}
-
-interface YouthProfile {
-  firstName: string | null;
-  preferredName: string | null;
-  age: number | null;
-  city: string | null;
-}
-
-interface YouthData {
-  youthId: string;
-  relation: string;
-  verifiedAt: string;
-  profile: YouthProfile;
-  privacySettings: PrivacySettings;
-  moodData: MoodData | null;
-  attendanceData: AttendanceData | null;
-  demographicsData: any | null;
-  hiddenCategories: string[];
-  coGuardians?: Array<{ name: string; role: string }>;
-}
 
 interface LinkedYouth {
   userId: string;
@@ -92,6 +31,49 @@ interface LinkedYouth {
   preferredName: string | null;
   firstName: string | null;
   age: number | null;
+}
+
+interface ConsentRequest {
+  id: string;
+  templateId: string;
+  youthId: string;
+  programId: string | null;
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+  templateName: string;
+  templateDescription: string | null;
+  templateType: string;
+  templateBody: string | null;
+  templateVersion: number;
+  youthName: string;
+}
+
+interface WalletItem {
+  receiptId: string;
+  requestId: string;
+  signedAt: string;
+  signature: string;
+  templateVersion: number;
+  withdrawnAt: string | null;
+  templateName: string;
+  templateDescription: string | null;
+  templateType: string;
+  youthId: string;
+  programId: string | null;
+  requestStatus: string;
+  youthName: string;
+  isActive: boolean;
+}
+
+interface AuditEvent {
+  id: string;
+  requestId: string;
+  actorId: string;
+  actorType: string;
+  action: string;
+  metadata: any;
+  occurredAt: string;
 }
 
 interface EmergencyContact {
@@ -104,62 +86,59 @@ interface EmergencyContact {
   notes?: string;
 }
 
-interface Alert {
-  type: string;
-  severity: 'info' | 'warning' | 'attention';
-  youthId: string;
-  youthName: string;
-  message: string;
-  createdAt: string;
-}
+type TabType = 'action' | 'wallet' | 'contacts' | 'data';
 
-interface ConsentHistoryItem {
-  id: string;
-  eventType: string;
-  eventData: any;
-  occurredAt: string;
-}
+const TYPE_LABELS: Record<string, string> = {
+  platform: 'Platform',
+  program: 'Program',
+  data_sharing: 'Data Sharing',
+  photo_media: 'Photo / Media',
+  field_trip: 'Field Trip',
+  medical: 'Medical',
+  custom: 'Other',
+};
 
-type TabType = 'overview' | 'consent' | 'contacts' | 'data' | 'alerts';
-
-const MOOD_LABELS: Record<string, string> = {
-  cold: 'Low Energy',
-  stormy: 'Challenging',
-  foggy: 'Uncertain',
-  clear: 'Balanced',
-  breezy: 'Positive',
-  aurora: 'Thriving'
+const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: any; label: string }> = {
+  pending: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: Clock, label: 'Pending' },
+  signed: { color: 'text-green-700', bg: 'bg-green-50 border-green-200', icon: CheckCircle, label: 'Signed' },
+  declined: { color: 'text-red-700', bg: 'bg-red-50 border-red-200', icon: XCircle, label: 'Declined' },
+  withdrawn: { color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200', icon: History, label: 'Withdrawn' },
+  expired: { color: 'text-gray-500', bg: 'bg-gray-50 border-gray-200', icon: Clock, label: 'Expired' },
 };
 
 const TABS: { id: TabType; label: string; icon: React.ComponentType<any> }[] = [
-  { id: 'overview', label: 'Overview', icon: Heart },
-  { id: 'consent', label: 'Consent', icon: Shield },
+  { id: 'action', label: 'Action Needed', icon: Bell },
+  { id: 'wallet', label: 'Consent Wallet', icon: Shield },
   { id: 'contacts', label: 'Contacts', icon: Phone },
-  { id: 'data', label: 'Data', icon: FileText },
-  { id: 'alerts', label: 'Alerts', icon: Bell },
+  { id: 'data', label: 'My Data', icon: FileText },
 ];
 
 export default function ParentPortal() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [linkedYouth, setLinkedYouth] = useState<LinkedYouth[]>([]);
-  const [selectedYouth, setSelectedYouth] = useState<string | null>(null);
-  const [youthData, setYouthData] = useState<YouthData | null>(null);
-  const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    mood: true,
-    attendance: true,
-    privacy: true
-  });
+  const [activeTab, setActiveTab] = useState<TabType>('action');
 
-  const [privacySummary, setPrivacySummary] = useState<any>(null);
-  const [consentHistory, setConsentHistory] = useState<ConsentHistoryItem[]>([]);
-  const [loadingConsent, setLoadingConsent] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<ConsentRequest[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const [wallet, setWallet] = useState<WalletItem[]>([]);
+  const [loadingWallet, setLoadingWallet] = useState(false);
+
+  const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
+  const [signingId, setSigningId] = useState<string | null>(null);
+  const [decliningId, setDecliningId] = useState<string | null>(null);
+  const [declineReason, setDeclineReason] = useState('');
+
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [withdrawReason, setWithdrawReason] = useState('');
-  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState<string | null>(null);
+
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [auditRequestId, setAuditRequestId] = useState<string | null>(null);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -168,9 +147,6 @@ export default function ParentPortal() {
   const [contactForm, setContactForm] = useState({ name: '', phone: '', relationship: '', email: '', isPrimary: false, notes: '' });
   const [savingContact, setSavingContact] = useState(false);
   const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
-
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loadingAlerts, setLoadingAlerts] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
@@ -181,36 +157,26 @@ export default function ParentPortal() {
   }, []);
 
   useEffect(() => {
-    if (selectedYouth) {
-      loadYouthData(selectedYouth);
+    if (activeTab === 'action') {
+      loadPendingRequests();
+    } else if (activeTab === 'wallet') {
+      loadWallet();
+    } else if (activeTab === 'contacts' && linkedYouth.length > 0) {
+      loadEmergencyContacts(linkedYouth[0].userId);
     }
-  }, [selectedYouth]);
-
-  useEffect(() => {
-    if (selectedYouth && activeTab === 'consent') {
-      loadConsentData(selectedYouth);
-    } else if (selectedYouth && activeTab === 'contacts') {
-      loadEmergencyContacts(selectedYouth);
-    } else if (activeTab === 'alerts') {
-      loadAlerts();
-    }
-  }, [selectedYouth, activeTab]);
+  }, [activeTab]);
 
   const loadParentStatus = async () => {
     try {
       setLoading(true);
       const { data } = await api.parentAuth.getStatus();
-
       if (data?.linkedYouth) {
         setLinkedYouth(data.linkedYouth);
-        if (data.linkedYouth.length > 0) {
-          setSelectedYouth(data.linkedYouth[0].userId);
-        }
       }
+      loadPendingRequests();
     } catch (err: any) {
       console.error('Failed to load parent status:', err);
-      setError(err.message || 'Failed to load youth information');
-      
+      setError(err.message || 'Failed to load information');
       if (err.message?.includes('401') || err.message?.includes('authentication')) {
         navigate('/parent/login');
       }
@@ -219,43 +185,32 @@ export default function ParentPortal() {
     }
   };
 
-  const loadYouthData = async (youthId: string) => {
+  const loadPendingRequests = async () => {
     try {
-      setLoadingData(true);
-      const { data, error: apiError } = await api.parentPortal.getYouthData(youthId);
-
-      if (apiError) {
-        throw new Error(apiError);
-      }
-
-      if (data) {
-        setYouthData(data);
+      setLoadingPending(true);
+      const { data } = await api.consentWallet.getRequests('pending');
+      if (data?.requests) {
+        setPendingRequests(data.requests);
+        setPendingCount(data.requests.length);
       }
     } catch (err: any) {
-      console.error('Failed to load youth data:', err);
+      console.error('Failed to load pending requests:', err);
     } finally {
-      setLoadingData(false);
+      setLoadingPending(false);
     }
   };
 
-  const loadConsentData = async (youthId: string) => {
+  const loadWallet = async () => {
     try {
-      setLoadingConsent(true);
-      const [summaryRes, historyRes] = await Promise.all([
-        api.parentPortal.getPrivacySummary(youthId),
-        api.parentPortal.getConsentHistory(youthId),
-      ]);
-
-      if (summaryRes.data) {
-        setPrivacySummary(summaryRes.data);
-      }
-      if (historyRes.data?.history) {
-        setConsentHistory(historyRes.data.history);
+      setLoadingWallet(true);
+      const { data } = await api.consentWallet.getWallet();
+      if (data?.wallet) {
+        setWallet(data.wallet);
       }
     } catch (err: any) {
-      console.error('Failed to load consent data:', err);
+      console.error('Failed to load wallet:', err);
     } finally {
-      setLoadingConsent(false);
+      setLoadingWallet(false);
     }
   };
 
@@ -263,7 +218,6 @@ export default function ParentPortal() {
     try {
       setLoadingContacts(true);
       const { data } = await api.parentPortal.getEmergencyContacts(youthId);
-
       if (data?.contacts) {
         setEmergencyContacts(data.contacts);
       }
@@ -274,18 +228,83 @@ export default function ParentPortal() {
     }
   };
 
-  const loadAlerts = async () => {
+  const loadAudit = async (requestId: string) => {
+    if (auditRequestId === requestId) {
+      setAuditRequestId(null);
+      return;
+    }
     try {
-      setLoadingAlerts(true);
-      const { data } = await api.parentPortal.getAlerts();
-
-      if (data?.alerts) {
-        setAlerts(data.alerts);
+      setLoadingAudit(true);
+      setAuditRequestId(requestId);
+      const { data } = await api.consentWallet.getAudit(requestId);
+      if (data?.events) {
+        setAuditEvents(data.events);
       }
     } catch (err: any) {
-      console.error('Failed to load alerts:', err);
+      console.error('Failed to load audit trail:', err);
     } finally {
-      setLoadingAlerts(false);
+      setLoadingAudit(false);
+    }
+  };
+
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const handleSign = async (requestId: string) => {
+    try {
+      setSigningId(requestId);
+      setActionError(null);
+      const { error } = await api.consentWallet.signRequest(requestId, 'I consent electronically');
+      if (error) {
+        setActionError(error);
+        return;
+      }
+      loadPendingRequests();
+      loadWallet();
+    } catch (err: any) {
+      console.error('Failed to sign consent:', err);
+      setActionError('Failed to sign consent. Please try again.');
+    } finally {
+      setSigningId(null);
+    }
+  };
+
+  const handleDecline = async (requestId: string) => {
+    try {
+      setDecliningId(requestId);
+      setActionError(null);
+      const { error } = await api.consentWallet.declineRequest(requestId, declineReason || undefined);
+      if (error) {
+        setActionError(error);
+        return;
+      }
+      setDeclineReason('');
+      setExpandedRequest(null);
+      loadPendingRequests();
+    } catch (err: any) {
+      console.error('Failed to decline consent:', err);
+      setActionError('Failed to decline consent. Please try again.');
+    } finally {
+      setDecliningId(null);
+    }
+  };
+
+  const handleWithdraw = async (requestId: string) => {
+    try {
+      setWithdrawingId(requestId);
+      setActionError(null);
+      const { error } = await api.consentWallet.withdrawRequest(requestId, withdrawReason || undefined);
+      if (error) {
+        setActionError(error);
+        return;
+      }
+      setWithdrawReason('');
+      setShowWithdrawModal(null);
+      loadWallet();
+    } catch (err: any) {
+      console.error('Failed to withdraw consent:', err);
+      setActionError('Failed to withdraw consent. Please try again.');
+    } finally {
+      setWithdrawingId(null);
     }
   };
 
@@ -298,50 +317,19 @@ export default function ParentPortal() {
     }
   };
 
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  const handleWithdrawConsent = async () => {
-    if (!selectedYouth) return;
-    
-    try {
-      setWithdrawing(true);
-      const { error: apiError } = await api.parentPortal.withdrawConsent(selectedYouth, withdrawReason);
-      
-      if (apiError) {
-        throw new Error(apiError);
-      }
-      
-      setShowWithdrawConfirm(false);
-      setWithdrawReason('');
-      loadConsentData(selectedYouth);
-    } catch (err: any) {
-      console.error('Failed to withdraw consent:', err);
-    } finally {
-      setWithdrawing(false);
-    }
-  };
-
   const handleSaveContact = async () => {
-    if (!selectedYouth || !contactForm.name || !contactForm.phone || !contactForm.relationship) return;
-    
+    if (!linkedYouth[0] || !contactForm.name || !contactForm.phone || !contactForm.relationship) return;
     try {
       setSavingContact(true);
-      
       if (editingContact) {
         await api.parentPortal.updateEmergencyContact(editingContact.id, contactForm);
       } else {
-        await api.parentPortal.addEmergencyContact(selectedYouth, contactForm);
+        await api.parentPortal.addEmergencyContact(linkedYouth[0].userId, contactForm);
       }
-      
       setShowContactForm(false);
       setEditingContact(null);
       setContactForm({ name: '', phone: '', relationship: '', email: '', isPrimary: false, notes: '' });
-      loadEmergencyContacts(selectedYouth);
+      loadEmergencyContacts(linkedYouth[0].userId);
     } catch (err: any) {
       console.error('Failed to save contact:', err);
     } finally {
@@ -350,33 +338,22 @@ export default function ParentPortal() {
   };
 
   const handleDeleteContact = async () => {
-    if (!deleteContactId || !selectedYouth) return;
-    
+    if (!deleteContactId || !linkedYouth[0]) return;
     try {
       await api.parentPortal.deleteEmergencyContact(deleteContactId);
       setDeleteContactId(null);
-      loadEmergencyContacts(selectedYouth);
+      loadEmergencyContacts(linkedYouth[0].userId);
     } catch (err: any) {
       console.error('Failed to delete contact:', err);
     }
   };
 
-  const handleExportData = async () => {
-    if (!selectedYouth) return;
-    await api.parentPortal.exportData(selectedYouth);
-  };
-
   const handleDeleteData = async () => {
-    if (!selectedYouth) return;
-    
+    if (!linkedYouth[0]) return;
     try {
       setDeletingData(true);
-      const { data, error: apiError } = await api.parentPortal.requestDataDeletion(selectedYouth, deleteReason);
-      
-      if (apiError) {
-        throw new Error(apiError);
-      }
-      
+      const { data, error: apiError } = await api.parentPortal.requestDataDeletion(linkedYouth[0].userId, deleteReason);
+      if (apiError) throw new Error(apiError);
       setShowDeleteConfirm(false);
       setDeleteReason('');
       alert(data?.message || 'Deletion request submitted successfully.');
@@ -385,19 +362,6 @@ export default function ParentPortal() {
     } finally {
       setDeletingData(false);
     }
-  };
-
-  const openEditContact = (contact: EmergencyContact) => {
-    setEditingContact(contact);
-    setContactForm({
-      name: contact.name,
-      phone: contact.phone,
-      relationship: contact.relationship,
-      email: contact.email || '',
-      isPrimary: contact.isPrimary || false,
-      notes: contact.notes || '',
-    });
-    setShowContactForm(true);
   };
 
   if (loading) {
@@ -416,10 +380,8 @@ export default function ParentPortal() {
           animate={{ opacity: 1, scale: 1 }}
           className="cosmic-card p-8 max-w-md text-center space-y-4"
         >
-          <Shield className="w-12 h-12 text-coral mx-auto" />
-          <h2 className="text-2xl font-display font-bold text-deepSage">
-            No Linked Youth
-          </h2>
+          <Shield className="w-12 h-12 text-coralText mx-auto" />
+          <h2 className="text-2xl font-display font-bold text-deepSage">No Linked Youth</h2>
           <p className="text-textSecondaryLight">
             {error || 'You do not have any linked youth accounts. Please accept an invitation from a youth to get started.'}
           </p>
@@ -434,13 +396,11 @@ export default function ParentPortal() {
     );
   }
 
-  const selectedYouthBasic = linkedYouth.find((y) => y.userId === selectedYouth);
-  const youthName = youthData?.profile?.preferredName || youthData?.profile?.firstName || selectedYouthBasic?.preferredName || selectedYouthBasic?.firstName || 'Youth';
-  const alertCount = alerts.length;
+  const youthNames = linkedYouth.map(y => y.preferredName || y.firstName || 'Youth').join(', ');
 
   return (
     <div className="min-h-screen bg-gradient-cosmic">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -456,13 +416,13 @@ export default function ParentPortal() {
                   Parent Portal
                 </h1>
                 <p className="text-sm text-textSecondaryLight">
-                  View your youth's shared data and manage consent
+                  Manage consent for {youthNames}
                 </p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 bg-coral/10 text-coral rounded-lg hover:bg-coral/20 transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-coral/10 text-coralText rounded-lg hover:bg-coral/20 transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span className="text-sm font-medium">Logout</span>
@@ -470,94 +430,30 @@ export default function ParentPortal() {
           </div>
         </motion.div>
 
-        {linkedYouth.length > 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="cosmic-card p-4 mb-6"
-          >
-            <div className="flex items-center space-x-2 mb-3">
-              <Users className="w-4 h-4 text-teal" />
-              <span className="text-sm font-medium text-deepSage">Select Youth</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {linkedYouth.map((youth) => (
-                <button
-                  key={youth.userId}
-                  onClick={() => setSelectedYouth(youth.userId)}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedYouth === youth.userId
-                      ? 'bg-teal text-white'
-                      : 'bg-sage/10 text-deepSage hover:bg-sage/20'
-                  }`}
-                >
-                  {youth.preferredName || youth.firstName || 'Youth'}
-                  {youth.age && ` (${youth.age})`}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {selectedYouthBasic && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="cosmic-card p-6 mb-6"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gold/10 rounded-lg">
-                <Heart className="w-6 h-6 text-gold" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-deepSage">{youthName}</h2>
-                <p className="text-sm text-textSecondaryLight">
-                  {selectedYouthBasic.relation === 'guardian' ? 'Guardian' : 'Parent'} 
-                  {selectedYouthBasic.guardianRole && ` (${selectedYouthBasic.guardianRole})`} •
-                  Linked {selectedYouthBasic.verifiedAt && new Date(selectedYouthBasic.verifiedAt).toLocaleDateString()}
-                </p>
-                {youthData?.coGuardians && youthData.coGuardians.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <Users className="w-3.5 h-3.5 text-teal/70" />
-                    <span className="text-xs text-textSecondaryLight">
-                      Co-guardians: {youthData.coGuardians.map(g => g.name).join(', ')}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
+          transition={{ delay: 0.1 }}
           className="cosmic-card p-2 mb-6"
         >
           <div className="flex flex-wrap gap-1">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
-              const showBadge = tab.id === 'alerts' && alertCount > 0;
-              
+              const showBadge = tab.id === 'action' && pendingCount > 0;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors relative ${
-                    isActive
-                      ? 'bg-teal text-white'
-                      : 'text-textSecondaryLight hover:bg-sage/10'
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-colors relative ${
+                    isActive ? 'bg-teal text-white' : 'text-textSecondaryLight hover:bg-sage/10'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="text-sm font-medium">{tab.label}</span>
                   {showBadge && (
                     <span className="absolute -top-1 -right-1 bg-coral text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                      {alertCount}
+                      {pendingCount}
                     </span>
                   )}
                 </button>
@@ -566,543 +462,418 @@ export default function ParentPortal() {
           </div>
         </motion.div>
 
-        {loadingData ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader className="w-6 h-6 animate-spin text-teal" />
-            <span className="ml-2 text-textSecondaryLight">Loading data...</span>
-          </div>
-        ) : (
-          <>
-            {activeTab === 'overview' && youthData && (
-              <>
-                {youthData.hiddenCategories.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6"
-                  >
-                    <div className="flex items-start gap-3">
-                      <EyeOff className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h3 className="font-medium text-amber-900">Some Information is Private</h3>
-                        <p className="text-sm text-amber-700 mt-1">
-                          {youthName} has chosen to keep some information private. This is their right under our privacy-first approach.
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {youthData.hiddenCategories.includes('mood') && (
-                            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                              Mood Data Hidden
-                            </span>
-                          )}
-                          {youthData.hiddenCategories.includes('attendance') && (
-                            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                              Attendance Hidden
-                            </span>
-                          )}
-                          {youthData.hiddenCategories.includes('demographics') && (
-                            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                              Demographics Hidden
-                            </span>
-                          )}
-                          {youthData.hiddenCategories.includes('ximiChats') && (
-                            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-                              AI Conversations Hidden
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {youthData.moodData && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35 }}
-                    className="cosmic-card mb-6 overflow-hidden"
-                  >
-                    <button
-                      onClick={() => toggleSection('mood')}
-                      className="w-full p-4 flex items-center justify-between text-left hover:bg-sage/5 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-pink-50 rounded-lg">
-                          <Heart className="w-5 h-5 text-pink-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-deepSage">Mood & Wellness</h3>
-                          <p className="text-sm text-textSecondaryLight">
-                            {youthData.moodData.totalCheckins} check-ins • {youthData.moodData.streakCount} day streak
-                          </p>
-                        </div>
-                      </div>
-                      {expandedSections.mood ? (
-                        <ChevronUp className="w-5 h-5 text-textSecondaryLight" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-textSecondaryLight" />
-                      )}
-                    </button>
-
-                    {expandedSections.mood && (
-                      <div className="px-4 pb-4 border-t border-sage/10">
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                          <div className="bg-sage/5 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <TrendingUp className="w-4 h-4 text-teal" />
-                              <span className="text-sm font-medium text-deepSage">Average Mood</span>
-                            </div>
-                            <p className="text-2xl font-bold text-teal">
-                              {youthData.moodData.averageMood?.toFixed(1) || '--'}/6
-                            </p>
-                          </div>
-                          <div className="bg-sage/5 rounded-lg p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Calendar className="w-4 h-4 text-teal" />
-                              <span className="text-sm font-medium text-deepSage">Current Mood</span>
-                            </div>
-                            <p className="text-lg font-semibold text-deepSage">
-                              {youthData.moodData.currentMood 
-                                ? MOOD_LABELS[youthData.moodData.currentMood] || youthData.moodData.currentMood
-                                : 'Not set'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {youthData.moodData.recentCheckins.length > 0 && (
-                          <div className="mt-4">
-                            <h4 className="text-sm font-medium text-textSecondaryLight mb-2">Recent Check-ins</h4>
-                            <div className="space-y-2">
-                              {youthData.moodData.recentCheckins.slice(0, 7).map((checkin, idx) => (
-                                <div key={idx} className="flex items-center justify-between py-2 border-b border-sage/10 last:border-0">
-                                  <span className="text-sm text-textSecondaryLight">
-                                    {new Date(checkin.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-deepSage">
-                                      {checkin.moodType ? MOOD_LABELS[checkin.moodType] || checkin.moodType : `Level ${checkin.moodLevel}`}
-                                    </span>
-                                    <div 
-                                      className="w-3 h-3 rounded-full" 
-                                      style={{ 
-                                        backgroundColor: `hsl(${(checkin.moodLevel / 6) * 120}, 70%, 50%)`
-                                      }} 
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {youthData.attendanceData && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="cosmic-card mb-6 overflow-hidden"
-                  >
-                    <button
-                      onClick={() => toggleSection('attendance')}
-                      className="w-full p-4 flex items-center justify-between text-left hover:bg-sage/5 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                          <MapPin className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-deepSage">Program Attendance</h3>
-                          <p className="text-sm text-textSecondaryLight">
-                            {youthData.attendanceData.totalAttendance} program visits
-                            {youthData.attendanceData.hiddenProgramCount > 0 && (
-                              <span className="text-amber-600"> • {youthData.attendanceData.hiddenProgramCount} hidden</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      {expandedSections.attendance ? (
-                        <ChevronUp className="w-5 h-5 text-textSecondaryLight" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-textSecondaryLight" />
-                      )}
-                    </button>
-
-                    {expandedSections.attendance && (
-                      <div className="px-4 pb-4 border-t border-sage/10">
-                        {youthData.attendanceData.records.length > 0 ? (
-                          <div className="mt-4 space-y-3">
-                            {youthData.attendanceData.records.slice(0, 10).map((record, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-2 border-b border-sage/10 last:border-0">
-                                <div>
-                                  <p className="font-medium text-deepSage">{record.programTitle || 'Unknown Program'}</p>
-                                  <p className="text-sm text-textSecondaryLight">{record.organizer || 'Unknown organizer'}</p>
-                                </div>
-                                <span className="text-sm text-textSecondaryLight">
-                                  {new Date(record.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="mt-4 text-center py-6 text-textSecondaryLight">
-                            <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p>No program attendance recorded yet</p>
-                          </div>
-                        )}
-
-                        {youthData.attendanceData.hiddenProgramCount > 0 && (
-                          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 text-amber-700 text-sm">
-                              <EyeOff className="w-4 h-4" />
-                              <span>{youthName} has hidden {youthData.attendanceData.hiddenProgramCount} program(s) from this view</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {!youthData.privacySettings.moodVisible && !youthData.privacySettings.attendanceVisible && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 }}
-                    className="cosmic-card p-6 mb-6 text-center"
-                  >
-                    <EyeOff className="w-12 h-12 text-textSecondaryLight mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-deepSage mb-2">Data is Private</h3>
-                    <p className="text-textSecondaryLight">
-                      {youthName} has chosen to keep their data private at this time.
-                      This is their right under our privacy-first approach.
-                    </p>
-                  </motion.div>
-                )}
-
-                {selectedYouth && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    <ParentConsentManager userId={selectedYouth} youthName={youthName} />
-                  </motion.div>
-                )}
-              </>
+        {activeTab === 'action' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {actionError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-red-700">{actionError}</p>
+                  </div>
+                  <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             )}
 
-            {activeTab === 'consent' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                {loadingConsent ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader className="w-6 h-6 animate-spin text-teal" />
-                    <span className="ml-2 text-textSecondaryLight">Loading consent information...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="cosmic-card p-6 mb-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Shield className="w-6 h-6 text-teal" />
-                        <h3 className="text-lg font-semibold text-deepSage">Privacy Summary</h3>
-                      </div>
-                      
-                      {privacySummary && (
-                        <>
-                          <p className="text-textSecondaryLight mb-4">{privacySummary.message}</p>
-                          
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between py-2 border-b border-sage/10">
-                              <span className="text-sm text-deepSage">Mood Data</span>
-                              <span className={`text-sm font-medium ${privacySummary.privacySettings.moodVisible ? 'text-green-600' : 'text-amber-600'}`}>
-                                {privacySummary.privacySettings.moodVisible ? 'Visible' : 'Hidden'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between py-2 border-b border-sage/10">
-                              <span className="text-sm text-deepSage">Attendance</span>
-                              <span className={`text-sm font-medium ${privacySummary.privacySettings.attendanceVisible ? 'text-green-600' : 'text-amber-600'}`}>
-                                {privacySummary.privacySettings.attendanceVisible ? 'Visible' : 'Hidden'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between py-2 border-b border-sage/10">
-                              <span className="text-sm text-deepSage">Demographics</span>
-                              <span className={`text-sm font-medium ${privacySummary.privacySettings.demographicsVisible ? 'text-green-600' : 'text-amber-600'}`}>
-                                {privacySummary.privacySettings.demographicsVisible ? 'Visible' : 'Hidden'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between py-2 border-b border-sage/10">
-                              <span className="text-sm text-deepSage">Ximi Conversations</span>
-                              <span className={`text-sm font-medium ${privacySummary.privacySettings.ximiChatsVisible ? 'text-green-600' : 'text-amber-600'}`}>
-                                {privacySummary.privacySettings.ximiChatsVisible ? 'Visible' : 'Hidden'}
-                              </span>
-                            </div>
-                            {privacySummary.privacySettings.hiddenProgramCount > 0 && (
-                              <div className="flex items-center justify-between py-2">
-                                <span className="text-sm text-deepSage">Hidden Programs</span>
-                                <span className="text-sm font-medium text-amber-600">
-                                  {privacySummary.privacySettings.hiddenProgramCount} program(s)
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="cosmic-card p-6 mb-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <History className="w-6 h-6 text-teal" />
-                        <h3 className="text-lg font-semibold text-deepSage">Consent History</h3>
-                      </div>
-                      
-                      {consentHistory.length > 0 ? (
-                        <div className="space-y-3 max-h-64 overflow-y-auto">
-                          {consentHistory.map((item) => (
-                            <div key={item.id} className="flex items-start gap-3 py-2 border-b border-sage/10 last:border-0">
-                              <div className="p-1.5 bg-sage/10 rounded">
-                                <Clock className="w-4 h-4 text-textSecondaryLight" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-deepSage">
-                                  {item.eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                </p>
-                                <p className="text-xs text-textSecondaryLight">
-                                  {new Date(item.occurredAt).toLocaleString()}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-textSecondaryLight text-center py-4">No consent history available.</p>
-                      )}
-                    </div>
-
-                    <div className="cosmic-card p-6 border-coral/20 bg-coral/5">
-                      <div className="flex items-center gap-3 mb-4">
-                        <AlertTriangle className="w-6 h-6 text-coral" />
-                        <h3 className="text-lg font-semibold text-coral">Withdraw Consent</h3>
-                      </div>
-                      
-                      <p className="text-sm text-textSecondaryLight mb-4">
-                        Withdrawing consent will restrict {youthName}'s access to certain features. Their data will remain safe, and you can re-grant consent at any time.
+            {loadingPending ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader className="w-6 h-6 animate-spin text-teal" />
+              </div>
+            ) : pendingRequests.length > 0 ? (
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-2">
+                  <div className="flex items-start gap-3">
+                    <Bell className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-amber-900">
+                        {pendingRequests.length} consent {pendingRequests.length === 1 ? 'request' : 'requests'} awaiting your review
                       </p>
-                      
-                      <button
-                        onClick={() => setShowWithdrawConfirm(true)}
-                        className="px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral/90 transition-colors"
-                      >
-                        Withdraw Consent
-                      </button>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Please review each request carefully. Your consent allows your youth to participate in specific activities.
+                      </p>
                     </div>
-                  </>
-                )}
-              </motion.div>
-            )}
-
-            {activeTab === 'contacts' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="cosmic-card p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <Phone className="w-6 h-6 text-teal" />
-                      <h3 className="text-lg font-semibold text-deepSage">Emergency Contacts</h3>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setEditingContact(null);
-                        setContactForm({ name: '', phone: '', relationship: '', email: '', isPrimary: false, notes: '' });
-                        setShowContactForm(true);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal/90 transition-colors"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      <span className="text-sm font-medium">Add Contact</span>
-                    </button>
                   </div>
-                  
-                  {loadingContacts ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader className="w-6 h-6 animate-spin text-teal" />
-                    </div>
-                  ) : emergencyContacts.length > 0 ? (
-                    <div className="space-y-4">
-                      {emergencyContacts.map((contact) => (
-                        <div key={contact.id} className="flex items-center justify-between p-4 bg-sage/5 rounded-lg">
+                </div>
+
+                {pendingRequests.map((req) => {
+                  const isExpanded = expandedRequest === req.id;
+                  const isExpiring = req.expiresAt && new Date(req.expiresAt).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+
+                  return (
+                    <div key={req.id} className="cosmic-card overflow-hidden">
+                      <div className="p-5">
+                        <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-deepSage">{contact.name}</p>
-                              {contact.isPrimary && (
-                                <span className="text-xs bg-teal/10 text-teal px-2 py-0.5 rounded-full">Primary</span>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-teal/10 text-teal">
+                                {TYPE_LABELS[req.templateType] || req.templateType}
+                              </span>
+                              {isExpiring && (
+                                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                  Expiring soon
+                                </span>
                               )}
                             </div>
-                            <p className="text-sm text-textSecondaryLight">{contact.relationship}</p>
-                            <p className="text-sm text-teal">{contact.phone}</p>
-                            {contact.email && <p className="text-sm text-textSecondaryLight">{contact.email}</p>}
+                            <h3 className="text-lg font-semibold text-deepSage">{req.templateName}</h3>
+                            <p className="text-sm text-textSecondaryLight mt-1">
+                              For: {req.youthName}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => openEditContact(contact)}
-                              className="p-2 text-textSecondaryLight hover:text-teal transition-colors"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteContactId(contact.id)}
-                              className="p-2 text-textSecondaryLight hover:text-coral transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setExpandedRequest(isExpanded ? null : req.id)}
+                            className="p-2 text-textSecondaryLight hover:text-deepSage transition-colors"
+                            aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
+                          >
+                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-textSecondaryLight">
-                      <Phone className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>No emergency contacts added yet.</p>
-                      <p className="text-sm mt-1">Add contacts who can be reached in case of emergency.</p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
 
-            {activeTab === 'data' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                        {req.templateDescription && (
+                          <p className="text-sm text-textSecondaryLight mb-3">{req.templateDescription}</p>
+                        )}
+
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              {req.templateBody && (
+                                <div className="bg-sage/5 rounded-lg p-4 mb-4 text-sm text-deepSage whitespace-pre-wrap">
+                                  {req.templateBody}
+                                </div>
+                              )}
+                              <div className="text-xs text-textSecondaryLight space-y-1 mb-4">
+                                <p>Version: {req.templateVersion}</p>
+                                <p>Requested: {new Date(req.createdAt).toLocaleDateString()}</p>
+                                {req.expiresAt && (
+                                  <p>Expires: {new Date(req.expiresAt).toLocaleDateString()}</p>
+                                )}
+                              </div>
+
+                              <div className="mb-4">
+                                <label className="block text-sm font-medium text-deepSage mb-1">
+                                  Reason for declining (optional)
+                                </label>
+                                <textarea
+                                  value={declineReason}
+                                  onChange={(e) => setDeclineReason(e.target.value)}
+                                  placeholder="Optional reason..."
+                                  className="w-full p-2 border border-sage/30 rounded-lg text-sm resize-none"
+                                  rows={2}
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        <div className="flex gap-3 mt-2">
+                          <button
+                            onClick={() => handleSign(req.id)}
+                            disabled={signingId === req.id}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-teal text-white rounded-lg hover:bg-teal/90 transition-colors disabled:opacity-50 font-medium"
+                          >
+                            {signingId === req.id ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                            <span>Give Consent</span>
+                          </button>
+                          <button
+                            onClick={() => handleDecline(req.id)}
+                            disabled={decliningId === req.id}
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-sage/10 text-deepSage rounded-lg hover:bg-sage/20 transition-colors disabled:opacity-50"
+                          >
+                            {decliningId === req.id ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <XCircle className="w-4 h-4" />
+                            )}
+                            <span>Decline</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="cosmic-card p-12 text-center">
+                <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500 opacity-50" />
+                <p className="font-medium text-deepSage">All caught up!</p>
+                <p className="text-sm text-textSecondaryLight mt-1">
+                  No consent requests need your attention right now.
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {activeTab === 'wallet' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {loadingWallet ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader className="w-6 h-6 animate-spin text-teal" />
+              </div>
+            ) : wallet.length > 0 ? (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-2">
                   <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-blue-900">PIPA/PIPEDA Compliance Notice</h4>
+                      <p className="font-medium text-blue-900">Your Consent Wallet</p>
                       <p className="text-sm text-blue-700 mt-1">
-                        Under the Personal Information Protection Act (PIPA) and PIPEDA, you have the right to access, export, and request deletion of your youth's personal data. 
-                        Export will download all data as a CSV file. Deletion requests are reviewed and processed within 30 days as required by law.
+                        All consent you've given or withdrawn. You may withdraw active consent at any time — your youth keeps app access.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="cosmic-card p-6 mb-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Download className="w-6 h-6 text-teal" />
-                    <h3 className="text-lg font-semibold text-deepSage">Export Data</h3>
-                  </div>
-                  <p className="text-sm text-textSecondaryLight mb-4">
-                    Download all of {youthName}'s data including profile, check-ins, and attendance records as a CSV file.
-                  </p>
-                  <button
-                    onClick={handleExportData}
-                    className="flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal/90 transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download Data (CSV)</span>
-                  </button>
-                </div>
+                {wallet.map((item) => {
+                  const statusCfg = STATUS_CONFIG[item.requestStatus] || STATUS_CONFIG.pending;
+                  const StatusIcon = statusCfg.icon;
 
-                <div className="cosmic-card p-6 border-coral/20 bg-coral/5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Trash2 className="w-6 h-6 text-coral" />
-                    <h3 className="text-lg font-semibold text-coral">Request Data Deletion</h3>
-                  </div>
-                  <p className="text-sm text-textSecondaryLight mb-4">
-                    Request permanent deletion of all of {youthName}'s data. This action cannot be undone. An administrator will review and process your request within 30 days.
-                  </p>
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral/90 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Request Deletion</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'alerts' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="cosmic-card p-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Bell className="w-6 h-6 text-teal" />
-                    <h3 className="text-lg font-semibold text-deepSage">Alerts & Notifications</h3>
-                  </div>
-                  
-                  {loadingAlerts ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader className="w-6 h-6 animate-spin text-teal" />
-                    </div>
-                  ) : alerts.length > 0 ? (
-                    <div className="space-y-4">
-                      {alerts.map((alert, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`p-4 rounded-lg border ${
-                            alert.severity === 'attention' 
-                              ? 'bg-coral/5 border-coral/20' 
-                              : alert.severity === 'warning'
-                              ? 'bg-amber-50 border-amber-200'
-                              : 'bg-blue-50 border-blue-200'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            {alert.severity === 'attention' ? (
-                              <AlertTriangle className="w-5 h-5 text-coral mt-0.5" />
-                            ) : alert.severity === 'warning' ? (
-                              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-                            ) : (
-                              <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                  return (
+                    <div key={item.receiptId} className={`cosmic-card border ${item.isActive ? 'border-green-200' : 'border-gray-200'}`}>
+                      <div className="p-5">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-teal/10 text-teal">
+                                {TYPE_LABELS[item.templateType] || item.templateType}
+                              </span>
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusCfg.bg} ${statusCfg.color}`}>
+                                <StatusIcon className="w-3 h-3 inline mr-1" />
+                                {statusCfg.label}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-deepSage">{item.templateName}</h3>
+                            <p className="text-sm text-textSecondaryLight mt-1">
+                              For: {item.youthName}
+                            </p>
+                            {item.templateDescription && (
+                              <p className="text-sm text-textSecondaryLight mt-1">{item.templateDescription}</p>
                             )}
-                            <div className="flex-1">
-                              <p className={`font-medium ${
-                                alert.severity === 'attention' 
-                                  ? 'text-coral' 
-                                  : alert.severity === 'warning'
-                                  ? 'text-amber-900'
-                                  : 'text-blue-900'
-                              }`}>
-                                {alert.message}
-                              </p>
-                              <p className="text-xs text-textSecondaryLight mt-1">
-                                {new Date(alert.createdAt).toLocaleDateString()}
-                              </p>
+                            <div className="text-xs text-textSecondaryLight mt-2 space-y-0.5">
+                              <p>Signed: {new Date(item.signedAt).toLocaleDateString()}</p>
+                              <p>Version: {item.templateVersion}</p>
+                              {item.withdrawnAt && (
+                                <p className="text-red-600">Withdrawn: {new Date(item.withdrawnAt).toLocaleDateString()}</p>
+                              )}
                             </div>
                           </div>
                         </div>
-                      ))}
+
+                        <div className="flex gap-2 mt-4">
+                          {item.isActive && (
+                            <button
+                              onClick={() => {
+                                setShowWithdrawModal(item.requestId);
+                                setWithdrawReason('');
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-coral/10 text-coralText rounded-lg hover:bg-coral/20 transition-colors"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Withdraw
+                            </button>
+                          )}
+                          <button
+                            onClick={() => loadAudit(item.requestId)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-sage/10 text-deepSage rounded-lg hover:bg-sage/20 transition-colors"
+                          >
+                            <History className="w-3.5 h-3.5" />
+                            {auditRequestId === item.requestId ? 'Hide History' : 'View History'}
+                          </button>
+                        </div>
+
+                        <AnimatePresence>
+                          {auditRequestId === item.requestId && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden mt-4"
+                            >
+                              {loadingAudit ? (
+                                <div className="flex justify-center py-4">
+                                  <Loader className="w-4 h-4 animate-spin text-teal" />
+                                </div>
+                              ) : auditEvents.length > 0 ? (
+                                <div className="border-l-2 border-sage/20 pl-4 space-y-3">
+                                  {auditEvents.map((evt) => (
+                                    <div key={evt.id} className="text-xs text-textSecondaryLight">
+                                      <p className="font-medium text-deepSage capitalize">
+                                        {evt.action.replace(/_/g, ' ')}
+                                      </p>
+                                      <p>{new Date(evt.occurredAt).toLocaleString()}</p>
+                                      <p className="capitalize">By: {evt.actorType}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-textSecondaryLight py-2">No history available.</p>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-center py-12 text-textSecondaryLight">
-                      <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500 opacity-50" />
-                      <p className="font-medium text-deepSage">All Clear!</p>
-                      <p className="text-sm mt-1">No alerts at this time. We'll notify you if anything needs your attention.</p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="cosmic-card p-12 text-center">
+                <Shield className="w-12 h-12 mx-auto mb-3 text-teal opacity-30" />
+                <p className="font-medium text-deepSage">No Consents Yet</p>
+                <p className="text-sm text-textSecondaryLight mt-1">
+                  Consents you sign will appear here in your wallet.
+                </p>
+              </div>
             )}
-          </>
+          </motion.div>
+        )}
+
+        {activeTab === 'contacts' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="cosmic-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Phone className="w-6 h-6 text-teal" />
+                  <h3 className="text-lg font-semibold text-deepSage">Emergency Contacts</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingContact(null);
+                    setContactForm({ name: '', phone: '', relationship: '', email: '', isPrimary: false, notes: '' });
+                    setShowContactForm(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-teal text-white rounded-lg hover:bg-teal/90 transition-colors"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+
+              {loadingContacts ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader className="w-6 h-6 animate-spin text-teal" />
+                </div>
+              ) : emergencyContacts.length > 0 ? (
+                <div className="space-y-3">
+                  {emergencyContacts.map((contact) => (
+                    <div key={contact.id} className="p-4 rounded-lg border border-sage/20 hover:border-teal/20 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-deepSage">{contact.name}</h4>
+                            {contact.isPrimary && (
+                              <span className="text-xs bg-teal/10 text-teal px-2 py-0.5 rounded-full">Primary</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-textSecondaryLight">{contact.relationship}</p>
+                          <p className="text-sm text-deepSage mt-1">{contact.phone}</p>
+                          {contact.email && (
+                            <p className="text-sm text-textSecondaryLight">{contact.email}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingContact(contact);
+                              setContactForm({
+                                name: contact.name,
+                                phone: contact.phone,
+                                relationship: contact.relationship,
+                                email: contact.email || '',
+                                isPrimary: contact.isPrimary || false,
+                                notes: contact.notes || '',
+                              });
+                              setShowContactForm(true);
+                            }}
+                            className="p-2 text-textSecondaryLight hover:text-teal transition-colors"
+                            aria-label="Edit contact"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteContactId(contact.id)}
+                            className="p-2 text-textSecondaryLight hover:text-coralText transition-colors"
+                            aria-label="Delete contact"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-textSecondaryLight">
+                  <Phone className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium text-deepSage">No Emergency Contacts</p>
+                  <p className="text-sm mt-1">Add trusted contacts who can be reached in an emergency.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'data' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-medium text-blue-900">Your Rights Under PIPA/PIPEDA</h4>
+                  <p className="text-sm text-blue-700 mt-1">
+                    You have the right to access, export, and request deletion of your youth's personal data.
+                    To exercise these rights, please contact Room XI directly.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="cosmic-card p-6 mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Shield className="w-6 h-6 text-teal" />
+                <h3 className="text-lg font-semibold text-deepSage">Data Requests</h3>
+              </div>
+              <p className="text-sm text-textSecondaryLight mb-4">
+                To request a data export or deletion, please contact Room XI administration. All requests are processed within 30 days in accordance with PIPA/PIPEDA regulations.
+              </p>
+              <a
+                href="mailto:info@roomxi.ca"
+                className="flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal/90 transition-colors inline-flex"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Contact Room XI</span>
+              </a>
+            </div>
+          </motion.div>
         )}
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.4 }}
           className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-4"
         >
           <div className="flex items-start gap-3">
@@ -1110,8 +881,7 @@ export default function ParentPortal() {
             <div>
               <h4 className="font-medium text-blue-900">Privacy-First Approach</h4>
               <p className="text-sm text-blue-700 mt-1">
-                Room XI Connect gives youth control over their privacy. They can choose what to share with you.
-                This helps build trust and encourages honest self-reflection.
+                Room XI Connect gives youth control over their privacy. This portal shows only consent-related information.
                 If you have concerns about your youth's wellbeing, we encourage open conversations.
               </p>
             </div>
@@ -1119,7 +889,7 @@ export default function ParentPortal() {
         </motion.div>
       </div>
 
-      {showWithdrawConfirm && (
+      {showWithdrawModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -1127,11 +897,12 @@ export default function ParentPortal() {
             className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl"
           >
             <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-coral" />
-              <h3 className="text-lg font-semibold text-deepSage">Confirm Withdrawal</h3>
+              <AlertTriangle className="w-6 h-6 text-coralText" />
+              <h3 className="text-lg font-semibold text-deepSage">Withdraw Consent</h3>
             </div>
             <p className="text-sm text-textSecondaryLight mb-4">
-              Are you sure you want to withdraw consent for {youthName}? This will restrict their access to certain features.
+              Withdrawing consent means the activity covered by this consent will no longer be authorized.
+              Your youth retains full app access.
             </p>
             <textarea
               value={withdrawReason}
@@ -1142,17 +913,17 @@ export default function ParentPortal() {
             />
             <div className="flex gap-3">
               <button
-                onClick={() => setShowWithdrawConfirm(false)}
+                onClick={() => setShowWithdrawModal(null)}
                 className="flex-1 px-4 py-2 bg-sage/10 text-deepSage rounded-lg hover:bg-sage/20 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={handleWithdrawConsent}
-                disabled={withdrawing}
+                onClick={() => handleWithdraw(showWithdrawModal)}
+                disabled={withdrawingId === showWithdrawModal}
                 className="flex-1 px-4 py-2 bg-coral text-white rounded-lg hover:bg-coral/90 transition-colors disabled:opacity-50"
               >
-                {withdrawing ? 'Processing...' : 'Withdraw'}
+                {withdrawingId === showWithdrawModal ? 'Processing...' : 'Withdraw Consent'}
               </button>
             </div>
           </motion.div>
@@ -1174,7 +945,6 @@ export default function ParentPortal() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-deepSage mb-1">Name *</label>
@@ -1203,7 +973,7 @@ export default function ParentPortal() {
                   value={contactForm.relationship}
                   onChange={(e) => setContactForm(prev => ({ ...prev, relationship: e.target.value }))}
                   className="w-full p-3 border border-sage/30 rounded-lg text-sm"
-                  placeholder="e.g., Grandmother, Uncle, Family Friend"
+                  placeholder="e.g., Grandmother, Uncle"
                 />
               </div>
               <div>
@@ -1227,7 +997,6 @@ export default function ParentPortal() {
                 <label htmlFor="isPrimary" className="text-sm text-deepSage">Primary contact</label>
               </div>
             </div>
-            
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowContactForm(false)}
@@ -1255,11 +1024,11 @@ export default function ParentPortal() {
             className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl"
           >
             <div className="flex items-center gap-3 mb-4">
-              <Trash2 className="w-6 h-6 text-coral" />
+              <Trash2 className="w-6 h-6 text-coralText" />
               <h3 className="text-lg font-semibold text-deepSage">Delete Contact</h3>
             </div>
             <p className="text-sm text-textSecondaryLight mb-4">
-              Are you sure you want to remove this emergency contact? This action cannot be undone.
+              Are you sure you want to remove this emergency contact?
             </p>
             <div className="flex gap-3">
               <button
@@ -1287,18 +1056,15 @@ export default function ParentPortal() {
             className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl"
           >
             <div className="flex items-center gap-3 mb-4">
-              <Trash2 className="w-6 h-6 text-coral" />
+              <Trash2 className="w-6 h-6 text-coralText" />
               <h3 className="text-lg font-semibold text-deepSage">Request Data Deletion</h3>
             </div>
             <div className="bg-coral/10 border border-coral/20 rounded-lg p-3 mb-4">
-              <p className="text-sm text-coral font-medium">⚠️ This action cannot be undone</p>
+              <p className="text-sm text-coralText font-medium">This action cannot be undone</p>
               <p className="text-xs text-coral/80 mt-1">
-                All of {youthName}'s data will be permanently deleted after administrator review.
+                All data will be permanently deleted after administrator review.
               </p>
             </div>
-            <p className="text-sm text-textSecondaryLight mb-4">
-              Please provide a reason for this deletion request:
-            </p>
             <textarea
               value={deleteReason}
               onChange={(e) => setDeleteReason(e.target.value)}

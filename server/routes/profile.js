@@ -20,7 +20,8 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ error: 'Profile not found' });
     }
 
-    res.json(profile);
+    const { isAdmin, ...safeProfile } = profile;
+    res.json(safeProfile);
   } catch (error) {
     logger.error({ err: error, context: 'profile-get' }, 'Get profile error');
     res.status(500).json({ error: 'Internal server error' });

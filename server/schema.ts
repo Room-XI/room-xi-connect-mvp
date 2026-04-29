@@ -17,6 +17,7 @@ import {
   serial,
   decimal,
   time,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -33,8 +34,14 @@ export const weekdayEnum = pgEnum("weekday", [
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  email: text("email").unique(),
+  passwordHash: text("password_hash"),
+  displayName: text("display_name"),
+  dateOfBirth: text("date_of_birth"),
+  pinHash: text("pin_hash"),
+  loginCode: text("login_code").unique(),
+  isMinor: boolean("is_minor").default(false),
+  guardianEmail: text("guardian_email"),
   emailVerified: boolean("email_verified").notNull().default(false),
   emailVerificationToken: text("email_verification_token"),
   emailVerificationExpires: timestamp("email_verification_expires", { withTimezone: true }),
@@ -83,6 +90,10 @@ export const programs = pgTable("programs", {
   accessibilityNotes: text("accessibility_notes"),
   nextStart: timestamp("next_start", { withTimezone: true }),
   nextEnd: timestamp("next_end", { withTimezone: true }),
+  verificationStatus: text("verification_status").default("unverified"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  staleAt: timestamp("stale_at", { withTimezone: true }),
+  sunsetAt: timestamp("sunset_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -91,6 +102,16 @@ export const savedPrograms = pgTable("saved_programs", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.programId] }),
+}));
+
+export const rsvps = pgTable("rsvps", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("interested"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   pk: primaryKey({ columns: [table.userId, table.programId] }),
 }));
@@ -370,6 +391,8 @@ export const organizations = pgTable("organizations", {
   address: jsonb("address"),
   website: text("website"),
   active: boolean("active").notNull().default(true),
+  schoolSafeMode: boolean("school_safe_mode").notNull().default(false),
+  ximiMode: text("ximi_mode").notNull().default("program_finder"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -389,6 +412,7 @@ export const orgMembers = pgTable("org_members", {
   orgIdx: index("idx_org_members_org").on(table.orgId, table.role),
 }));
 
+// TODO: Deprecated - journal_entries table is from legacy companion/journaling feature. Do not delete (migration safety), but do not add new features using this table.
 export const journalEntries = pgTable("journal_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
   youthId: uuid("youth_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -410,36 +434,9 @@ export const journalEntries = pgTable("journal_entries", {
   moodIdx: index("idx_journal_mood").on(table.mood, table.createdAt.desc()),
 }));
 
-// Youth self-reported demographics
-export const youthDemographics = pgTable("youth_demographics", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
-  // Sexual orientation/identity
-  sexualOrientation: text("sexual_orientation"),
-  sexualOrientationOther: text("sexual_orientation_other"),
-  
-  // Gender identity
-  genderIdentity: text("gender_identity"),
-  genderIdentityOther: text("gender_identity_other"),
-  pronouns: text("pronouns"),
-  pronounsOther: text("pronouns_other"),
-  
-  // Racial/ethnic identity (can select multiple)
-  racialIdentity: text("racial_identity").array().default(sql`'{}'`),
-  racialIdentityOther: text("racial_identity_other"),
-  
-  // Additional demographics
-  nationality: text("nationality"),
-  languagesSpoken: text("languages_spoken").array().default(sql`'{}'`),
-  disability: text("disability"),
-  disabilityDetails: text("disability_details"),
-  
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  userIdx: uniqueIndex("youth_demographics_user_idx").on(table.userId),
-}));
+// Youth self-reported demographics — CANONICAL definition is in schema.extras.ts (JSONB answers column).
+// This legacy column-based version is kept commented for migration reference only.
+// All code imports youthDemographics from schema.extras.ts.
 
 // Guardian's perception of youth demographics
 export const guardianPerceptions = pgTable("guardian_perceptions", {
@@ -496,17 +493,29 @@ export const referrals = pgTable("referrals", {
   summary: text("summary"),
   priority: text("priority").default("medium"),
   status: text("status").notNull().default("pending_consent"),
+  parentConsentRequired: boolean("parent_consent_required").default(false),
   sentAt: timestamp("sent_at", { withTimezone: true }),
+  receivedAt: timestamp("received_at", { withTimezone: true }),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),
   declinedAt: timestamp("declined_at", { withTimezone: true }),
   declinedReason: text("declined_reason"),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  closedReason: text("closed_reason"),
   accessExpiresAt: timestamp("access_expires_at", { withTimezone: true }),
+  referredBy: uuid("referred_by"),
+  programId: uuid("program_id").references(() => programs.id, { onDelete: "set null" }),
+  eventId: uuid("event_id").references(() => programEvents.id, { onDelete: "set null" }),
+  notes: text("notes"),
+  outcome: text("outcome"),
+  outcomeAt: timestamp("outcome_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   fromIdx: index("idx_referrals_from").on(table.fromOrgId, table.status),
   toIdx: index("idx_referrals_to").on(table.toOrgId, table.status),
   youthIdx: index("idx_referrals_youth").on(table.youthId, table.createdAt.desc()),
+  referredByIdx: index("idx_referrals_referred_by").on(table.referredBy),
+  programIdx: index("idx_referrals_program").on(table.programId),
 }));
 
 export const caseNotes = pgTable("case_notes", {
@@ -572,7 +581,7 @@ export const auditTrail = pgTable("audit_trail", {
   actionIdx: index("idx_audit_trail_action").on(table.action, table.result, table.timestamp.desc()),
 }));
 
-// Ximi AI Companion
+// Ximi AI Program Finder
 export const ximiConversations = pgTable("ximi_conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -600,7 +609,8 @@ export const privacyConsents = pgTable("privacy_consents", {
   // 5 consent toggles (all default OFF)
   locationSharing: boolean("location_sharing").default(false),
   orbSharing: boolean("orb_sharing").default(false),
-  reflectionsSharing: boolean("reflections_sharing").default(false),
+  reflectionsSharing: boolean("reflections_sharing").default(false), // TODO: Deprecated field from legacy journaling feature. Kept for migration safety.
+
   notificationsEnabled: boolean("notifications_enabled").default(false),
   researchParticipation: boolean("research_participation").default(false),
   
@@ -723,36 +733,9 @@ export const dailyQuotes = pgTable("daily_quotes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Weekly Orb Snapshots - captures mood orb state every Sunday at 08:00 America/Edmonton
-export const weeklyOrbSnapshots = pgTable("weekly_orb_snapshots", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  snapshotDate: date("snapshot_date").notNull(), // Date of the Sunday snapshot
-  weekStartDate: date("week_start_date").notNull(), // Monday of the week
-  weekEndDate: date("week_end_date").notNull(), // Sunday of the week
-  
-  // Mood ratios for the week (0.0 to 1.0)
-  coldRatio: decimal("cold_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
-  stormyRatio: decimal("stormy_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
-  foggyRatio: decimal("foggy_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
-  clearRatio: decimal("clear_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
-  breezyRatio: decimal("breezy_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
-  auroraRatio: decimal("aurora_ratio", { precision: 4, scale: 3 }).notNull().default('0.000'),
-  
-  // Dominant mood and statistics
-  dominantMood: text("dominant_mood").notNull(), // The most common mood
-  totalCheckIns: integer("total_check_ins").notNull().default(0),
-  averageMoodLevel: decimal("average_mood_level", { precision: 3, scale: 2 }), // 1.00 to 6.00
-  
-  // Visual snapshot data (JSON blob for rendering)
-  visualData: jsonb("visual_data"), // Store color values, gradients, etc.
-  
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  userDateIdx: uniqueIndex("weekly_orb_snapshots_user_date_idx").on(table.userId, table.snapshotDate),
-  userIdx: index("weekly_orb_snapshots_user_idx").on(table.userId, table.createdAt.desc()),
-  dateIdx: index("weekly_orb_snapshots_date_idx").on(table.snapshotDate.desc()),
-}));
+// T043: weeklyOrbSnapshots table dropped — orb-snapshots route + service were
+// retired in T033 (out-of-pilot scope) and the table had zero readers/writers
+// for the entire pilot. See server/migrations notes / replit.md for history.
 
 // Mood Drops - moderated mood posts for community sharing
 export const moodDrops = pgTable("mood_drops", {
@@ -828,7 +811,7 @@ export const outcomeEvents = pgTable("outcome_events", {
   // Post-program reflection (collected via Ximi follow-up)
   helpfulnessRating: integer("helpfulness_rating"), // 1-5 scale
   wouldRecommend: boolean("would_recommend"),
-  reflectionText: text("reflection_text"), // Open-ended feedback
+  reflectionText: text("reflection_text"), // TODO: Deprecated field name from legacy journaling. Kept for migration safety. This is post-program feedback text.
   moodBefore: text("mood_before"), // Mood type before program
   moodAfter: text("mood_after"), // Mood type after program
   
@@ -848,7 +831,8 @@ export const outcomeEvents = pgTable("outcome_events", {
   attendedIdx: index("idx_outcome_events_attended").on(table.attended, table.programId),
 }));
 
-// Provider integration feeds (stub for future real-time data)
+// Provider integration feeds — reserved for Phase 3 real-time provider API integration
+// This table will be populated when partner organizations connect their scheduling systems
 export const providerFeeds = pgTable("provider_feeds", {
   id: uuid("id").primaryKey().defaultRandom(),
   programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
@@ -1252,4 +1236,174 @@ export const crisisFollowups = pgTable("crisis_followups", {
 }, (table) => ({
   userScheduledIdx: index("crisis_followups_user_scheduled_idx").on(table.userId, table.scheduledFor),
   statusIdx: index("crisis_followups_status_idx").on(table.status, table.scheduledFor),
+}));
+
+// XiP Points - User totals and streaks for gamification
+export const xipPoints = pgTable("xip_points", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  totalPoints: integer("total_points").default(0).notNull(),
+  level: integer("level").default(1).notNull(),
+  currentStreak: integer("current_streak").default(0).notNull(),
+  longestStreak: integer("longest_streak").default(0).notNull(),
+  lastActivityDate: date("last_activity_date"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: uniqueIndex("xip_points_user_idx").on(table.userId),
+}));
+
+// XiP Activities - Point history log
+export const xipActivities = pgTable("xip_activities", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  activityType: text("activity_type").notNull(), // 'mood_checkin', 'program_attendance', 'profile_complete', 'streak_bonus_7', 'streak_bonus_30'
+  pointsAwarded: integer("points_awarded").notNull(),
+  metadata: jsonb("metadata"), // Additional context like program name
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("xip_activities_user_idx").on(table.userId, table.createdAt.desc()),
+  typeIdx: index("xip_activities_type_idx").on(table.activityType),
+}));
+
+// XiP Rewards - Available rewards catalog
+export const xipRewards = pgTable("xip_rewards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description"),
+  pointCost: integer("point_cost").notNull(),
+  category: text("category").notNull(), // 'digital', 'physical', 'experience'
+  imageUrl: text("image_url"),
+  quantityAvailable: integer("quantity_available"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// XiP Reward Claims - User reward claims
+export const xipRewardClaims = pgTable("xip_reward_claims", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rewardId: uuid("reward_id").notNull().references(() => xipRewards.id, { onDelete: "cascade" }),
+  status: text("status").default("pending").notNull(), // 'pending', 'fulfilled', 'cancelled'
+  claimedAt: timestamp("claimed_at", { withTimezone: true }).defaultNow().notNull(),
+  fulfilledAt: timestamp("fulfilled_at", { withTimezone: true }),
+}, (table) => ({
+  userIdx: index("xip_reward_claims_user_idx").on(table.userId, table.claimedAt.desc()),
+  statusIdx: index("xip_reward_claims_status_idx").on(table.status),
+}));
+
+// ========================================
+// Tournament + Attribution + Notifications
+// ========================================
+
+export const userAttribution = pgTable("user_attribution", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").references(() => organizations.id),
+  campaign: text("campaign"),
+  source: text("source").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgCampaignIdx: index("user_attribution_org_campaign_idx").on(table.orgId, table.campaign, table.createdAt),
+  userIdx: index("user_attribution_user_idx").on(table.userId),
+}));
+
+export const userOrgAffiliations = pgTable("user_org_affiliations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("active"),
+  role: text("role").notNull().default("participant"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userOrgIdx: uniqueIndex("user_org_affiliations_user_org_idx").on(table.userId, table.orgId),
+}));
+
+// T043: tournaments + tournament_{teams,team_members,invites,registrations,
+// games,standings} dropped. The /api/tournaments router has been 410'd via
+// PILOT_DISABLED_API_PREFIXES since T024; the only remaining writers were in
+// server/seed-demo.js (manual demo seed) and were removed alongside the tables.
+
+export const announcements = pgTable("announcements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scopeType: text("scope_type").notNull(),
+  scopeId: uuid("scope_id").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  scopeIdx: index("announcements_scope_idx").on(table.scopeType, table.scopeId, table.createdAt.desc()),
+}));
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title"),
+  payload: jsonb("payload"),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userReadIdx: index("notifications_user_read_idx").on(table.userId, table.readAt, table.createdAt.desc()),
+}));
+
+export const importJobs = pgTable("import_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  uploadedBy: uuid("uploaded_by").notNull().references(() => users.id),
+  fileName: text("file_name").notNull(),
+  status: text("status").notNull().default("pending"),
+  totalRows: integer("total_rows").default(0),
+  processedRows: integer("processed_rows").default(0),
+  successCount: integer("success_count").default(0),
+  errorCount: integer("error_count").default(0),
+  errors: jsonb("errors"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => ({
+  orgIdx: index("import_jobs_org_idx").on(table.orgId, table.createdAt.desc()),
+  statusIdx: index("import_jobs_status_idx").on(table.status),
+}));
+
+export const listingVerifications = pgTable("listing_verifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  programId: uuid("program_id").notNull().references(() => programs.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  changeRequested: text("change_requested"),
+  importJobId: uuid("import_job_id").references(() => importJobs.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+}, (table) => ({
+  orgStatusIdx: index("listing_verifications_org_status_idx").on(table.orgId, table.status),
+  programIdx: index("listing_verifications_program_idx").on(table.programId),
+}));
+
+export const featureFlags = pgTable('feature_flags', {
+  id: varchar('id').primaryKey().default(sql`gen_random_uuid()`),
+  orgId: uuid('org_id').references(() => organizations.id),
+  featureKey: varchar('feature_key', { length: 100 }).notNull(),
+  enabled: boolean('enabled').notNull().default(false),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const reportRuns = pgTable("report_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  runBy: uuid("run_by").notNull(),
+  reportType: text("report_type").notNull(),
+  parameters: jsonb("parameters"),
+  status: text("status").notNull().default("running"),
+  rowCount: integer("row_count"),
+  error: text("error"),
+  fileContent: text("file_content"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  orgCreatedIdx: index("report_runs_org_created_idx").on(table.orgId, table.createdAt.desc()),
 }));

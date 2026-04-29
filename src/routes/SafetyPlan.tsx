@@ -146,7 +146,7 @@ function ArrayEditor({
           />
           <button
             onClick={() => onRemove(index)}
-            className="p-2 text-coral hover:bg-coral/10 rounded-lg transition-colors"
+            className="p-2 text-coralText hover:bg-coral/10 rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -308,8 +308,8 @@ export default function SafetyPlan() {
     return (
       <div className="py-6 space-y-6">
         <div className="flex items-center space-x-3">
-          <div className="w-6 h-6 bg-sage/10 rounded animate-pulse" />
-          <div className="h-8 bg-sage/10 rounded w-40 animate-pulse" />
+          <div className="w-6 h-6 bg-sage/20 rounded animate-pulse" />
+          <div className="h-8 bg-sage/20 rounded w-40 animate-pulse" />
         </div>
         {[...Array(4)].map((_, i) => (
           <div key={i} className="cosmic-card p-4 animate-pulse">
@@ -435,7 +435,7 @@ export default function SafetyPlan() {
                   <span className="text-sm font-medium text-deepSage">Contact {index + 1}</span>
                   <button
                     onClick={() => handleContactRemove(index)}
-                    className="p-1 text-coral hover:bg-coral/10 rounded transition-colors"
+                    className="p-1 text-coralText hover:bg-coral/10 rounded transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -511,7 +511,7 @@ export default function SafetyPlan() {
           <div className="space-y-4">
             <button
               onClick={() => setShowCrisisSheet(true)}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-coral/10 text-coral rounded-lg hover:bg-coral/20 transition-colors font-medium"
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-coral/10 text-coralText rounded-lg hover:bg-coral/20 transition-colors font-medium"
             >
               <Phone className="w-5 h-5" />
               <span>View Crisis Support Lines</span>
@@ -525,7 +525,7 @@ export default function SafetyPlan() {
                     <span className="text-sm font-medium text-deepSage">Support {index + 1}</span>
                     <button
                       onClick={() => handleProfessionalRemove(index)}
-                      className="p-1 text-coral hover:bg-coral/10 rounded transition-colors"
+                      className="p-1 text-coralText hover:bg-coral/10 rounded transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

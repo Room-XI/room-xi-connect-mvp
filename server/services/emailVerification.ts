@@ -139,7 +139,7 @@ export async function sendVerificationEmail(userId: string, email: string): Prom
         
         <div class="info-box">
           <p><strong>Why verify your email?</strong></p>
-          <p>Verifying your email ensures you can recover your account and receive important notifications about your mental health journey.</p>
+          <p>Verifying your email ensures you can recover your account and receive important notifications about programs and activities.</p>
         </div>
         
         <center>
@@ -160,7 +160,7 @@ export async function sendVerificationEmail(userId: string, email: string): Prom
       </div>
       
       <div class="footer">
-        <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+        <p>Room XI Connect - Youth Program Access & Engagement Platform</p>
         <p>This is an automated message. Please do not reply directly to this email.</p>
         <p>For support, contact: ${process.env.GMAIL_USER}</p>
       </div>

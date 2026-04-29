@@ -1,13 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Sparkles, MapPin } from 'lucide-react';
+import { Search, X, Send, Sparkles, MapPin, ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import api, { type ProgramRecommendation } from '@/lib/api';
 import XimiConsentModal from '@/components/XimiConsentModal';
 import VoiceControls from '@/components/VoiceControls';
-import EventCard from '@/components/EventCard';
 
 interface XimiDockProps {
   onCrisis: () => void;
+}
+
+interface StructuredProgram {
+  eventId: string;
+  programId: string;
+  title: string;
+  dayOfWeek?: string;
+  startTime?: string;
+  endTime?: string;
+  venue?: string;
+  cost?: string;
+  free?: boolean;
+  isDropIn?: boolean;
+  distance?: number | null;
+  registrationUrl?: string | null;
 }
 
 interface Message {
@@ -15,18 +31,95 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  type?: 'text' | 'programs' | 'crisis' | 'redirect';
+  programs?: StructuredProgram[];
+}
+
+const SUGGESTION_CHIPS = [
+  { label: 'Art today', query: 'Art programs happening today' },
+  { label: 'Free drop-in today', query: 'Free drop-in programs today' },
+  { label: 'Sports this week', query: 'Sports and recreation programs this week' },
+  { label: 'My next game', query: 'When is my next sports or recreation session?' },
+  { label: 'Something chill', query: 'Something relaxing or low-key I can do this week' },
+];
+
+function formatTime(time: string | undefined): string {
+  if (!time) return '';
+  try {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:${minutes} ${ampm}`;
+  } catch {
+    return time;
+  }
+}
+
+function ProgramCard({ program }: { program: StructuredProgram }) {
+  return (
+    <Link to={`/program/${program.programId}`} className="block">
+      <motion.div
+        className="bg-surface border border-borderMutedLight rounded-xl p-3 hover:shadow-md transition-all space-y-2"
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="font-semibold text-deepSage text-sm leading-tight flex-1">
+            {program.title}
+          </h4>
+          {program.isDropIn && (
+            <span className="text-xs px-1.5 py-0.5 bg-teal/10 text-teal rounded-full flex-shrink-0">
+              Drop-in
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs text-textSecondaryLight">
+          {program.dayOfWeek && program.startTime && (
+            <span>
+              {program.dayOfWeek}, {formatTime(program.startTime)}
+              {program.endTime ? ` – ${formatTime(program.endTime)}` : ''}
+            </span>
+          )}
+          {program.venue && (
+            <span className="flex items-center gap-0.5">
+              <MapPin className="w-3 h-3" />
+              {program.venue}
+            </span>
+          )}
+          {program.distance != null && (
+            <span>{program.distance.toFixed(1)} km</span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className={`text-xs font-medium ${program.free ? 'text-teal' : 'text-textSecondaryLight'}`}>
+            {program.free ? 'Free' : program.cost || 'Cost varies'}
+          </span>
+
+          <div className="flex items-center gap-1 text-teal text-xs font-medium">
+            <span>View</span>
+            <ExternalLink className="w-3 h-3" />
+          </div>
+        </div>
+      </motion.div>
+    </Link>
+  );
 }
 
 export default function XimiDock({ onCrisis }: XimiDockProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hi! I'm Ximi, your AI companion. I can help you find programs, answer questions about mental health resources, or just chat. What's on your mind?",
+      text: t('explore.ximi.greeting'),
       isUser: false,
       timestamp: new Date(),
+      type: 'text',
     }
   ]);
   const [inputText, setInputText] = useState('');
@@ -34,89 +127,21 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
   const [recommendations, setRecommendations] = useState<ProgramRecommendation[]>([]);
   const [hasNewRecommendations, setHasNewRecommendations] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
-  const [prioritizeNearby, setPrioritizeNearby] = useState(false);
+  const [, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
-  // Request user location on component mount
   useEffect(() => {
-    requestUserLocation();
-  }, []);
-
-  // Load conversation history and recommendations when location is ready
-  useEffect(() => {
-    const loadConversationHistory = async () => {
-      try {
-        const { data, error } = await api.ximi.getConversations();
-        
-        if (error) {
-          console.error('[Ximi Client] Failed to load conversation history:', {
-            timestamp: new Date().toISOString(),
-            error: typeof error === 'string' ? error : error,
-            userAuthenticated: true,
-          });
-          return;
-        }
-
-        const conversations = Array.isArray(data) ? data : (data?.conversations || []);
-        if (conversations.length > 0) {
-          const historyMessages: Message[] = [];
-          
-          conversations.forEach((conv: any) => {
-            historyMessages.push({
-              id: `${conv.id}-user`,
-              text: conv.userMessage,
-              isUser: true,
-              timestamp: new Date(conv.createdAt),
-            });
-            
-            historyMessages.push({
-              id: `${conv.id}-ximi`,
-              text: conv.ximiResponse,
-              isUser: false,
-              timestamp: new Date(conv.createdAt),
-            });
-          });
-          
-          setMessages(prev => [prev[0], ...historyMessages]);
-        }
-      } catch (error) {
-        console.error('[Ximi] Exception while loading conversation history:', error);
-      }
-    };
-
-    loadConversationHistory();
-    loadRecommendations();
-  }, [userLocation, prioritizeNearby]);
-
-  const requestUserLocation = () => {
     const cachedLocation = sessionStorage.getItem('userLocation');
     if (cachedLocation) {
       const { lat, lng } = JSON.parse(cachedLocation);
       setUserLocation({ lat, lng });
       setLocationPermission('granted');
-      return;
     }
+  }, []);
 
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setUserLocation(location);
-          setLocationPermission('granted');
-          sessionStorage.setItem('userLocation', JSON.stringify(location));
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          setLocationPermission('denied');
-        }
-      );
-    }
-  };
+  useEffect(() => {
+    loadRecommendations();
+  }, [userLocation]);
 
-  // Load recommendations with optional location data
   const loadRecommendations = async () => {
     try {
       const requestData: {
@@ -126,7 +151,7 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         prioritizeNearby?: boolean;
       } = { includeTrends: true };
 
-      if (prioritizeNearby && userLocation) {
+      if (userLocation) {
         requestData.userLat = userLocation.lat;
         requestData.userLng = userLocation.lng;
         requestData.prioritizeNearby = true;
@@ -134,9 +159,7 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
 
       const { data, error } = await api.ximi.getRecommendations(requestData);
       
-      if (error) {
-        return;
-      }
+      if (error) return;
 
       if (data?.recommendations && data.recommendations.length > 0) {
         setRecommendations(data.recommendations);
@@ -151,23 +174,43 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
     setInputText(prev => prev + text);
   };
 
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || isTyping) return;
+  const parseResponseToPrograms = (_responseText: string, recData?: ProgramRecommendation[]): StructuredProgram[] => {
+    if (recData && recData.length > 0) {
+      return recData.map(rec => ({
+        eventId: rec.eventId,
+        programId: rec.programId,
+        title: rec.programTitle || rec.title,
+        dayOfWeek: rec.dayOfWeek || undefined,
+        startTime: rec.startTime || undefined,
+        endTime: rec.endTime || undefined,
+        venue: rec.locationName || undefined,
+        cost: rec.cost || undefined,
+        free: rec.free,
+        isDropIn: rec.isDropIn,
+        distance: rec.distance,
+        registrationUrl: rec.registrationUrl,
+      }));
+    }
+    return [];
+  };
+
+  const handleSendMessage = async (messageOverride?: string) => {
+    const messageText = (messageOverride || inputText).trim();
+    if (!messageText || isTyping) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputText.trim(),
+      text: messageText,
       isUser: true,
       timestamp: new Date(),
+      type: 'text',
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const messageText = inputText.trim();
-    setInputText('');
+    if (!messageOverride) setInputText('');
     setIsTyping(true);
 
     try {
-      // Call the real Ximi AI API
       const { data, error } = await api.ximi.chat({ message: messageText });
       
       if (error) {
@@ -178,13 +221,12 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
           return;
         }
         
-        console.error('[Ximi] Chat request failed:', error);
-        
         const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
+          text: "I couldn't find programs right now. Try browsing the Explore page, or rephrase your request.",
           isUser: false,
           timestamp: new Date(),
+          type: 'text',
         };
         
         setMessages(prev => [...prev, errorResponse]);
@@ -192,7 +234,6 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         return;
       }
       
-      // Clear pending message on successful send
       setPendingMessage(null);
 
       if (data.crisisDetected) {
@@ -201,24 +242,27 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
           text: data.ximiResponse,
           isUser: false,
           timestamp: new Date(data.createdAt),
+          type: 'crisis',
         };
         
         setMessages(prev => [...prev, crisisResponse]);
         setIsTyping(false);
         
-        // Trigger crisis support sheet
         setTimeout(() => {
           onCrisis();
         }, 1000);
         return;
       }
 
-      // Add AI response to messages
+      const programs = parseResponseToPrograms(data.ximiResponse, recommendations);
+
       const aiResponse: Message = {
         id: data.id.toString(),
         text: data.ximiResponse,
         isUser: false,
         timestamp: new Date(data.createdAt),
+        type: programs.length > 0 ? 'programs' : 'text',
+        programs: programs.length > 0 ? programs : undefined,
       };
       
       setMessages(prev => [...prev, aiResponse]);
@@ -229,9 +273,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
       
       const errorResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
+        text: "Something went wrong. Please try again or browse programs in Explore.",
         isUser: false,
         timestamp: new Date(),
+        type: 'text',
       };
       
       setMessages(prev => [...prev, errorResponse]);
@@ -246,6 +291,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
     }
   };
 
+  const handleChipClick = (query: string) => {
+    handleSendMessage(query);
+  };
+
   const handleConsentGranted = async () => {
     setShowConsentModal(false);
     
@@ -253,17 +302,15 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
       setIsTyping(true);
       
       try {
-        // Call the real Ximi AI API with the pending message
         const { data, error } = await api.ximi.chat({ message: pendingMessage });
         
         if (error) {
-          console.error('[Ximi] Chat request failed after consent:', error);
-          
           const errorResponse: Message = {
             id: (Date.now() + 1).toString(),
-            text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
+            text: "I couldn't process that. Please try again.",
             isUser: false,
             timestamp: new Date(),
+            type: 'text',
           };
           
           setMessages(prev => [...prev, errorResponse]);
@@ -278,25 +325,28 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
             text: data.ximiResponse,
             isUser: false,
             timestamp: new Date(data.createdAt),
+            type: 'crisis',
           };
           
           setMessages(prev => [...prev, crisisResponse]);
           setIsTyping(false);
           setPendingMessage(null);
           
-          // Trigger crisis support sheet
           setTimeout(() => {
             onCrisis();
           }, 1000);
           return;
         }
 
-        // Add AI response to messages
+        const programs = parseResponseToPrograms(data.ximiResponse, recommendations);
+
         const aiResponse: Message = {
           id: data.id.toString(),
           text: data.ximiResponse,
           isUser: false,
           timestamp: new Date(data.createdAt),
+          type: programs.length > 0 ? 'programs' : 'text',
+          programs: programs.length > 0 ? programs : undefined,
         };
         
         setMessages(prev => [...prev, aiResponse]);
@@ -308,9 +358,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         
         const errorResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: "I'm having trouble processing that right now. Please try again, or feel free to explore the app on your own!",
+          text: "Something went wrong. Please try again.",
           isUser: false,
           timestamp: new Date(),
+          type: 'text',
         };
         
         setMessages(prev => [...prev, errorResponse]);
@@ -322,14 +373,12 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
 
   return (
     <>
-      {/* Ximi Consent Modal */}
       <XimiConsentModal
         isOpen={showConsentModal}
         onClose={() => setShowConsentModal(false)}
         onConsentGranted={handleConsentGranted}
       />
 
-      {/* Floating Action Button */}
       <motion.button
         onClick={() => {
           setIsOpen(true);
@@ -343,11 +392,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 200, delay: 1 }}
-        aria-label={hasNewRecommendations ? 'Open Ximi chat - New recommendations available' : 'Open Ximi chat'}
+        aria-label={hasNewRecommendations ? t('explore.ximi.openChatNewRecs') : t('explore.ximi.openChat')}
       >
-        <MessageCircle className="w-6 h-6 text-deepSage" />
+        <Search className="w-6 h-6 text-deepSage" />
         
-        {/* Recommendation Badge */}
         {hasNewRecommendations && recommendations.length > 0 && (
           <motion.div
             initial={{ scale: 0 }}
@@ -357,34 +405,8 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
             {recommendations.length > 9 ? '9+' : recommendations.length}
           </motion.div>
         )}
-        
-        {/* Floating particles around the button */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(3)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-teal rounded-full"
-              style={{
-                top: `${20 + (i * 20)}%`,
-                left: `${20 + (i * 20)}%`,
-              }}
-              animate={{
-                y: [-5, 5, -5],
-                x: [-3, 3, -3],
-                opacity: [0.3, 0.8, 0.3],
-              }}
-              transition={{
-                duration: 3 + (i * 0.5),
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: i * 0.5,
-              }}
-            />
-          ))}
-        </div>
       </motion.button>
 
-      {/* Chat Interface */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -393,13 +415,11 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* Backdrop */}
             <div 
               className="absolute inset-0 bg-navy/20 backdrop-blur-sm"
               onClick={() => setIsOpen(false)}
             />
             
-            {/* Chat Panel */}
             <motion.div
               className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-3xl shadow-2xl border-t border-borderMutedLight max-h-[80vh] flex flex-col"
               initial={{ transform: 'translateY(100%)' }}
@@ -407,7 +427,6 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
               exit={{ transform: 'translateY(100%)' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             >
-              {/* Header */}
               <div className="border-b border-borderMutedLight">
                 <div className="flex items-center justify-between p-4">
                   <div className="flex items-center space-x-3">
@@ -415,8 +434,8 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                       <Sparkles className="w-5 h-5 text-deepSage" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-deepSage">Ximi</h3>
-                      <p className="text-xs text-textSecondaryLight">AI Companion</p>
+                      <h3 className="font-semibold text-deepSage">{t('explore.ximi.name')}</h3>
+                      <p className="text-xs text-textSecondaryLight">{t('explore.ximi.subtitle')}</p>
                     </div>
                   </div>
                   
@@ -427,58 +446,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                     <X className="w-5 h-5 text-textSecondaryLight" />
                   </button>
                 </div>
-
-                {/* Location Toggle */}
-                {locationPermission === 'granted' && userLocation && (
-                  <div className="px-4 pb-3">
-                    <label className="flex items-center justify-between cursor-pointer group">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-teal" />
-                        <span className="text-sm text-deepSage font-medium">Prioritize nearby programs</span>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          checked={prioritizeNearby}
-                          onChange={(e) => setPrioritizeNearby(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-sage/20 rounded-full peer peer-checked:bg-teal transition-colors"></div>
-                        <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-                      </div>
-                    </label>
-                    {prioritizeNearby && (
-                      <motion.p 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-xs text-textSecondaryLight mt-2 flex items-start gap-1"
-                      >
-                        <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0 text-teal" />
-                        <span>Helps show nearby programs. Location never stored.</span>
-                      </motion.p>
-                    )}
-                  </div>
-                )}
-
-                {/* Location Permission Denied */}
-                {locationPermission === 'denied' && (
-                  <div className="px-4 pb-3">
-                    <button
-                      onClick={requestUserLocation}
-                      className="text-xs text-teal hover:underline flex items-center gap-1"
-                    >
-                      <MapPin className="w-3 h-3" />
-                      Enable location for nearby programs
-                    </button>
-                  </div>
-                )}
               </div>
               
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-64 max-h-96">
-                {/* Recommendations Section */}
-                {recommendations.length > 0 && (
+                {recommendations.length > 0 && messages.length <= 1 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -488,10 +459,10 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                     <div className="flex items-center gap-2 mb-3">
                       <Sparkles className="w-5 h-5 text-purple-500" />
                       <h3 className="font-display font-semibold text-deepSage text-base">
-                        Programs Picked for You
+                        {t('explore.ximi.programsForYou')}
                       </h3>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {recommendations.slice(0, 3).map((rec, index) => (
                         <motion.div
                           key={rec.eventId}
@@ -499,27 +470,20 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1, duration: 0.3 }}
                         >
-                          <EventCard
-                            event={{
+                          <ProgramCard
+                            program={{
                               eventId: rec.eventId,
-                              eventName: rec.eventName || rec.programTitle,
-                              description: rec.description,
-                              dayOfWeek: rec.dayOfWeek || '',
-                              startTime: rec.startTime || '',
-                              endTime: rec.endTime || '',
-                              isDropIn: rec.isDropIn || false,
-                              locationName: rec.locationName,
-                              address: rec.address,
-                              distance: rec.distance ?? null,
-                              ageMin: rec.ageMin,
-                              ageMax: rec.ageMax,
-                              cost: rec.cost,
-                              costCents: rec.costCents ?? 0,
                               programId: rec.programId,
-                              programTitle: rec.programTitle,
-                              programDescription: rec.programDescription,
-                              programTags: rec.tags,
-                              organizer: rec.organizer,
+                              title: rec.programTitle || rec.title,
+                              dayOfWeek: rec.dayOfWeek || undefined,
+                              startTime: rec.startTime || undefined,
+                              endTime: rec.endTime || undefined,
+                              venue: rec.locationName || undefined,
+                              cost: rec.cost,
+                              free: rec.free,
+                              isDropIn: rec.isDropIn,
+                              distance: rec.distance,
+                              registrationUrl: rec.registrationUrl,
                             }}
                           />
                         </motion.div>
@@ -527,7 +491,7 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                     </div>
                     {recommendations.length > 3 && (
                       <p className="text-xs text-textSecondaryLight text-center italic mt-2">
-                        Showing top 3 of {recommendations.length} recommendations
+                        {t('explore.ximi.showingRecommendations', { count: recommendations.length })}
                       </p>
                     )}
                   </motion.div>
@@ -541,26 +505,32 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-2xl ${
-                        message.isUser
-                          ? 'bg-teal text-white'
-                          : 'bg-sage/10 text-deepSage'
-                      }`}
-                    >
-                      <p className="text-sm">{message.text}</p>
-                    </div>
-                    {!message.isUser && (
-                      <VoiceControls
-                        mode="playback"
-                        getTextToSpeak={() => message.text}
-                        className="flex-shrink-0 mt-1"
-                      />
+                    {message.isUser ? (
+                      <div className="max-w-xs px-4 py-2 rounded-2xl bg-teal text-white">
+                        <p className="text-sm">{message.text}</p>
+                      </div>
+                    ) : message.type === 'programs' && message.programs ? (
+                      <div className="max-w-sm space-y-2 w-full">
+                        <p className="text-sm text-deepSage px-1">{message.text}</p>
+                        {message.programs.map(prog => (
+                          <ProgramCard key={prog.eventId} program={prog} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <div className="max-w-xs px-4 py-2 rounded-2xl bg-sage/10 text-deepSage">
+                          <p className="text-sm">{message.text}</p>
+                        </div>
+                        <VoiceControls
+                          mode="playback"
+                          getTextToSpeak={() => message.text}
+                          className="flex-shrink-0 mt-1"
+                        />
+                      </div>
                     )}
                   </motion.div>
                 ))}
                 
-                {/* Typing Indicator */}
                 {isTyping && (
                   <motion.div
                     className="flex justify-start"
@@ -586,8 +556,25 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                   </motion.div>
                 )}
               </div>
+
+              {messages.length <= 1 && !isTyping && (
+                <div className="px-4 pb-2">
+                  <div className="flex flex-wrap gap-2">
+                    {SUGGESTION_CHIPS.map((chip) => (
+                      <motion.button
+                        key={chip.label}
+                        onClick={() => handleChipClick(chip.query)}
+                        className="px-3 py-1.5 text-xs font-medium bg-sage/10 text-deepSage rounded-full hover:bg-sage/20 transition-colors"
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        {chip.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              )}
               
-              {/* Input */}
               <div className="p-4 border-t border-borderMutedLight">
                 <div className="mb-3">
                   <VoiceControls
@@ -602,13 +589,13 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask me anything..."
+                    placeholder={t('explore.ximi.inputPlaceholder')}
                     className="flex-1 cosmic-input"
                     disabled={isTyping}
                   />
                   
                   <motion.button
-                    onClick={handleSendMessage}
+                    onClick={() => handleSendMessage()}
                     disabled={!inputText.trim() || isTyping}
                     className={`p-3 rounded-xl transition-all duration-200 ${
                       inputText.trim() && !isTyping
@@ -623,7 +610,7 @@ export default function XimiDock({ onCrisis }: XimiDockProps) {
                 </div>
                 
                 <p className="text-xs text-textSecondaryLight mt-2 text-center">
-                  Ximi is your AI companion in Little Sibling mode
+                  {t('explore.ximi.subtitle')}
                 </p>
               </div>
             </motion.div>

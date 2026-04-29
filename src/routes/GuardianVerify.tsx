@@ -24,8 +24,8 @@ export default function GuardianVerify() {
       return;
     }
     
-    if (pin.length < 4) {
-      setError('PIN must be at least 4 digits');
+    if (pin.length < 6) {
+      setError('PIN must be at least 6 digits');
       return;
     }
     
@@ -235,7 +235,7 @@ export default function GuardianVerify() {
               type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="4-digit PIN"
+              placeholder="6-digit PIN"
               maxLength={6}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />

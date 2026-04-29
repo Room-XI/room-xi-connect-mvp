@@ -37,6 +37,12 @@ export const youthWorkerAssignments = pgTable("youth_worker_assignments", {
   id: uuid("id").primaryKey().defaultRandom(),
   youthWorkerId: uuid("youth_worker_id").notNull().references(() => youthWorkers.id, { onDelete: "cascade" }),
   youthId: uuid("youth_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Snapshot of the worker's organization at the time the assignment was
+  // created. Pinning the org here (rather than re-deriving from
+  // youth_workers.organization_id at read time) means a worker who later
+  // moves to a different org loses access to their pre-move assignments —
+  // the cross-org tightening required by audit finding C11 / M3.
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   consentStatus: text("consent_status").notNull().default("pending"),
   consentLevel: jsonb("consent_level").notNull().default("{}"),
   requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
@@ -45,7 +51,9 @@ export const youthWorkerAssignments = pgTable("youth_worker_assignments", {
 }, (table) => ({
   workerIdx: index("youth_worker_assignments_worker_idx").on(table.youthWorkerId),
   youthIdx: index("youth_worker_assignments_youth_idx").on(table.youthId),
-  uniq: index("youth_worker_assignments_uniq").on(table.youthWorkerId, table.youthId),
+  orgIdx: index("youth_worker_assignments_org_idx").on(table.organizationId),
+  workerOrgIdx: index("youth_worker_assignments_worker_org_idx").on(table.youthWorkerId, table.organizationId),
+  uniq: index("youth_worker_assignments_uniq").on(table.youthWorkerId, table.youthId, table.organizationId),
 }));
 
 // ==================================================================

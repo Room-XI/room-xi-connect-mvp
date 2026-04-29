@@ -130,7 +130,7 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
             
             {/* Emergency Notice */}
             <div className="bg-coral/10 border border-coral/20 rounded-xl p-4">
-              <p className="text-sm font-medium text-coral">
+              <p className="text-sm font-medium text-coralText">
                 <strong>In immediate danger?</strong> Call 911 or go to your nearest emergency room.
               </p>
             </div>
@@ -146,7 +146,7 @@ export default function CrisisSheet({ open, onClose }: CrisisSheetProps) {
                 {groupedSupports.call && (
                   <div className="space-y-3">
                     <h3 className="text-lg font-semibold text-deepSage flex items-center space-x-2">
-                      <Phone className="w-5 h-5 text-coral" />
+                      <Phone className="w-5 h-5 text-coralText" />
                       <span>Call for Support</span>
                     </h3>
                     <div className="space-y-3">

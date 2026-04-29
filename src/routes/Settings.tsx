@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { 
   ArrowLeft, 
   User, 
@@ -19,10 +20,14 @@ import { useSession } from '@/lib/session';
 import { clearQueue } from '@/lib/queue';
 import NotificationSettings from '@/components/NotificationSettings';
 import GuardianConsentStatus from '@/components/GuardianConsentStatus';
+import ConsentWalletStatus from '@/components/ConsentWalletStatus';
 import YouthPrivacySettings from '@/components/YouthPrivacySettings';
 import AddGuardianForm from '@/components/AddGuardianForm';
+import ProfileProgress from '@/components/ProfileProgress';
+import AccountSecurity from '@/components/AccountSecurity';
 
 export default function Settings() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, signOut } = useSession();
   const [loading, setLoading] = useState(true);
@@ -169,8 +174,8 @@ export default function Settings() {
     return (
       <div className="py-6 space-y-6">
         <div className="flex items-center space-x-3">
-          <div className="w-6 h-6 bg-sage/10 rounded animate-pulse" />
-          <div className="h-8 bg-sage/10 rounded w-32 animate-pulse" />
+          <div className="w-6 h-6 bg-sage/20 rounded animate-pulse" />
+          <div className="h-8 bg-sage/20 rounded w-32 animate-pulse" />
         </div>
         
         {[...Array(5)].map((_, i) => (
@@ -207,7 +212,7 @@ export default function Settings() {
           <ArrowLeft className="w-6 h-6 text-textSecondaryLight" />
         </Link>
         <h1 className="text-2xl font-display font-bold text-deepSage">
-          Settings
+          {t('settings.title')}
         </h1>
       </motion.div>
 
@@ -228,14 +233,17 @@ export default function Settings() {
               {user?.email || 'User'}
             </h3>
             <p className="text-sm text-textSecondaryLight">
-              Member since {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-CA', {
+              {t('settings.memberSince', { date: new Date(user?.createdAt || Date.now()).toLocaleDateString('en-CA', {
                 month: 'long',
                 year: 'numeric'
-              })}
+              }) })}
             </p>
           </div>
         </div>
       </motion.div>
+
+      {/* Profile Completion Progress */}
+      <ProfileProgress />
 
       {/* Your Community Section */}
       {(wardName || communityName) && (
@@ -249,26 +257,26 @@ export default function Settings() {
             <div className="w-10 h-10 bg-teal/10 rounded-lg flex items-center justify-center">
               <MapPin className="w-5 h-5 text-teal" />
             </div>
-            <h3 className="font-semibold text-deepSage">Your Community</h3>
+            <h3 className="font-semibold text-deepSage">{t('settings.yourCommunity')}</h3>
           </div>
           
           <div className="pl-13 space-y-2">
             {communityName && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-textSecondaryLight">Neighbourhood</span>
+                <span className="text-sm text-textSecondaryLight">{t('settings.neighbourhood')}</span>
                 <span className="text-sm font-medium text-deepSage">{communityName}</span>
               </div>
             )}
             {wardName && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-textSecondaryLight">Ward</span>
+                <span className="text-sm text-textSecondaryLight">{t('settings.ward')}</span>
                 <span className="text-sm font-medium text-deepSage">{wardName}</span>
               </div>
             )}
           </div>
           
           <p className="text-xs text-textSecondaryLight mt-2">
-            Based on your postal code. This helps us show you nearby programs.
+            {t('settings.communityInfo')}
           </p>
         </motion.div>
       )}
@@ -276,6 +284,7 @@ export default function Settings() {
       {/* Guardian Consent Status */}
       <div className="space-y-4">
         <GuardianConsentStatus />
+        <ConsentWalletStatus />
         <AddGuardianForm />
       </div>
 
@@ -288,13 +297,16 @@ export default function Settings() {
       >
         <h3 className="font-semibold text-deepSage flex items-center gap-2">
           <Shield className="w-5 h-5 text-purple-600" />
-          Parent Visibility Settings
+          {t('settings.parentVisibility')}
         </h3>
         <p className="text-sm text-textSecondaryLight">
-          Control what your parent/guardian can see in their Parent Portal.
+          {t('settings.parentVisibilityDesc')}
         </p>
         <YouthPrivacySettings />
       </motion.div>
+
+      {/* Account Security Section */}
+      <AccountSecurity />
 
       {/* Settings Sections */}
       <div className="space-y-4">
@@ -305,7 +317,7 @@ export default function Settings() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          <h3 className="font-semibold text-deepSage">App Settings</h3>
+          <h3 className="font-semibold text-deepSage">{t('settings.appSettings')}</h3>
           
           <div className="space-y-3">
             {/* Notifications */}
@@ -315,9 +327,9 @@ export default function Settings() {
                   <Bell className="w-5 h-5 text-gold" />
                 </div>
                 <div>
-                  <p className="font-medium text-deepSage">Notifications</p>
+                  <p className="font-medium text-deepSage">{t('settings.notifications')}</p>
                   <p className="text-sm text-textSecondaryLight">
-                    Mood reminders and updates
+                    {t('settings.moodReminders')}
                   </p>
                 </div>
               </div>
@@ -336,16 +348,16 @@ export default function Settings() {
               </button>
             </div>
 
-            {/* Ximi AI Companion */}
+            {/* Ximi AI Program Finder */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-teal rounded-lg flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-medium text-deepSage">Ximi AI Companion</p>
+                  <p className="font-medium text-deepSage">{t('settings.ximiProgramFinder')}</p>
                   <p className="text-sm text-textSecondaryLight">
-                    AI wellness chat support
+                    {t('settings.ximiDescription')}
                   </p>
                 </div>
               </div>
@@ -374,9 +386,9 @@ export default function Settings() {
                   <Smartphone className="w-5 h-5 text-teal" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-deepSage">Install App</p>
+                  <p className="font-medium text-deepSage">{t('settings.installApp')}</p>
                   <p className="text-sm text-textSecondaryLight">
-                    Add to home screen
+                    {t('settings.addToHomeScreen')}
                   </p>
                 </div>
               </div>
@@ -401,23 +413,38 @@ export default function Settings() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
         >
-          <h3 className="font-semibold text-deepSage">Privacy & Security</h3>
+          <h3 className="font-semibold text-deepSage">{t('settings.privacySecurity')}</h3>
           
           <div className="space-y-3">
-            <button className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-sage/5 transition-colors">
+            <Link to="/privacy-summary" className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-sage/5 transition-colors">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-teal/10 rounded-lg flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-teal" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-deepSage">Your Privacy at a Glance</p>
+                  <p className="text-sm text-textSecondaryLight">
+                    See what data we collect and why
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-textSecondaryLight" />
+            </Link>
+
+            <Link to="/privacy-policy" className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-sage/5 transition-colors">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-sage/10 rounded-lg flex items-center justify-center">
                   <Shield className="w-5 h-5 text-sage" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-deepSage">Privacy Policy</p>
+                  <p className="font-medium text-deepSage">{t('settings.privacyPolicy')}</p>
                   <p className="text-sm text-textSecondaryLight">
-                    How we protect your data
+                    {t('settings.privacyPolicyDesc')}
                   </p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-textSecondaryLight" />
-            </button>
+            </Link>
 
             <button 
               onClick={handleExportData}
@@ -429,15 +456,15 @@ export default function Settings() {
                   {exportLoading ? (
                     <div className="w-5 h-5 border-2 border-coral border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <Download className="w-5 h-5 text-coral" />
+                    <Download className="w-5 h-5 text-coralText" />
                   )}
                 </div>
                 <div className="text-left">
                   <p className="font-medium text-deepSage">
-                    {exportLoading ? 'Exporting...' : 'Export Data'}
+                    {exportLoading ? t('settings.exporting') : t('settings.exportData')}
                   </p>
                   <p className="text-sm text-textSecondaryLight">
-                    {exportLoading ? 'Preparing your data...' : 'Download your information'}
+                    {exportLoading ? t('settings.preparingYourData') : t('settings.exportDataDesc')}
                   </p>
                 </div>
               </div>
@@ -450,12 +477,12 @@ export default function Settings() {
                 animate={{ opacity: 1, y: 0 }}
                 className="p-3 bg-coral/10 border border-coral/20 rounded-lg"
               >
-                <p className="text-sm text-coral">{exportError}</p>
+                <p className="text-sm text-coralText">{exportError}</p>
                 <button 
                   onClick={() => setExportError(null)}
                   className="text-xs text-coral/70 hover:text-coral mt-1 underline"
                 >
-                  Dismiss
+                  {t('common.close')}
                 </button>
               </motion.div>
             )}
@@ -469,7 +496,7 @@ export default function Settings() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
         >
-          <h3 className="font-semibold text-deepSage">Account</h3>
+          <h3 className="font-semibold text-deepSage">{t('settings.account')}</h3>
           
           <div className="space-y-3">
             <button
@@ -481,9 +508,9 @@ export default function Settings() {
                   <LogOut className="w-5 h-5 text-gold" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-deepSage">Sign Out</p>
+                  <p className="font-medium text-deepSage">{t('nav.signOut')}</p>
                   <p className="text-sm text-textSecondaryLight">
-                    Sign out of your account
+                    {t('common.signOut')}
                   </p>
                 </div>
               </div>
@@ -500,21 +527,21 @@ export default function Settings() {
             >
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-coral/10 rounded-lg flex items-center justify-center">
-                  <Trash2 className="w-5 h-5 text-coral" />
+                  <Trash2 className="w-5 h-5 text-coralText" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-coral">
-                    {showDeleteConfirm ? 'Confirm Delete Account' : 'Delete Account'}
+                  <p className="font-medium text-coralText">
+                    {showDeleteConfirm ? t('settings.deleteAccountConfirm') : t('settings.deleteAccount')}
                   </p>
                   <p className="text-sm text-textSecondaryLight">
                     {showDeleteConfirm 
-                      ? 'This action cannot be undone' 
-                      : 'Permanently remove your account'
+                      ? t('settings.deleteAccountWarning') 
+                      : t('settings.deleteAccountDesc')
                     }
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-coral" />
+              <ChevronRight className="w-5 h-5 text-coralText" />
             </button>
 
             {showDeleteConfirm && (
@@ -524,7 +551,7 @@ export default function Settings() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
-                Cancel
+                {t('common.cancel')}
               </motion.button>
             )}
           </div>
@@ -538,8 +565,8 @@ export default function Settings() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.6 }}
       >
-        <p>Room XI Connect v1.0.0</p>
-        <p>Made with 💚 for youth mental health</p>
+        <p>{t('settings.version', { version: '1.0.0' })}</p>
+        <p>{t('settings.madeWith')}</p>
       </motion.div>
     </div>
   );

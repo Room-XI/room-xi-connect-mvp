@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, AlertCircle } from 'lucide-react';
 import { useOrbExportSettings } from '@/hooks/useOrbExportSettings';
+import useFocusTrap from '@/hooks/useFocusTrap';
 
 interface OrbExportModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface OrbExportModalProps {
 export function OrbExportModal({ isOpen, onClose, onConfirmExport }: OrbExportModalProps) {
   const { settings, enableExport } = useOrbExportSettings();
   const [acknowledged, setAcknowledged] = useState(settings.privacyAcknowledged);
+  const focusTrapRef = useFocusTrap(isOpen);
   
   useEffect(() => {
     setAcknowledged(settings.privacyAcknowledged);
@@ -33,12 +35,12 @@ export function OrbExportModal({ isOpen, onClose, onConfirmExport }: OrbExportMo
   
   if (!settings.exportEnabled) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="orb-export-privacy-title">
+        <div ref={focusTrapRef} className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl">
           <div className="flex items-start gap-3 mb-4">
             <AlertCircle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-1" />
             <div>
-              <h3 className="text-lg font-semibold mb-2">Privacy Notice: Mood Orb Export</h3>
+              <h3 id="orb-export-privacy-title" className="text-lg font-semibold mb-2">Privacy Notice: Mood Orb Export</h3>
               <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
                 <p>Before enabling mood orb exports, please understand:</p>
                 <ul className="list-disc ml-5 space-y-1">
@@ -87,12 +89,12 @@ export function OrbExportModal({ isOpen, onClose, onConfirmExport }: OrbExportMo
   }
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="orb-export-title">
+      <div ref={focusTrapRef} className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-xl">
         <div className="flex items-start gap-3 mb-4">
           <Download className="w-6 h-6 text-teal-600 flex-shrink-0 mt-1" />
           <div>
-            <h3 className="text-lg font-semibold mb-2">Export Mood Orb</h3>
+            <h3 id="orb-export-title" className="text-lg font-semibold mb-2">Export Mood Orb</h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
               Export this week's mood orb as PNG?
             </p>

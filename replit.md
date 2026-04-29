@@ -1,74 +1,64 @@
+# Room XI Connect
+
 ## Overview
-Room XI Connect is a youth mental health and wellness application (ages 13-25) designed to empower youth by connecting them with resources and community. It provides daily mood check-ins, local program discovery, crisis support, and an AI companion named Ximi. The project emphasizes privacy-by-design, a "programs-first" approach, universal intake, and robust crisis support, currently serving over 570 youth.
+Room XI Connect is a youth-safe platform (ages 13-25) designed to engage young people with relevant programs, support their well-being through daily mood check-ins, and provide access to crisis support. The platform prioritizes privacy, a "programs-first" approach, universal intake, and robust crisis intervention capabilities. Its core purpose is to connect youth with essential services and foster a supportive community, leveraging AI for program discovery while ensuring safety and data protection.
 
 ## User Preferences
-I prefer simple language. I want iterative development. Ask before making major changes. I prefer detailed explanations. Journal feature is disabled for now.
+I prefer simple language. I want iterative development. Ask before making major changes. I prefer detailed explanations.
 
 ## System Architecture
 ### UI/UX Decisions
-The application features a youth-friendly landing page, a professional "About" page, and a "programs-first" experience. Authentication is prompted only for authenticated features. A 6-level mood scale uses HSL color gradients. A two-layer, legally compliant consent system (Alberta PIPA & HIA) with granular toggles is implemented, avoiding gamification. The mood orb uses brand design tokens with a teal-to-gold mist aesthetic and trauma-informed pastel tones. High-contrast accessibility mode is implemented.
+The application features a youth-friendly design with a "programs-first" experience, requiring authentication only for secured features. A 6-level mood scale utilizes HSL color gradients and brand design tokens. A legally compliant two-layer consent system is implemented. Accessibility features include high-contrast mode, 44x44px touch targets, visible focus states, and ARIA landmarks. Portal login pages are visually distinct.
 
 ### Technical Implementations
-The tech stack includes React 18 with TypeScript, Vite 5, React Router v6, Tailwind CSS for the frontend, and Express/Neon PostgreSQL (Drizzle ORM) for the backend. **API naming convention:** API responses use camelCase (from Drizzle ORM), while API request bodies use snake_case (validated by Zod schemas). Frontend TypeScript interfaces must use camelCase to match API responses. Key features include daily mood tracking with DST-safe streak logic, a trauma-informed AI companion (Ximi) with crisis detection, QR code attendance tracking, offline support via IndexedDB, and end-to-end encryption. Geo-spatial privacy is ensured using H3 Hex Bucketing with dual k-anonymity thresholds and Laplace noise. The 7-day canvas-based gradient mood orb features a smooth pastel aesthetic with pixel-perfect rendering, HSL color interpolation, and accessibility features.
+The platform is built with React 18, TypeScript, Vite 5, React Router v6, and Tailwind CSS for the frontend, complemented by an Express/Neon PostgreSQL backend with Drizzle ORM. It employs a multi-portal architecture for Youth, Parent, Org, Admin, and Youth Worker roles, each with isolated session management.
 
-**Multi-Portal Architecture:** The application features five separate portals, each with isolated session management:
-- **Youth Portal** (user.sid cookie) - Main app for youth users with mood tracking, programs, and AI companion
-- **Parent Portal** (`/parent/*`, parent.sid cookie) - Guardian access with consent management, emergency contacts, data export/deletion, and filtered youth data views
-- **Org Portal** (`/org/*`, user.sid cookie with org member check) - Partner organization dashboard with program CRUD, attendance tracking, outcomes analytics, staff management, and inter-org referral system
-- **Admin Portal** (`/admin/*`, admin.sid cookie) - Platform administration with organizations/users management, audit logs, and PIPA/PIPEDA compliance dashboard
-- **Youth Worker Portal** (`/youth-worker/*`, org.sid cookie with youth worker session) - Phase 2 addition enabling trusted youth workers to view consented youth data, request assignments, and provide personalized support
+**Core Features:**
+- **Daily Mood Tracking:** Includes DST-safe streak logic and SAMHSA Wellness Dimensions integration.
+- **Ximi Program Finder:** An AI-powered assistant for program search, scheduling, suggestions, and Q&A, returning structured JSON. It includes a real-time Crisis Safety System for keyword detection and privacy-preserving notifications.
+- **Consent Wallet Engine:** A canonical system for managing program consent, handling requests, receipts, and audit events.
+- **Parent Portal Scope (Pilot):** Limited to consent wallet functionality, with a strict deny-by-default/allow-list middleware for other routes to ensure data privacy.
+- **Attendance Sessions:** Staff-controlled hybrid execution (roster, scan, kiosk, walk-in) with session token rotation, dynamic youth passes, and contextual authorization.
+- **Event RSVPs + Schedule:** Allows youth to RSVP to program events, with parental consent workflows for minors and an RSVP state machine (pending_consent, confirmed, blocked, cancelled).
+- **Geo-spatial Privacy:** Uses H3 Hex Bucketing with dual k-anonymity thresholds and Laplace noise for location-based program discovery.
+- **Support Request System (flag-gated):** Enables youth to submit support requests, managed by workers via an inbox system, disabled by default for pilot v1.
+- **Closed-Loop Referral System:** Staff/operator referrals of youth to program events, with youth acceptance/decline workflows and automated outcome tracking based on attendance.
+- **Verified Supply + Import + Auto-Sunset:** Manages program listings with verification, CSV import, and automated sunsetting for stale entries.
+- **Reporting Packs + CSV Exports:** Provides org-scoped reports on key metrics with on-demand CSV exports.
+- **Production Hardening & Safety:** Includes CSRF protection, database transactions, input validation, structured logging, CSP, and audit logging.
 
-**Phase 2 Additions (Jan 2026):**
+**Authentication:** Implements a canonical pilot authentication path with strict 6-digit PINs for youth, optional email, and guardian email for minors. Parent authentication uses magic links. Legacy authentication paths are retired.
 
-**Youth Worker Portal Frontend** (Added Jan 2026):
-- `src/routes/youth-worker/Login.tsx` - Youth worker authentication with email/password
-- `src/routes/youth-worker/Dashboard.tsx` - Assigned youth list with consent status, assignment requests
-- `src/routes/youth-worker/YouthProfile.tsx` - Consent-aware youth profile view with AI mood summaries
-- `src/components/ConsentStatusBadge.tsx` - Reusable consent status indicators
-- `src/components/RequireYouthWorkerSession.tsx` - Auth wrapper for youth worker routes
-- Routes: `/youth-worker/login`, `/youth-worker/dashboard`, `/youth-worker/youth/:youthId`
-- API endpoints: `/api/youth-workers/login`, `/api/youth-workers/me`, `/api/youth-workers/my-youth`, `/api/youth-workers/youth/:youthId`, `/api/youth-workers/youth/:youthId/mood-history`
+**Pilot Architecture:** The system has undergone significant refactoring to establish a canonical pilot runtime, removing legacy code paths and enforcing strict routing and permissioning for pilot-specific functionalities. As of T041 the legacy back-office route family is fully retired — `server/routes/admin.js`, `server/routes/breach.ts`, `server/routes/org.js`, the `server/routes/org/*` subrouter directory, `server/routes/transparency.js`, and the `/api/consent-wallet` legacy alias mount have all been deleted. The single `mountPilotRoutes(app)` function now owns every `/api/*` mount; the late 410 lockdown (driven by `PILOT_DISABLED_API_PREFIXES` in `server/pilot/flags.ts`) is the sole surface that responds for `/api/admin*`, `/api/org*`, `/api/transparency`, and `/api/consent-wallet*`. Canonical guards and scope manifests define granular permissions for youth, parent, and operator roles.
 
-- **Proactive AI System** (`server/services/proactiveAI.ts`) - Intelligent intervention engine that detects mood patterns, inactivity, crisis keywords, and low engagement to deliver personalized support messages via Ximi. Features tiered cooldowns (24hr default), consent-gated delivery, and audit logging.
-- **AI Interventions Table** - Stores intervention templates with trigger types, content templates, cooldown periods, and Ximi persona integration. 4 default interventions seeded.
-- **Youth Worker Assignments** - Consent-based assignment system where youth workers request access to youth data, youth approve/deny with granular consent levels (share_mood_timeline, share_program_engagement, share_checkin_streak).
-- **API Routes** - `/api/ai/*` for intervention history and journal summaries, `/api/youth-workers/*` for assignment management and youth dashboards.
+**Consent Surfaces (post-T041):**
+- `/api/pilot/consent` — canonical pilot program-consent runtime (parent decisions: sign / decline / withdraw). Backed by `server/pilot/consent/consentEngine.ts` and tables `consent_templates`, `consent_requests`, `consent_receipts`, `consent_audit_events`, `parent_magic_links`.
+- `/api/consent` — surviving non-pilot surface in `server/routes/consent.js`: signup-time guardian-token verification (`/details`, `/submit`, `/view`, `/agree`, `/confirm`, `/guardian-status`, `/resend-guardian`) and platform legal/DSAR endpoints (`/`, `/my-consents`, `/audit-trail`, `/export-data`, `/delete-account`, `/consent-audit/export`). The legacy program-consent handlers (`/withdraw`, `/mature-minor/*`) were removed from the router and now 410 via the early consent lockdown.
+- `/api/consent-wallet` — retired alias; 410 via `PILOT_DISABLED_API_PREFIXES`.
 
-**NLP Sentiment Analysis (Added Jan 2026):**
-- **Sentiment Orchestrator** (`server/services/sentimentOrchestrator.ts`) - Hybrid multi-layer sentiment analysis:
-  - Layer 1 (Generalist): GPT-4o-mini via Replit AI integration for broad sentiment extraction
-  - Layer 3 (Guardian): Crisis keyword detection (always runs, consent-independent safety net)
-  - Confidence fusion engine combining results from all layers
-- **Database Table**: `sentiment_analyses` stores sentiment label, score (-1 to 1), emotions (primary/secondary), themes, confidence, crisis flags, model info, and raw LLM response
-- **Consent-Gated**: Analysis only runs for users with ximiConsent enabled; API access requires consent
-- **Fire-and-Forget**: Integrated into check-in creation without blocking the API response
-- **Crisis Escalation**: Auto-updates `checkins.crisisFlagged` when guardian or LLM detects crisis signals
-- **API Routes**: `GET /api/sentiment/checkins/:checkinId`, `GET /api/sentiment/recent`
+**Naming Convention Notes:**
+- Most pilot endpoints live under `/api/pilot/*` (auth, consent, etc.).
+- The Parent Portal adapter intentionally keeps the legacy `/api/parent-portal` mount path. The surface is intentionally tiny (3 GET endpoints + 1 PUT), and it is bounded by a deny-by-default `pilotDataGate` middleware that 403s any non-allow-listed path. Renaming would touch the frontend (`api.parentPortal.*`), the session cookie scope, and the parent-forbidden test fixture for negligible security gain — see the comment block at the top of `server/routes/parent-portal.js` for the full rationale.
 
-Each portal uses per-namespace CSRF tokens (/api/csrf-token, /api/parent-auth/csrf-token, /api/admin/csrf-token) cached separately in the API client.
+**Pilot Directory Layout (post-T042):** The `server/pilot/` and `src/pilot/` directories are scoped tightly to what is actually wired and running.
+- `server/pilot/` holds the canonical runtime: `flags.ts`, `routes/pilotAuth.ts`, `consent/consentEngine.ts`, the `auth/`, `permissions/`, and `validation/` service modules, plus the `README.md` source-of-truth doc. The four 7-line per-portal stubs (`routes/{public,youth,parent,operator}.ts`) were removed in T008; the `attendance/`, `listings/`, `reporting/`, and `dto/` placeholder subdirectories (nine zero-importer files between them — six `export const fooPlaceholder = true;` stubs plus three unreferenced DTO interface files) were removed in T042 because they were misleading "in progress" markers for work that never landed (or that was already implemented under existing `server/routes/*` paths). The pilot surface stays prefix-flat (one `app.use(...)` per surface) inside `mountPilotRoutes(app)`.
+- `src/pilot/` holds only the four files the canonical router actually uses: `router.tsx`, `routes/parent/Wallet.tsx`, `routes/parent/RequestDetail.tsx`, and `README.md`. T042 deleted thirteen unreferenced scaffolding files (per-portal layouts, route barrels, `lib/{api,auth,permissions}.ts` placeholders, and the never-wired pilot youth/parent login + signup pages); the legacy `src/routes/auth/Login.tsx` and `src/routes/ParentLogin.tsx` are what the router lazy-imports for those flows.
+- An operator-portal frontend is open follow-up work (no current consumer). The backend has the scaffolding (`OPERATOR_SCOPE`, `requireOperatorOrgScope`, `consent-wallet-staff`) but no client UI yet.
 
-A comprehensive admin dashboard provides real-time analytics, monitoring with role-based access control, live statistics widgets, Recharts visualizations, and an audit log viewer. A Demographics Research System allows youth to self-identify across three dimensions (sexual orientation, racial/ethnic identity, gender identity), with guardian verification separate. A Disclosure Request System allows parents to request access to youth demographics data, with youth approval/denial and audit logging. Push notifications are implemented via the Web Push API. A Capacitor Mobile Wrapper provides iOS and Android native app functionality.
+**Cross-Org Isolation:** Youth-worker assignments snapshot `organization_id` at creation time (not derived from the worker's current org). All `/youth/:youthId/*` handlers in `server/routes/youth-workers.ts` filter the assignment lookup by `(worker_id, youth_id, organization_id = session.organizationId, granted)`, so a worker who moves between orgs immediately loses access to their pre-move assignments. Regression: `server/__tests__/cross-org-isolation.test.ts`.
 
-### Feature Specifications
-The application uses a 6-level mood system and SAMHSA Wellness Dimensions. Ximi AI includes consent gating, crisis keyword detection, and a persistent "not a clinician" disclaimer. A legally compliant consent system involves basic consent and a second layer for a "Safety Profile." **Required consent types** for check-ins and core features: `terms_of_use`, `privacy_notice`, `data_collection` (stored in `consents` table). Users must grant these during onboarding before accessing mood check-ins. A breach notification system is in place for OIPC compliance. Authenticated users must complete a daily check-in before browsing programs, managed by an "Explore Gate." Ximi proactively supports users during mood declines based on statistical mood variance detection. An outcome tracking system enables youth to share program experiences and view privacy-safe peer insights, utilizing k-anonymity and differential privacy. A Real-Time Event Finder enables discovery of programs currently running in Edmonton with time-based filtering and grouped views for recurring events.
-
-A comprehensive PIPA/PIPEDA compliant two-tier parental consent system is implemented, distinguishing between Room XI consent and parent consent for third-party program sharing. It includes an email plus flow with audit trail, Web Share API integration, youth privacy settings, Mature Minor Doctrine considerations (for youth 14+), and a parent portal with filtered data views. Consent-as-a-Service allows partner organizations to request verified parental consent through Room XI's infrastructure for various scopes, reusing existing audit trails and ensuring privacy-first design.
-
-Location-Based Discovery features a "Show nearby" toggle with three radius options (1km, 2km, 5km), permission state handling, localStorage persistence for preferences, and a ProgramMap displaying radius overlays and filtered markers. Community & Ward Assignment uses Canadian postal codes to identify Edmonton neighborhoods and assign users to wards, with a pending verification status for ambiguous FSAs.
-
-The project includes comprehensive testing infrastructure: Unit Tests (Vitest), E2E Tests (Playwright) for API and browser interactions (skipped in Replit for browser tests), Privacy Smoke Tests, Route Crawl Tests, Portal Tests, Consent Enforcement Tests, and Load Tests. The Playwright config includes an `api-only` project for headless API tests (124 passing), covering guardian consent workflow, Ximi chat/crisis detection, research consent enforcement, and offline sync validation. A manual offline testing checklist is available at `docs/OFFLINE_TESTING_CHECKLIST.md`. Production logging (`debugLog`) ensures console.log statements only run in development. Server-side enforcement of privacy consent toggles (`location`, `reflections`, `research`, `orb`, `notifications`) is implemented via middleware. A centralized utility (`server/utils/publicUrl.ts`) handles URL generation for consent emails, resolving from environment variables or request headers. Session security hardening includes PostgreSQL-backed sessions, 4-hour absolute and 30-minute inactivity timeouts, session regeneration on login, bcrypt hashing with 12 rounds for passwords, account lockout after 5 failed attempts, and backend password strength validation (12+ chars, uppercase, lowercase, number, special char).
-
-An Offline Sync Indicator (`src/components/OfflineSyncIndicator.tsx`) shows users when they're offline or have pending data to sync, integrated into the main shell. A City of Edmonton GIS integration (`server/services/communityLookup.ts`) uses the Open Data API for accurate ward boundary lookup with geocoding, falling back to FSA-based mapping. The QuoteCard component displays daily affirmations on the home page via `/api/quotes/daily`. Mood-Based Recommendations in `SuggestedPrograms.tsx` show personalized program suggestions with match scores and trigger reasons, gated behind research consent (both client and server-side enforcement via `requireResearchConsent` middleware). Comprehensive security documentation is available in `SECURITY_ARCHITECTURE.md` covering all PIPA/PIPEDA compliance requirements.
-
-A global ErrorBoundary component wraps the entire app in `src/main.tsx`, catching React render errors and displaying a user-friendly recovery UI instead of blank screens. Session hydration now works correctly with httpOnly cookies by always fetching `/api/auth/user` on app load. The PWA service worker (Workbox) caches `/api/programs`, `/api/events`, `/api/crisis`, and `/api/quotes` endpoints for offline availability.
-
-A Personal Safety Plan feature (`src/routes/SafetyPlan.tsx`) allows youth to create structured crisis support plans with 7 guided sections: Warning Signs, Coping Steps, Safe Places, Trusted Contacts, Professional Support, Escalation Steps, and Notes for Others. Plans are stored as JSONB in the `safety_plans` table with version tracking. Users can share plans via secure links using SHA256-hashed tokens with configurable expiration (7-90 days). Share links support QR codes and can be revoked. All actions are logged to `safety_plan_events` for PIPA audit compliance. The public view (`src/routes/SafetyPlanShare.tsx`) shows read-only plan content with crisis resources always visible.
+**Schema Drops (post-T043):** Per audit findings C7+C14, the following deprecated database objects were dropped via `server/migrations/20260429_drop_deprecated_tables.sql`:
+- **Tables:** `weekly_orb_snapshots`, `tournaments`, `tournament_teams`, `tournament_team_members`, `tournament_invites`, `tournament_registrations`, `tournament_games`, `tournament_standings` (Drizzle definitions also removed from `server/schema.ts`). Defensive `DROP IF EXISTS` for `achievements`, `orb_snapshots`, `partner_consents` (not in dev DB but protected for legacy environments).
+- **Views:** All eight `kpi_*` views (`kpi_daily_checkin_rate`, `kpi_streak_completion`, `kpi_explore_unlock`, `kpi_optin_rates`, `kpi_staff_dashboard_use`, `kpi_referral_conversion`, `kpi_crisis_routing`, `kpi_dashboard_summary`) — created by `20251107_kpi_views.sql`, never wired to any frontend.
+- **Read-path cleanup performed alongside the drop:** the tournament-game schedule join in `server/services/programSearch.ts` (Ximi `getUserSchedule`), the tournament registrations query in `server/routes/youth-workers.ts` (`/youth/:youthId/schedule` — now returns RSVPs only with empty `tournaments: []`), and `server/utils/tournamentNotifications.ts` (zero importers, deleted). `server/seed-demo.js` lost its tournament demo block + cleanup.
+- **Deliberately excluded** (live writers found during re-audit): `sentiment_analyses` (written by `sentimentOrchestrator.ts` from `checkins.ts` on every check-in) and the four `xip_*` tables (writers in `routes/xip.ts`, gated behind `ENABLE_XIP=false` but code still present). Both families remain in schema and DB; a follow-up is appropriate when the corresponding feature surfaces are formally retired.
+- **Migration approach note:** A handcrafted forward SQL migration was used (matching the existing `server/migrations/*.sql` pattern of 15 prior files) rather than `npm run db:push --force`. The latter prompted to mass-rename critical pilot tables (`audit_log`, `youth_workers`, `ai_interventions`, `disclosure_requests`, `youth_worker_assignments`, `parent_youth_consent`) to `emergency_contacts` because of pre-existing drift between the handcrafted-migration baseline and the Drizzle schema. The 410 lockdowns in `PILOT_DISABLED_API_PREFIXES` for `/api/tournaments`, `/api/achievements`, `/api/kpi`, `/api/orb-snapshots` were intentionally retained — even with the tables gone, the registry documents the retired surfaces and the lockdown still serves any stray requests.
 
 ## External Dependencies
-- **Neon PostgreSQL:** Primary database backend.
-- **Replit AI (OpenAI-compatible API):** Powers the Ximi AI companion (gpt-4o-mini).
-- **Luxon:** JavaScript library for date and time handling.
-- **Zeffy:** Donation platform.
-- **Nodemailer:** Used for sending guardian verification emails via Gmail SMTP.
-- **h3-js:** H3 hexagon geo-spatial indexing library.
-- **html2canvas:** DOM-to-image library for mood orb PNG export.
+- **Neon PostgreSQL:** Primary database.
+- **Replit AI (OpenAI-compatible API):** Powers the Ximi AI Program Finder (gpt-4o-mini).
+- **Luxon:** Date and time handling.
+- **Nodemailer:** For sending guardian verification emails.
+- **h3-js:** Geo-spatial indexing.
+- **html2canvas:** For exporting mood orb data as images.
+- **qrcode.react:** For QR code generation.

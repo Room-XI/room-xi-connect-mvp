@@ -12,7 +12,15 @@ import {
   X,
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  UserCheck,
+  Building2,
+  TrendingUp,
+  Activity,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -29,6 +37,28 @@ interface SavedProgram {
   id: string;
   title: string;
   organizer: string;
+}
+
+interface WorkerRequest {
+  id: string;
+  consentStatus: 'pending' | 'granted' | 'denied' | 'revoked';
+  consentLevel: {
+    share_mood_timeline?: boolean;
+    share_program_engagement?: boolean;
+    share_checkin_streak?: boolean;
+  };
+  requestedAt: string;
+  respondedAt: string | null;
+  workerFirstName: string | null;
+  workerLastName: string | null;
+  organizationName: string;
+}
+
+interface WorkerRequests {
+  pending: WorkerRequest[];
+  granted: WorkerRequest[];
+  denied: WorkerRequest[];
+  revoked: WorkerRequest[];
 }
 
 const PRIVACY_TOGGLES = [
@@ -65,7 +95,7 @@ const PRIVACY_TOGGLES = [
   {
     key: 'parentCanSeeXimiChats',
     title: 'Ximi Conversations',
-    description: 'Allow your parent/guardian to see your conversations with Ximi (AI companion)',
+    description: 'Allow your parent/guardian to see your conversations with Ximi (AI Program Finder)',
     icon: MessageSquare,
     color: 'text-teal-600',
     bgColor: 'bg-teal-50',
@@ -73,6 +103,33 @@ const PRIVACY_TOGGLES = [
     sensitive: true
   }
 ] as const;
+
+const WORKER_CONSENT_TOGGLES = [
+  {
+    key: 'share_mood_timeline',
+    title: 'Mood Timeline',
+    description: 'Allow them to see your daily mood check-ins and trends',
+    icon: TrendingUp,
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-50',
+  },
+  {
+    key: 'share_program_engagement',
+    title: 'Program Attendance',
+    description: 'Allow them to see which programs you attend',
+    icon: Calendar,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+  },
+  {
+    key: 'share_checkin_streak',
+    title: 'Check-in Streak',
+    description: 'Allow them to see your check-in streak and consistency',
+    icon: Activity,
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+  },
+];
 
 export default function YouthPrivacySettings() {
   const [settings, setSettings] = useState<PrivacySettings>({
@@ -84,9 +141,16 @@ export default function YouthPrivacySettings() {
     lastReviewedAt: null
   });
   const [savedPrograms, setSavedPrograms] = useState<SavedProgram[]>([]);
+  const [workerRequests, setWorkerRequests] = useState<WorkerRequests>({
+    pending: [],
+    granted: [],
+    denied: [],
+    revoked: [],
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [showProgramList, setShowProgramList] = useState(false);
+  const [showWorkerSection, setShowWorkerSection] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasGuardianConsent, setHasGuardianConsent] = useState(false);
 
@@ -99,10 +163,11 @@ export default function YouthPrivacySettings() {
       setLoading(true);
       setError(null);
 
-      const [privacyRes, programsRes, guardianRes] = await Promise.all([
+      const [privacyRes, programsRes, guardianRes, workerRes] = await Promise.all([
         api.privacy.getYouthSettings(),
         api.programs.getSaved(),
-        api.consent.guardianStatus()
+        api.consent.guardianStatus(),
+        api.privacy.getWorkerRequests()
       ]);
 
       if (privacyRes.data) {
@@ -114,11 +179,69 @@ export default function YouthPrivacySettings() {
       if (guardianRes.data) {
         setHasGuardianConsent(guardianRes.data.status === 'verified');
       }
+      if (workerRes.data) {
+        setWorkerRequests(workerRes.data);
+      }
     } catch (err) {
       console.error('Error loading privacy settings:', err);
       setError('Failed to load your privacy settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleWorkerResponse = async (requestId: string, action: 'grant' | 'deny' | 'revoke', consentLevel?: WorkerRequest['consentLevel']) => {
+    setSaving(`worker-${requestId}`);
+    setError(null);
+
+    try {
+      const defaultConsent = {
+        share_mood_timeline: true,
+        share_program_engagement: true,
+        share_checkin_streak: true,
+      };
+
+      const { error: apiError } = await api.privacy.respondToWorkerRequest(
+        requestId,
+        action,
+        action === 'grant' ? (consentLevel || defaultConsent) : undefined
+      );
+
+      if (apiError) {
+        throw new Error(apiError);
+      }
+
+      await loadSettings();
+    } catch (err) {
+      console.error('Error responding to worker request:', err);
+      setError('Failed to update worker access. Please try again.');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleWorkerConsentToggle = async (requestId: string, key: string, currentLevel: WorkerRequest['consentLevel']) => {
+    setSaving(`worker-toggle-${requestId}-${key}`);
+    setError(null);
+
+    try {
+      const newLevel = {
+        ...currentLevel,
+        [key]: !currentLevel[key as keyof typeof currentLevel],
+      };
+
+      const { error: apiError } = await api.privacy.updateWorkerConsentLevel(requestId, newLevel);
+
+      if (apiError) {
+        throw new Error(apiError);
+      }
+
+      await loadSettings();
+    } catch (err) {
+      console.error('Error updating worker consent:', err);
+      setError('Failed to update permission. Please try again.');
+    } finally {
+      setSaving(null);
     }
   };
 
@@ -288,6 +411,191 @@ export default function YouthPrivacySettings() {
             </motion.div>
           );
         })}
+      </div>
+
+      {/* Youth Worker Access Section */}
+      <div className="space-y-3">
+        <button
+          onClick={() => setShowWorkerSection(!showWorkerSection)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-teal" />
+            <h4 className="text-sm font-medium text-gray-700 uppercase tracking-wide">
+              Youth Worker Access
+            </h4>
+            {(workerRequests.pending.length > 0 || workerRequests.granted.length > 0) && (
+              <span className="text-xs bg-teal/10 text-teal px-2 py-0.5 rounded-full">
+                {workerRequests.pending.length + workerRequests.granted.length}
+              </span>
+            )}
+          </div>
+          {showWorkerSection ? (
+            <ChevronUp className="w-4 h-4 text-gray-500" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-500" />
+          )}
+        </button>
+
+        {showWorkerSection && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="space-y-4"
+          >
+            <p className="text-sm text-gray-600">
+              Youth workers from partner organizations can request access to support you better.
+              You control exactly what they can see. Their organization sees only anonymized summaries.
+            </p>
+
+            {/* Pending Requests */}
+            {workerRequests.pending.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-700">Pending Requests</span>
+                </div>
+                {workerRequests.pending.map(request => (
+                  <motion.div
+                    key={request.id}
+                    className="bg-amber-50 border border-amber-200 rounded-xl p-4"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                          <Building2 className="w-5 h-5 text-amber-700" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {request.workerFirstName} {request.workerLastName}
+                          </p>
+                          <p className="text-sm text-gray-600">{request.organizationName}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleWorkerResponse(request.id, 'grant')}
+                        disabled={saving === `worker-${request.id}`}
+                        className="flex-1 py-2 px-4 bg-teal text-white rounded-lg font-medium hover:bg-teal/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {saving === `worker-${request.id}` ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Grant Access
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleWorkerResponse(request.id, 'deny')}
+                        disabled={saving === `worker-${request.id}`}
+                        className="py-2 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Granted Access */}
+            {workerRequests.granted.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-teal" />
+                  <span className="text-sm font-medium text-teal">Active Access</span>
+                </div>
+                {workerRequests.granted.map(request => (
+                  <motion.div
+                    key={request.id}
+                    className="bg-white border border-teal/20 rounded-xl p-4"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-teal/10 rounded-lg">
+                          <Building2 className="w-5 h-5 text-teal" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {request.workerFirstName} {request.workerLastName}
+                          </p>
+                          <p className="text-sm text-gray-600">{request.organizationName}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleWorkerResponse(request.id, 'revoke')}
+                        disabled={saving?.startsWith(`worker-${request.id}`)}
+                        className="text-sm text-coralText hover:text-coral/80 font-medium"
+                      >
+                        Revoke
+                      </button>
+                    </div>
+
+                    {/* Consent Level Toggles */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">What they can see:</p>
+                      {WORKER_CONSENT_TOGGLES.map(toggle => {
+                        const Icon = toggle.icon;
+                        const isEnabled = request.consentLevel?.[toggle.key as keyof typeof request.consentLevel] !== false;
+                        const isSaving = saving === `worker-toggle-${request.id}-${toggle.key}`;
+
+                        return (
+                          <button
+                            key={toggle.key}
+                            onClick={() => handleWorkerConsentToggle(request.id, toggle.key, request.consentLevel)}
+                            disabled={isSaving}
+                            className={`w-full p-3 flex items-center gap-3 rounded-lg border transition-colors ${
+                              isEnabled ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
+                            }`}
+                          >
+                            <div className={`p-1.5 rounded ${toggle.bgColor}`}>
+                              <Icon className={`w-4 h-4 ${toggle.color}`} />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="text-sm font-medium text-gray-900">{toggle.title}</p>
+                            </div>
+                            {isSaving ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                            ) : isEnabled ? (
+                              <Eye className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <EyeOff className="w-4 h-4 text-gray-400" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {workerRequests.pending.length === 0 && workerRequests.granted.length === 0 && (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                No youth workers have requested access yet.
+              </div>
+            )}
+
+            {/* Organization Note */}
+            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-gray-600">
+                  <strong>About Organizations:</strong> When you grant a youth worker access,
+                  their organization only sees anonymous, aggregated summaries (like "5 youth attended this week")
+                  – never your individual data. Your privacy is protected.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {savedPrograms.length > 0 && (

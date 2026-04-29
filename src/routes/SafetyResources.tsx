@@ -186,6 +186,15 @@ export default function SafetyResources() {
             </ul>
           </div>
 
+          <div className="bg-white rounded-2xl p-4 text-center">
+            <Link
+              to="/crisis-policy"
+              className="text-sm text-rose-600 hover:text-rose-800 underline"
+            >
+              How does Room XI Connect's crisis detection work?
+            </Link>
+          </div>
+
           <div className="text-center py-4">
             <Link 
               to="/home" 

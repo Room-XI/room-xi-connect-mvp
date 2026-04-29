@@ -119,27 +119,25 @@ test.describe('Explore Gate API Tests', () => {
   });
 });
 
-test.describe('Admin Portal API Tests', () => {
-  test('GET /api/admin/stats requires authentication', async ({ request }) => {
+// T041: Legacy /api/admin route family was deleted along with server/routes/admin.js.
+// /api/admin/* is now served by the late 410 lockdown via PILOT_DISABLED_API_PREFIXES.
+// Pin one assertion so the contract is enforced from the e2e layer too.
+test.describe('Retired Admin Portal API (T041)', () => {
+  test('GET /api/admin/stats returns 410 LEGACY_API_RETIRED', async ({ request }) => {
     const response = await request.get(`${API_BASE}/admin/stats`);
-    expect([401, 403]).toContain(response.status());
+    expect(response.status()).toBe(410);
+    const body = await response.json();
+    expect(body.code).toBe('LEGACY_API_RETIRED');
   });
 
-  test('POST /api/admin/login with invalid credentials returns 401', async ({ request }) => {
-    const csrfResponse = await request.get(`${API_BASE}/auth/csrf-token`);
-    const { csrfToken } = await csrfResponse.json();
-
+  test('POST /api/admin/login returns 410 LEGACY_API_RETIRED', async ({ request }) => {
     const response = await request.post(`${API_BASE}/admin/login`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': csrfToken,
-      },
-      data: {
-        username: 'wronguser',
-        password: 'wrongpassword',
-      },
+      headers: { 'Content-Type': 'application/json' },
+      data: { username: 'wronguser', password: 'wrongpassword' },
     });
-    expect([400, 401]).toContain(response.status());
+    expect(response.status()).toBe(410);
+    const body = await response.json();
+    expect(body.code).toBe('LEGACY_API_RETIRED');
   });
 });
 

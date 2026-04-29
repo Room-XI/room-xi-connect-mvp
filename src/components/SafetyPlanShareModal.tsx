@@ -221,7 +221,7 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
               </h2>
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-sage/10 transition-colors"
+                className="p-2 rounded-lg hover:bg-sage/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Close"
               >
                 <X className="w-5 h-5 text-textSecondaryLight" />
@@ -279,7 +279,7 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
                   )}
 
                   {qrError ? (
-                    <div className="flex items-center justify-center space-x-2 text-sm text-coral bg-coral/10 p-4 rounded-lg">
+                    <div className="flex items-center justify-center space-x-2 text-sm text-coralText bg-coral/10 p-4 rounded-lg">
                       <AlertCircle className="w-4 h-4" />
                       <span>QR code could not be generated. Please share the link above.</span>
                     </div>
@@ -387,7 +387,7 @@ export default function SafetyPlanShareModal({ open, onClose }: SafetyPlanShareM
                           <button
                             onClick={() => handleRevoke(share.id)}
                             disabled={revokingId === share.id}
-                            className="p-2 text-coral hover:bg-coral/10 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-coralText hover:bg-coral/10 rounded-lg transition-colors disabled:opacity-50"
                             aria-label="Revoke share link"
                           >
                             {revokingId === share.id ? (

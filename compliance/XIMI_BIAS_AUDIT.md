@@ -1,4 +1,4 @@
-# Ximi AI Companion - Bias Audit & Remediation
+# Ximi AI Program Finder - Bias Audit & Remediation
 
 **Audit Date:** [To be completed quarterly]  
 **Auditor:** [Name]  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document outlines the bias audit process for Ximi, Room XI Connect's AI companion. Ximi uses Replit AI (OpenAI-compatible API) to generate conversational support for youth aged 13-25. This audit evaluates Ximi for demographic bias, tone consistency, and adherence to trauma-informed principles.
+This document outlines the bias audit process for Ximi, Room XI Connect's AI Program Finder. Ximi uses Replit AI (OpenAI-compatible API) to help youth aged 13-25 discover programs and activities. This audit evaluates Ximi for demographic bias, tone consistency, and adherence to trauma-informed principles.
 
 ---
 

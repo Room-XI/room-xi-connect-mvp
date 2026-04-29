@@ -1,5 +1,5 @@
 # Privacy Impact Assessment (PIA) Submission
-## Room XI Connect - Youth Mental Health & Wellness Platform
+## Room XI Connect - Youth Program Access & Engagement Platform
 
 **Submission Date:** [To be completed]  
 **Submitted To:** Office of the Information and Privacy Commissioner (OIPC) of Alberta  
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-Room XI Connect is a trauma-informed, privacy-first youth mental health platform (ages 13-25) providing daily mood tracking, program discovery, and AI companion support. This PIA addresses data handling practices, consent mechanisms, and privacy safeguards implemented in compliance with Alberta's Personal Information Protection Act (PIPA) and Health Information Act (HIA).
+Room XI Connect is a trauma-informed, privacy-first youth-safe platform (ages 13-25) providing daily mood tracking, program discovery, and AI-powered program search. This PIA addresses data handling practices, consent mechanisms, and privacy safeguards implemented in compliance with Alberta's Personal Information Protection Act (PIPA) and Health Information Act (HIA).
 
 ---
 
@@ -20,7 +20,7 @@ Room XI Connect is a trauma-informed, privacy-first youth mental health platform
 Room XI Connect helps youth (ages 13-25) feel seen, build capacity, and find community through:
 - Daily mood check-ins with 6-level weather metaphor system
 - Program discovery with map view
-- Ximi AI companion (opt-in only)
+- Ximi AI Program Finder (opt-in only)
 - QR attendance tracking
 - Encrypted living journal
 
@@ -162,7 +162,7 @@ All data stored in Canada using Neon PostgreSQL (AWS Canada region)
 - **Data Shared:** All user data (encrypted at rest)
 
 ### Replit AI (OpenAI-compatible)
-- **Purpose:** Ximi AI companion responses
+- **Purpose:** Ximi AI Program Finder responses
 - **Data Residency:** [To be verified]
 - **Data Shared:** Mood context, user messages (if opted in)
 - **Retention:** Not stored by third party
@@ -196,7 +196,7 @@ All data stored in Canada using Neon PostgreSQL (AWS Canada region)
 
 ---
 
-## 8. Ximi AI Companion - Specific Assessment
+## 8. Ximi AI Program Finder - Specific Assessment
 
 ### AI Use & Limitations
 - **Purpose:** Peer-like support and resource recommendations

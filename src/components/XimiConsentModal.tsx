@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Shield, Eye, Brain } from 'lucide-react';
+import { X, Sparkles, Shield, Eye, Search } from 'lucide-react';
 import api from '@/lib/api';
+import useFocusTrap from '@/hooks/useFocusTrap';
 
 interface XimiConsentModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface XimiConsentModalProps {
 export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: XimiConsentModalProps) {
   const [isAccepting, setIsAccepting] = useState(false);
   const [acknowledgedCrossBorder, setAcknowledgedCrossBorder] = useState(false);
+  const focusTrapRef = useFocusTrap(isOpen);
 
   const handleAccept = async () => {
     try {
@@ -59,11 +61,15 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
             exit={{ opacity: 0 }}
           >
             <motion.div
+              ref={focusTrapRef}
               className="bg-cream rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ximi-consent-title"
             >
               {/* Header */}
               <div className="sticky top-0 bg-gradient-to-br from-purple-500 to-teal p-6 text-cream">
@@ -73,13 +79,14 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                       <Sparkles className="w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold">Meet Ximi</h2>
-                      <p className="text-sm text-cream/80">Your AI Wellness Companion</p>
+                      <h2 id="ximi-consent-title" className="text-2xl font-bold">Meet Ximi</h2>
+                      <p className="text-sm text-cream/80">Your AI Program Finder</p>
                     </div>
                   </div>
                   <button
                     onClick={handleDecline}
-                    className="p-2 hover:bg-cream/10 rounded-full transition-colors"
+                    className="p-2 hover:bg-cream/10 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Close"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -92,9 +99,9 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                 <div>
                   <h3 className="font-semibold text-deepSage mb-3">What is Ximi?</h3>
                   <p className="text-sm text-textSecondaryLight leading-relaxed">
-                    Ximi is your personal AI companion designed to support your mental wellness journey. 
-                    Ximi can chat with you about your feelings, provide supportive responses, and help you 
-                    reflect on your mood and wellness.
+                    Ximi is an AI-powered Program Finder that helps you discover local programs, 
+                    look up schedules, and find activities that match your interests. Ximi is not 
+                    a therapist or counselor and does not provide journaling or mental health advice.
                   </p>
                 </div>
 
@@ -104,13 +111,13 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                   
                   <div className="flex items-start space-x-3">
                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Brain className="w-5 h-5 text-purple-600" />
+                      <Search className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-deepSage">AI-Powered Conversations</p>
+                      <p className="font-medium text-deepSage">AI-Powered Program Search</p>
                       <p className="text-sm text-textSecondaryLight">
-                        Ximi uses artificial intelligence to understand and respond to your messages in a supportive, 
-                        trauma-informed way.
+                        Ximi uses artificial intelligence to search programs, check schedules, 
+                        and suggest activities based on your interests.
                       </p>
                     </div>
                   </div>
@@ -148,15 +155,15 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                   <ul className="text-sm text-textSecondaryLight space-y-2">
                     <li className="flex items-start">
                       <span className="text-gold mr-2">•</span>
-                      <span>Ximi is an AI and not a replacement for professional mental health support</span>
+                      <span>Ximi is an AI Program Finder, not a therapist or counselor</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-gold mr-2">•</span>
-                      <span>Your conversations are saved to help Ximi provide better support over time</span>
+                      <span>Ximi does not provide journaling, therapy, or mental health advice</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-gold mr-2">•</span>
-                      <span>Ximi uses OpenAI's technology to generate responses</span>
+                      <span>Ximi uses OpenAI's technology to process your program searches</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-gold mr-2">•</span>
@@ -169,7 +176,7 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                 <div className="bg-teal/5 rounded-lg p-4 border border-teal/10">
                   <h3 className="font-semibold text-deepSage mb-3">Where Your Data Goes</h3>
                   <p className="text-sm text-textSecondaryLight leading-relaxed mb-4">
-                    Your conversations with Ximi are processed using AI technology operated by OpenAI, with servers located in the United States. When you chat with Ximi, your conversation data is transferred to and processed in the United States.
+                    Your conversations with Ximi are processed using AI technology operated by OpenAI, with servers located in the United States. When you use Ximi, your conversation data is transferred to and processed in the United States.
                   </p>
                   <label className="flex items-start space-x-3 cursor-pointer">
                     <input
@@ -190,8 +197,8 @@ export default function XimiConsentModal({ isOpen, onClose, onConsentGranted }: 
                     By enabling Ximi, you consent to:
                   </p>
                   <ul className="text-sm text-textSecondaryLight space-y-1 mt-2 ml-4">
-                    <li>• AI-generated conversations based on your messages</li>
-                    <li>• Storage of conversation history for personalization</li>
+                    <li>• AI-powered program search based on your messages</li>
+                    <li>• Storage of conversation history to improve recommendations</li>
                     <li>• Processing of messages through OpenAI's API</li>
                     <li>• Automated crisis keyword detection for your safety</li>
                   </ul>

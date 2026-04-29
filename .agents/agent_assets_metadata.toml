@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Q3CnWAWjXTE4tZcT7Pe50"
+uri = "file://room-xi-connect-source.tar.gz"
+type = "unspecified"
+title = "Room XI Connect — Pilot v1 Source (12MB)"
+
+[[outputs]]
+id = "LBkUA4bXm3BpUutIF7V55"
+uri = "file://room-xi-connect-extras.zip"
+type = "unspecified"
+title = "Room XI Connect — Extras (build output, attached assets, test artifacts) — 71MB"

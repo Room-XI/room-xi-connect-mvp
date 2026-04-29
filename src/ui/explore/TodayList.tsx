@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, AlertCircle, RefreshCcw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import api from '@/lib/api';
 import EventCard from '@/components/EventCard';
-import FilterBar from './FilterBar';
+import FilterBar, { Filters } from './FilterBar';
 
 interface Event {
   eventId: string;
@@ -27,22 +28,17 @@ interface Event {
   organizer: string | null;
 }
 
-interface Filters {
-  tags: string[];
-  free: boolean;
-  timeOfDay?: string[];
-  dropIn?: boolean;
-  maxDistance?: number | null;
-}
 
 interface TodayListProps {
   userLocation: { lat: number; lng: number } | null;
   locationPermission: 'granted' | 'denied' | 'prompt';
   locationEnabled: boolean;
   radiusKm?: number;
+  quickFilters?: Set<string>;
 }
 
-export default function TodayList({ userLocation, locationPermission, locationEnabled, radiusKm = 2 }: TodayListProps) {
+export default function TodayList({ userLocation, locationPermission, locationEnabled, radiusKm = 2, quickFilters }: TodayListProps) {
+  const { t } = useTranslation();
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +46,7 @@ export default function TodayList({ userLocation, locationPermission, locationEn
   const [currentTime, setCurrentTime] = useState(new Date());
   const [filters, setFilters] = useState<Filters>({
     tags: [],
+    categories: [],
     free: false,
     timeOfDay: [],
     dropIn: false,
@@ -70,7 +67,7 @@ export default function TodayList({ userLocation, locationPermission, locationEn
 
   useEffect(() => {
     applyFilters();
-  }, [events, filters, userLocation, locationEnabled, radiusKm]);
+  }, [events, filters, userLocation, locationEnabled, radiusKm, quickFilters]);
 
   const parseTimeToHour = (timeString: string): number => {
     const [hours] = timeString.split(':').map(Number);
@@ -87,15 +84,19 @@ export default function TodayList({ userLocation, locationPermission, locationEn
   const applyFilters = () => {
     let filtered = [...events];
 
-    if (filters.tags.length > 0) {
-      filtered = filtered.filter(event =>
-        filters.tags.some(tag => event.programTags?.includes(tag))
+    if (quickFilters?.has('free') || filters.free) {
+      filtered = filtered.filter(event => 
+        event.costCents === 0 || event.cost === 'Free'
       );
     }
 
-    if (filters.free) {
-      filtered = filtered.filter(event => 
-        event.costCents === 0 || event.cost === 'Free'
+    if (quickFilters?.has('dropIn') || filters.dropIn) {
+      filtered = filtered.filter(event => event.isDropIn === true);
+    }
+
+    if (filters.tags.length > 0) {
+      filtered = filtered.filter(event =>
+        filters.tags.some(tag => event.programTags?.includes(tag))
       );
     }
 
@@ -104,10 +105,6 @@ export default function TodayList({ userLocation, locationPermission, locationEn
         const eventTimeOfDay = categorizeTimeOfDay(event.startTime);
         return filters.timeOfDay!.includes(eventTimeOfDay);
       });
-    }
-
-    if (filters.dropIn) {
-      filtered = filtered.filter(event => event.isDropIn === true);
     }
 
     if (locationEnabled && userLocation) {
@@ -190,9 +187,9 @@ export default function TodayList({ userLocation, locationPermission, locationEn
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <AlertCircle className="w-12 h-12 mx-auto mb-4 text-coral" />
+        <AlertCircle className="w-12 h-12 mx-auto mb-4 text-coralText" />
         <h3 className="text-lg font-semibold text-deepSage mb-2">
-          Unable to load events
+          {t('explore.today.unableToLoad')}
         </h3>
         <p className="text-sm text-textSecondaryLight mb-4">{error}</p>
         <button
@@ -200,7 +197,7 @@ export default function TodayList({ userLocation, locationPermission, locationEn
           className="cosmic-button-secondary inline-flex items-center gap-2"
         >
           <RefreshCcw className="w-4 h-4" />
-          Try Again
+          {t('common.tryAgain')}
         </button>
       </motion.div>
     );
@@ -235,10 +232,10 @@ export default function TodayList({ userLocation, locationPermission, locationEn
             <Clock className="w-8 h-8 text-teal" />
           </div>
           <h3 className="text-lg font-semibold text-deepSage mb-2">
-            No programs scheduled today
+            {t('explore.today.noProgramsToday')}
           </h3>
           <p className="text-sm text-textSecondaryLight">
-            Check the Programs tab to browse all upcoming events, or try again tomorrow.
+            {t('explore.today.noProgramsDescription')}
           </p>
         </motion.div>
       ) : filteredEvents.length === 0 ? (
@@ -251,24 +248,24 @@ export default function TodayList({ userLocation, locationPermission, locationEn
             <Clock className="w-8 h-8 text-teal" />
           </div>
           <h3 className="text-lg font-semibold text-deepSage mb-2">
-            No events match your filters
+            {t('explore.today.noMatchingEvents')}
           </h3>
           <p className="text-sm text-textSecondaryLight mb-4">
-            Try adjusting your filters to see more events.
+            {t('explore.today.adjustFilters')}
           </p>
           <button
-            onClick={() => setFilters({ tags: [], free: false, timeOfDay: [], dropIn: false, maxDistance: null })}
+            onClick={() => setFilters({ tags: [], categories: [], free: false, timeOfDay: [], dropIn: false, maxDistance: null })}
             className="cosmic-button-secondary"
           >
-            Clear all filters
+            {t('common.clearAll')}
           </button>
         </motion.div>
       ) : (
         <div className="space-y-4">
           <div className="text-sm font-medium text-deepSage">
             {hasActiveFilters() 
-              ? `${filteredEvents.length} of ${events.length} events`
-              : `${events.length} ${events.length === 1 ? 'event' : 'events'} today`
+              ? t('explore.today.filteredEvents', { filtered: filteredEvents.length, total: events.length })
+              : t('explore.today.eventsToday', { count: events.length })
             }
           </div>
           {filteredEvents.map((event) => (

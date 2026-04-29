@@ -134,7 +134,7 @@ export default function StreakPerks({ streakCount, className = '' }: StreakPerks
                   `}>
                     <Icon className={`
                       w-4 h-4
-                      ${perk.id === 'explore' ? 'text-white' : 'text-sage'}
+                      ${perk.id === 'explore' ? 'text-white' : 'text-sageText'}
                     `} />
                   </div>
                   
@@ -153,14 +153,14 @@ export default function StreakPerks({ streakCount, className = '' }: StreakPerks
                       {perk.description}
                     </p>
                     {perk.action && (
-                      <p className="text-xs text-sage mt-1 font-medium">
+                      <p className="text-xs text-sageText mt-1 font-medium">
                         Tap to explore →
                       </p>
                     )}
                   </div>
 
                   {/* Unlock indicator */}
-                  <div className="flex items-center space-x-1 text-xs text-sage">
+                  <div className="flex items-center space-x-1 text-xs text-sageText">
                     <Unlock className="w-3 h-3" />
                     <span>Day {perk.unlockDay}</span>
                   </div>

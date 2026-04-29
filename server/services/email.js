@@ -55,7 +55,13 @@ const transporter = nodemailer.createTransport({
 export async function sendEmail({ to, subject, html }) {
   const fromEmail = process.env.EMAIL_FROM || process.env.GMAIL_USER;
   const fromName = process.env.EMAIL_FROM_NAME || 'Room XI Connect';
-  
+
+  if (!process.env.GMAIL_USER && !process.env.GMAIL_APP_PASSWORD && !(USE_SENDGRID && process.env.SENDGRID_API_KEY)) {
+    logger.info({ to: maskEmail(to), subject, context: 'email-console-fallback' }, 'Email would be sent (console mode)');
+    logger.info({ bodyLength: html ? html.length : 0 }, 'Email body logged in console mode');
+    return { success: true, consoleMode: true };
+  }
+
   if (USE_SENDGRID && process.env.SENDGRID_API_KEY) {
     const msg = {
       to,
@@ -187,7 +193,7 @@ export async function sendGuardianVerificationEmail({ guardianEmail, youthName, 
           <p><strong>Your Action Required:</strong></p>
           <ol>
             <li>Click the button below to review ${youthName}'s account request</li>
-            <li>Create a secure 4-digit PIN</li>
+            <li>Create a secure 6-digit PIN</li>
             <li>Review the consent summary</li>
             <li>Approve or decline the request</li>
           </ol>
@@ -264,7 +270,7 @@ What is Room XI Connect?
 
 Your Action Required:
 1. Click the link below to review ${youthName}'s account request
-2. Create a secure 4-digit PIN
+2. Create a secure 6-digit PIN
 3. Review the consent summary
 4. Approve or decline the request
 
@@ -1412,6 +1418,74 @@ export async function sendParentPasswordResetEmail({ email, resetLink }) {
   } catch (error) {
     logger.error({ err: error, type: 'parent_password_reset' }, 'Failed to send parent password reset email');
     throw new Error('Failed to send parent password reset email');
+  }
+}
+
+export async function sendParentMagicLinkEmail({ email, magicLink }) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; }
+        .footer { background: #f5f7fa; padding: 20px; border-radius: 0 0 8px 8px; border: 1px solid #e0e0e0; border-top: none; text-align: center; font-size: 12px; color: #666; }
+        .warning { background: #FFF5F5; border-left: 4px solid #E67E73; padding: 15px; margin: 20px 0; border-radius: 4px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Parent Portal Sign In</h1>
+      </div>
+      <div class="content">
+        <p>Hello,</p>
+        <p>You requested a sign-in link for your <strong>Room XI Connect Parent Portal</strong> account.</p>
+        <p>Click the button below to sign in:</p>
+        <center style="margin: 25px 0;">
+          <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+            <tr>
+              <td align="center" bgcolor="#e11d48" style="border-radius: 8px;">
+                <a href="${magicLink}" target="_blank" style="display: inline-block; padding: 16px 32px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">Sign In to Parent Portal</a>
+              </td>
+            </tr>
+          </table>
+        </center>
+        <p style="font-size: 12px; color: #666; margin-top: 15px; word-break: break-all;">
+          <strong>If the button doesn't work, copy and paste this link:</strong><br>
+          <a href="${magicLink}" style="color: #e11d48;">${magicLink}</a>
+        </p>
+        <div class="warning">
+          <p><strong>This link expires in 15 minutes</strong> and can only be used once.</p>
+          <p>If you didn't request this, you can safely ignore this email.</p>
+        </div>
+        <p style="margin-top: 30px;">
+          Stay safe,<br>
+          <strong>Room XI Connect Team</strong>
+        </p>
+      </div>
+      <div class="footer">
+        <p>Room XI Connect - Youth Mental Health & Wellness Platform</p>
+        <p>This is an automated message. Please do not reply directly to this email.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendEmail({
+      to: email,
+      subject: 'Sign In to Parent Portal - Room XI Connect',
+      html,
+    });
+    logger.info({ type: 'parent_magic_link', recipient: maskEmail(email) }, 'Parent magic link email sent');
+    return { messageId: 'sent' };
+  } catch (error) {
+    logger.error({ err: error, type: 'parent_magic_link' }, 'Failed to send parent magic link email');
+    throw new Error('Failed to send parent magic link email');
   }
 }
 

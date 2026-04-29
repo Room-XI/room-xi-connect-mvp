@@ -1,6 +1,7 @@
 import express from 'express';
 import { db } from '../db.js';
-import { privacyConsents, consentAuditLog, consentReminders, dpApplications, xids, youthPrivacySettings } from '../schema.js';
+import { privacyConsents, consentAuditLog, consentReminders, dpApplications, xids, youthPrivacySettings, organizations } from '../schema.js';
+import { youthWorkerAssignments, youthWorkers } from '../schema-extensions.ts';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import crypto from 'crypto';
 import { applyDPToStats, logDPApplication } from '../lib/differentialPrivacy.js';
@@ -794,6 +795,138 @@ router.put('/youth-settings', async (req, res) => {
   } catch (error) {
     logger.error({ err: error, context: 'privacy-youth-settings-update' }, 'Error updating youth privacy settings');
     res.status(500).json({ error: 'Failed to update privacy settings' });
+  }
+});
+
+/**
+ * GET /api/privacy/worker-requests
+ * Get pending youth worker assignment requests for the current user
+ */
+router.get('/worker-requests', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const requests = await db
+      .select({
+        id: youthWorkerAssignments.id,
+        consentStatus: youthWorkerAssignments.consentStatus,
+        consentLevel: youthWorkerAssignments.consentLevel,
+        requestedAt: youthWorkerAssignments.requestedAt,
+        respondedAt: youthWorkerAssignments.respondedAt,
+        workerFirstName: youthWorkers.firstName,
+        workerLastName: youthWorkers.lastName,
+        organizationName: organizations.name,
+      })
+      .from(youthWorkerAssignments)
+      .innerJoin(youthWorkers, eq(youthWorkerAssignments.youthWorkerId, youthWorkers.id))
+      .innerJoin(organizations, eq(youthWorkers.organizationId, organizations.id))
+      .where(eq(youthWorkerAssignments.youthId, req.session.userId));
+
+    res.json({
+      pending: requests.filter(r => r.consentStatus === 'pending'),
+      granted: requests.filter(r => r.consentStatus === 'granted'),
+      denied: requests.filter(r => r.consentStatus === 'denied'),
+      revoked: requests.filter(r => r.consentStatus === 'revoked'),
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'privacy-worker-requests' }, 'Error fetching worker requests');
+    res.status(500).json({ error: 'Failed to fetch worker requests' });
+  }
+});
+
+/**
+ * POST /api/privacy/worker-requests/:id/respond
+ * Approve, deny, or revoke a youth worker assignment request
+ */
+router.post('/worker-requests/:id/respond', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { id } = req.params;
+    const { action, consentLevel } = req.body;
+
+    if (!['grant', 'deny', 'revoke'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action. Must be grant, deny, or revoke' });
+    }
+
+    // Verify the request belongs to this user
+    const [request] = await db
+      .select()
+      .from(youthWorkerAssignments)
+      .where(and(
+        eq(youthWorkerAssignments.id, id),
+        eq(youthWorkerAssignments.youthId, req.session.userId)
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Determine new status
+    let newStatus;
+    if (action === 'grant') {
+      newStatus = 'granted';
+    } else if (action === 'deny') {
+      newStatus = 'denied';
+    } else {
+      newStatus = 'revoked';
+    }
+
+    // Update the assignment
+    const updateData = {
+      consentStatus: newStatus,
+      respondedAt: new Date(),
+    };
+
+    // If granting, include consent level (default to all permissions)
+    if (action === 'grant') {
+      updateData.consentLevel = consentLevel || {
+        share_mood_timeline: true,
+        share_program_engagement: true,
+        share_checkin_streak: true,
+      };
+    }
+
+    const [updated] = await db
+      .update(youthWorkerAssignments)
+      .set(updateData)
+      .where(eq(youthWorkerAssignments.id, id))
+      .returning();
+
+    // Audit log - use direct insert for string-based consent status
+    const userXid = await getUserXid(req.session.userId);
+    await db.insert(consentAuditLog).values({
+      userXid,
+      consentType: 'youth_worker_access',
+      action: newStatus, // Use actual status: granted, denied, revoked
+      previousValue: request.consentStatus,
+      newValue: newStatus,
+      source: 'youth_response',
+      ipAddressHash: hashIP(req.ip),
+      userAgent: req.headers['user-agent'] || 'unknown',
+    });
+
+    logger.info({
+      userId: req.session.userId,
+      assignmentId: id,
+      action,
+      previousStatus: request.consentStatus,
+      newStatus,
+      context: 'privacy-worker-consent',
+    }, 'Youth responded to worker access request');
+
+    res.json({
+      message: `Access ${action === 'grant' ? 'granted' : action === 'deny' ? 'denied' : 'revoked'} successfully`,
+      assignment: updated,
+    });
+  } catch (error) {
+    logger.error({ err: error, context: 'privacy-worker-respond' }, 'Error responding to worker request');
+    res.status(500).json({ error: 'Failed to respond to request' });
   }
 });
 

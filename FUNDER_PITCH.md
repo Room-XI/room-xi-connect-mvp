@@ -34,7 +34,7 @@ Room XI Connect is a mobile-first platform that empowers youth ages 13-25 to:
 - **Track their emotional wellness** through daily check-ins
 - **Discover local programs** happening right now in Edmonton
 - **Access crisis support** instantly, 24/7
-- **Connect with an AI companion** for non-judgmental support
+- **Find programs with an AI-powered Program Finder** to discover relevant activities
 - **Create personal safety plans** they can share with trusted people
 
 > *"Your space. Your vibe. Your people."*
@@ -59,7 +59,7 @@ Room XI Connect is a mobile-first platform that empowers youth ages 13-25 to:
 ### For Youth
 
 #### 1. Daily Mood Check-Ins
-Youth track their emotional wellness using a beautiful, trauma-informed 6-level mood system. The app celebrates consistency with streak tracking, helping build healthy self-reflection habits.
+Youth track their emotional wellness using a beautiful, trauma-informed 6-level mood system. The app celebrates consistency with streak tracking, helping build healthy check-in habits.
 
 **Why it matters:** Regular self-check-ins are clinically proven to improve emotional awareness and early intervention.
 
@@ -74,10 +74,10 @@ A searchable, filterable directory of 98+ youth programs in Edmonton—sports, a
 
 **Why it matters:** Youth discover programs they never knew existed, reducing barriers to participation.
 
-#### 3. Ximi: AI Wellness Companion
-A supportive AI companion available 24/7 for non-judgmental conversations. Ximi:
+#### 3. Ximi: AI Program Finder
+An AI-powered Program Finder available 24/7 to help youth discover programs and activities. Ximi:
 
-- Offers two conversation modes (playful "sibling" or thoughtful "peer guide")
+- Searches programs by category, schedule, location, and interests
 - Detects crisis language and immediately surfaces help resources
 - Never replaces professional support—always includes a disclaimer
 - Requires explicit consent before activation

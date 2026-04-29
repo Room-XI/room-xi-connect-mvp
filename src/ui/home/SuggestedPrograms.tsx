@@ -163,14 +163,49 @@ export default function SuggestedPrograms() {
 
   if (recommendations.length === 0 && programs.length === 0) {
     return (
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6, duration: 0.6 }}
+      >
         <h2 className="text-lg font-semibold text-deepSage">Suggested Programs</h2>
-        <div className="cosmic-card p-6 text-center">
-          <p className="text-textSecondaryLight">
-            No programs available right now. Check back later!
-          </p>
-        </div>
-      </div>
+        <motion.div
+          className="cosmic-card p-8 text-center space-y-4 bg-gradient-to-br from-teal/5 via-sage/5 to-transparent rounded-xl"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.5 }}
+        >
+          <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-teal/20 to-sage/20 flex items-center justify-center">
+            <Sparkles className="w-8 h-8 text-teal" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-semibold text-deepSage">
+              Discover programs tailored for you
+            </h3>
+            <p className="text-textSecondaryLight text-sm max-w-sm mx-auto">
+              {user 
+                ? "Start by doing a mood check-in to unlock personalized program suggestions based on your emotional needs."
+                : "Sign in and do a mood check-in to get personalized program recommendations just for you."}
+            </p>
+          </div>
+          {user ? (
+            <Link
+              to="/home"
+              className="inline-block cosmic-button text-sm"
+            >
+              Do Your First Check-In
+            </Link>
+          ) : (
+            <Link
+              to="/auth/login"
+              className="inline-block cosmic-button text-sm"
+            >
+              Sign In
+            </Link>
+          )}
+        </motion.div>
+      </motion.div>
     );
   }
 
@@ -262,13 +297,13 @@ export default function SuggestedPrograms() {
                         {rec.tags.slice(0, 3).map(tag => (
                           <span
                             key={tag}
-                            className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full"
+                            className="text-xs px-2 py-1 bg-sage/10 text-sageText rounded-full"
                           >
                             {tag}
                           </span>
                         ))}
                         {rec.tags.length > 3 && (
-                          <span className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full">
+                          <span className="text-xs px-2 py-1 bg-sage/10 text-sageText rounded-full">
                             +{rec.tags.length - 3}
                           </span>
                         )}
@@ -341,13 +376,13 @@ export default function SuggestedPrograms() {
                         {program.tags.slice(0, 3).map(tag => (
                           <span
                             key={tag}
-                            className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full"
+                            className="text-xs px-2 py-1 bg-sage/10 text-sageText rounded-full"
                           >
                             {tag}
                           </span>
                         ))}
                         {program.tags.length > 3 && (
-                          <span className="text-xs px-2 py-1 bg-sage/10 text-sage rounded-full">
+                          <span className="text-xs px-2 py-1 bg-sage/10 text-sageText rounded-full">
                             +{program.tags.length - 3}
                           </span>
                         )}

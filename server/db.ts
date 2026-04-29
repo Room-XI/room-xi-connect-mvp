@@ -4,6 +4,7 @@ import ws from "ws";
 import * as schema from "./schema";
 import * as schemaExtras from "./schema.extras";
 import * as schemaExtensions from "./schema-extensions";
+import logger from './logger';
 
 neonConfig.webSocketConstructor = ws;
 
@@ -76,13 +77,13 @@ export async function withRetry<T>(
 
 // Graceful shutdown handler
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, closing database pool...');
+  logger.info({ context: 'db' }, 'SIGTERM received, closing database pool');
   await pool.end();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT received, closing database pool...');
+  logger.info({ context: 'db' }, 'SIGINT received, closing database pool');
   await pool.end();
   process.exit(0);
 });

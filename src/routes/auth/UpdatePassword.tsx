@@ -150,7 +150,7 @@ export default function UpdatePassword() {
           transition={{ duration: 0.6 }}
         >
           <div className="w-20 h-20 mx-auto bg-coral/10 rounded-full flex items-center justify-center">
-            <AlertCircle className="w-10 h-10 text-coral" />
+            <AlertCircle className="w-10 h-10 text-coralText" />
           </div>
           
           <div className="space-y-3">
@@ -163,7 +163,7 @@ export default function UpdatePassword() {
           </div>
 
           <div className="cosmic-card p-4 bg-coral/10 border-coral/20">
-            <p className="text-sm text-coral">
+            <p className="text-sm text-coralText">
               Password reset links expire after 24 hours and can only be used once.
             </p>
           </div>
@@ -265,8 +265,8 @@ export default function UpdatePassword() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <AlertCircle className="w-5 h-5 text-coral flex-shrink-0" />
-            <p className="text-sm text-coral">{error}</p>
+            <AlertCircle className="w-5 h-5 text-coralText flex-shrink-0" />
+            <p className="text-sm text-coralText">{error}</p>
           </motion.div>
         )}
 
@@ -390,7 +390,7 @@ export default function UpdatePassword() {
             {/* Password Match Indicator */}
             {confirmPassword && (
               <div className={`text-xs flex items-center space-x-2 ${
-                password === confirmPassword ? 'text-teal' : 'text-coral'
+                password === confirmPassword ? 'text-teal' : 'text-coralText'
               }`}>
                 <div className={`w-1 h-1 rounded-full ${
                   password === confirmPassword ? 'bg-teal' : 'bg-coral'
@@ -432,7 +432,7 @@ export default function UpdatePassword() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.6 }}
         >
-          <p className="text-sm text-sage text-center">
+          <p className="text-sm text-sageText text-center">
             After updating your password, you'll need to sign in again with your new credentials.
           </p>
         </motion.div>

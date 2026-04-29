@@ -109,7 +109,7 @@ export default function About() {
 
             <div className="cosmic-card p-6 space-y-3">
               <div className="w-12 h-12 bg-coral/10 rounded-full flex items-center justify-center">
-                <Heart className="w-6 h-6 text-coral" />
+                <Heart className="w-6 h-6 text-coralText" />
               </div>
               <h3 className="font-display font-bold text-deepSage">Crisis Support</h3>
               <p className="text-textSecondaryLight">

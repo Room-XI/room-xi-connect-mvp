@@ -4,6 +4,8 @@
  * As per Room XI Connect Privacy Specification
  */
 
+import logger from '../logger.ts';
+
 // Simple-statistics doesn't have randomLaplace, so we implement it ourselves
 
 // Configuration as per dp_noise_spec.md
@@ -156,7 +158,7 @@ export function logDPApplication(operation, metadata) {
   
   // In production, this would go to audit log
   if (process.env.NODE_ENV === 'production') {
-    console.log('[DP_AUDIT]', JSON.stringify(logEntry));
+    logger.info({ context: 'dp-audit', ...logEntry }, 'Differential privacy applied');
   }
   
   return logEntry;

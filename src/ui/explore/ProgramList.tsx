@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import FilterBar, { Filters } from './FilterBar';
 import ProgramCard from './ProgramCard';
 import api from '@/lib/api';
@@ -44,20 +45,25 @@ interface ProgramListProps {
   locationPermission: 'granted' | 'denied' | 'prompt';
   locationEnabled: boolean;
   radiusKm?: number;
+  quickFilters?: Set<string>;
 }
 
-export default function ProgramList({ userLocation, locationPermission, locationEnabled, radiusKm = 2 }: ProgramListProps) {
+export default function ProgramList({ userLocation, locationPermission, locationEnabled, radiusKm = 2, quickFilters }: ProgramListProps) {
+  const { t } = useTranslation();
   const [programs, setPrograms] = useState<GroupedProgram[]>([]);
   const [filteredPrograms, setFilteredPrograms] = useState<GroupedProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>({
     tags: [] as string[],
+    categories: [] as string[],
     free: false,
     indoor: false,
     outdoor: false,
     timeOfDay: undefined,
     dropIn: undefined,
     maxDistance: undefined,
+    ageRange: 'all',
+    cost: 'all',
   });
 
   useEffect(() => {
@@ -66,7 +72,7 @@ export default function ProgramList({ userLocation, locationPermission, location
 
   useEffect(() => {
     applyFilters();
-  }, [programs, filters, radiusKm, locationEnabled, userLocation]);
+  }, [programs, filters, radiusKm, locationEnabled, userLocation, quickFilters]);
 
   const loadPrograms = async () => {
     try {
@@ -92,14 +98,24 @@ export default function ProgramList({ userLocation, locationPermission, location
   const applyFilters = () => {
     let filtered = [...programs];
 
+    if (quickFilters?.has('free') || filters.free) {
+      filtered = filtered.filter(program => program.costCents === 0 || program.free);
+    }
+
+    if (quickFilters?.has('dropIn') || filters.dropIn) {
+      filtered = filtered.filter(program => program.isDropIn);
+    }
+
     if (filters.tags.length > 0) {
       filtered = filtered.filter(program =>
         filters.tags.some(tag => program.programTags?.includes(tag))
       );
     }
 
-    if (filters.free) {
-      filtered = filtered.filter(program => program.costCents === 0 || program.free);
+    if (filters.categories && filters.categories.length > 0) {
+      filtered = filtered.filter(program =>
+        filters.categories.some(category => program.programTags?.includes(category))
+      );
     }
 
     if (filters.indoor) {
@@ -116,8 +132,40 @@ export default function ProgramList({ userLocation, locationPermission, location
       );
     }
 
-    if (filters.dropIn) {
-      filtered = filtered.filter(program => program.isDropIn);
+    if (filters.ageRange && filters.ageRange !== 'all') {
+      filtered = filtered.filter(program => {
+        if (program.ageMin === null && program.ageMax === null) return true;
+        
+        let minAge: number, maxAge: number;
+        switch (filters.ageRange) {
+          case '12-14':
+            minAge = 12; maxAge = 14;
+            break;
+          case '15-17':
+            minAge = 15; maxAge = 17;
+            break;
+          case '18-24':
+            minAge = 18; maxAge = 24;
+            break;
+          case '25+':
+            minAge = 25; maxAge = 100;
+            break;
+          default:
+            return true;
+        }
+        
+        const programMin = program.ageMin ?? 0;
+        const programMax = program.ageMax ?? 100;
+        return programMin <= maxAge && programMax >= minAge;
+      });
+    }
+
+    if (filters.cost && filters.cost !== 'all') {
+      if (filters.cost === 'free') {
+        filtered = filtered.filter(program => program.costCents === 0 || program.free);
+      } else if (filters.cost === 'paid') {
+        filtered = filtered.filter(program => program.costCents > 0 && !program.free);
+      }
     }
 
     if (locationEnabled && userLocation) {
@@ -140,7 +188,7 @@ export default function ProgramList({ userLocation, locationPermission, location
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-12 bg-sage/10 rounded-xl animate-pulse" />
+        <div className="h-12 bg-sage/20 rounded-xl animate-pulse" />
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="cosmic-card p-4 animate-pulse">
@@ -181,7 +229,7 @@ export default function ProgramList({ userLocation, locationPermission, location
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-textSecondaryLight">
-          {filteredPrograms.length} program{filteredPrograms.length !== 1 ? 's' : ''} found
+          {t('explore.list.programsFound', { count: filteredPrograms.length })}
         </p>
       </div>
 
@@ -195,21 +243,24 @@ export default function ProgramList({ userLocation, locationPermission, location
             className="cosmic-card p-8 text-center"
           >
             <p className="text-textSecondaryLight">
-              No programs match your current filters.
+              {t('explore.list.noMatchingPrograms')}
             </p>
             <button
               onClick={() => setFilters({ 
                 tags: [], 
+                categories: [],
                 free: false, 
                 indoor: false, 
                 outdoor: false,
                 timeOfDay: undefined,
                 dropIn: undefined,
                 maxDistance: undefined,
+                ageRange: 'all',
+                cost: 'all',
               })}
               className="mt-4 text-sm font-medium text-teal hover:text-teal/80 transition-colors"
             >
-              Clear all filters
+              {t('common.clearAll')}
             </button>
           </motion.div>
         ) : (

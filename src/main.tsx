@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
-import { router } from './router';
+import { pilotRouter } from './pilot/router';
 import { SessionProvider } from './lib/session';
 import { ToastProvider } from './ui/Toast';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -53,7 +53,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <SessionProvider>
         <ToastProvider>
-          <RouterProvider router={router} />
+          <RouterProvider
+            router={pilotRouter}
+            future={{ v7_startTransition: true }}
+          />
         </ToastProvider>
       </SessionProvider>
     </ErrorBoundary>

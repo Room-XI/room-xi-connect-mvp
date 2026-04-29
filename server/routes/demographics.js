@@ -168,7 +168,18 @@ router.post("/guardian-perception/:verificationId", async (req, res) => {
     const { verificationId } = req.params;
     const perceptionData = req.body;
 
-    // Get the verification record to find the user
+    const allowedFields = [
+      'guardianRelationship', 'guardianAge', 'guardianGender', 'guardianRace',
+      'perceivedSexualOrientation', 'perceivedGenderIdentity', 'perceivedRacialIdentity',
+      'awarenessLevel', 'comfortWithIdentity', 'supportProvided',
+    ];
+    const sanitized = {};
+    for (const field of allowedFields) {
+      if (perceptionData[field] !== undefined) {
+        sanitized[field] = perceptionData[field];
+      }
+    }
+
     const [verification] = await db
       .select()
       .from(guardianVerifications)
@@ -178,27 +189,28 @@ router.post("/guardian-perception/:verificationId", async (req, res) => {
       return res.status(404).json({ error: "Verification not found" });
     }
 
-    // Check if already submitted
+    if (!verification.verifiedAt) {
+      return res.status(403).json({ error: "Verification not yet completed" });
+    }
+
     const [existing] = await db
       .select()
       .from(guardianPerceptions)
       .where(eq(guardianPerceptions.guardianVerificationId, verificationId));
 
     if (existing) {
-      // Update existing perceptions
       await db.update(guardianPerceptions)
         .set({
-          ...perceptionData,
+          ...sanitized,
           updatedAt: new Date()
         })
         .where(eq(guardianPerceptions.guardianVerificationId, verificationId));
     } else {
-      // Save new guardian perceptions
       await db.insert(guardianPerceptions)
         .values({
           guardianVerificationId: verificationId,
           userId: verification.userId,
-          ...perceptionData,
+          ...sanitized,
           createdAt: new Date(),
           updatedAt: new Date()
         });

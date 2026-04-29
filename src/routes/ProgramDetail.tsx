@@ -18,7 +18,11 @@ import {
   ThumbsUp,
   TrendingUp,
   AlertCircle,
-  Navigation
+  Navigation,
+  Clock,
+  CheckCircle,
+  Loader,
+  CalendarPlus
 } from 'lucide-react';
 import api, { fetchApi } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -62,6 +66,32 @@ interface PeerInsights {
   suppressionReason: string | null;
 }
 
+interface ProgramEvent {
+  eventId: string;
+  eventName: string;
+  dayOfWeek: string | null;
+  startTime: string;
+  endTime: string;
+  locationName: string | null;
+  isDropIn: boolean;
+  capacity: number | null;
+}
+
+interface EventRsvp {
+  id: string;
+  eventId: string;
+  status: string;
+}
+
+function formatTimeShort(time: string): string {
+  if (!time) return '';
+  const [h, m] = time.split(':');
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${m} ${ampm}`;
+}
+
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -71,13 +101,24 @@ export default function ProgramDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [peerInsights, setPeerInsights] = useState<PeerInsights | null>(null);
+  const [events, setEvents] = useState<ProgramEvent[]>([]);
+  const [myRsvps, setMyRsvps] = useState<EventRsvp[]>([]);
+  const [rsvpingEventId, setRsvpingEventId] = useState<string | null>(null);
+  const [eventFullness, setEventFullness] = useState<Record<string, { full: boolean }>>({});
 
   useEffect(() => {
     if (id) {
       loadProgram();
       loadPeerInsights();
+      loadEvents();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (user && id) {
+      loadMyRsvps();
+    }
+  }, [user, id]);
 
   useEffect(() => {
     if (user && program) {
@@ -111,6 +152,65 @@ export default function ProgramDetail() {
     } catch (error) {
       console.error('Error loading peer insights:', error);
       setPeerInsights(null);
+    }
+  };
+
+  const loadEvents = async () => {
+    try {
+      const { data } = await fetchApi(`/events/program/${id}`);
+      if (data?.events) {
+        setEvents(data.events);
+        const eventsWithCapacity = data.events.filter((e: ProgramEvent) => e.capacity);
+        if (eventsWithCapacity.length > 0) {
+          const ids = eventsWithCapacity.map((e: ProgramEvent) => e.eventId).join(',');
+          const { data: fullData } = await fetchApi(`/event-rsvps/event-fullness?eventIds=${ids}`);
+          if (fullData?.fullness) {
+            setEventFullness(fullData.fullness);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  };
+
+  const loadMyRsvps = async () => {
+    try {
+      const { data } = await api.eventRsvps.getMyRsvps();
+      if (data?.rsvps) {
+        const programRsvps = data.rsvps
+          .filter((r: any) => r.programId === id)
+          .map((r: any) => ({ id: r.id, eventId: r.eventId, status: r.status }));
+        setMyRsvps(programRsvps);
+      }
+    } catch (error) {
+      console.error('Error loading RSVPs:', error);
+    }
+  };
+
+  const handleRsvp = async (eventId: string) => {
+    if (!user || rsvpingEventId) return;
+    setRsvpingEventId(eventId);
+    try {
+      const result = await api.eventRsvps.create(eventId);
+      if (result.error) {
+        if (result.error === 'Event is full') {
+          setEventFullness(prev => ({ ...prev, [eventId]: { full: true } }));
+        }
+        return;
+      }
+      const { data } = result;
+      if (data) {
+        setMyRsvps(prev => [...prev, {
+          id: data.rsvp.id,
+          eventId: data.rsvp.eventId,
+          status: data.rsvp.status,
+        }]);
+      }
+    } catch (err) {
+      console.error('Error creating RSVP:', err);
+    } finally {
+      setRsvpingEventId(null);
     }
   };
 
@@ -248,7 +348,7 @@ export default function ProgramDetail() {
           transition={{ duration: 0.6 }}
         >
           <div className="w-16 h-16 bg-coral/10 rounded-xl flex items-center justify-center mx-auto">
-            <Calendar className="w-8 h-8 text-coral" />
+            <Calendar className="w-8 h-8 text-coralText" />
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold text-deepSage">
@@ -610,6 +710,102 @@ export default function ProgramDetail() {
               Be one of the first to try this program and share your experience!
             </p>
           </div>
+        </motion.div>
+      )}
+
+      {/* Upcoming Events & RSVP */}
+      {events.length > 0 && (
+        <motion.div
+          className="cosmic-card p-6 space-y-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.38, duration: 0.6 }}
+        >
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-teal" />
+            <h3 className="font-semibold text-deepSage">Upcoming Events</h3>
+          </div>
+
+          <div className="space-y-3">
+            {events.map(event => {
+              const existingRsvp = myRsvps.find(r => r.eventId === event.eventId);
+              const isRsvped = !!existingRsvp;
+              const isPending = existingRsvp?.status === 'pending_consent';
+
+              return (
+                <div
+                  key={event.eventId}
+                  className="flex items-center justify-between p-3 rounded-lg bg-sage/5 border border-sage/10"
+                >
+                  <div className="flex-1 min-w-0 mr-3">
+                    <p className="font-medium text-deepSage text-sm line-clamp-1">
+                      {event.eventName}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-textSecondaryLight">
+                      {event.dayOfWeek && (
+                        <span>{event.dayOfWeek}</span>
+                      )}
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatTimeShort(event.startTime)} – {formatTimeShort(event.endTime)}
+                      </span>
+                      {event.locationName && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate max-w-[120px]">{event.locationName}</span>
+                        </span>
+                      )}
+                      {event.isDropIn && (
+                        <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium">
+                          Drop-in
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {user ? (
+                    isRsvped ? (
+                      isPending ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-lg whitespace-nowrap">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          Pending
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded-lg whitespace-nowrap">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Going
+                        </span>
+                      )
+                    ) : eventFullness[event.eventId]?.full ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-lg whitespace-nowrap">
+                        <Users className="w-3.5 h-3.5" />
+                        Full
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleRsvp(event.eventId)}
+                        disabled={rsvpingEventId === event.eventId}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal text-white text-xs font-medium rounded-lg hover:bg-teal/90 transition-colors disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {rsvpingEventId === event.eventId ? (
+                          <Loader className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <CalendarPlus className="w-3.5 h-3.5" />
+                        )}
+                        RSVP
+                      </button>
+                    )
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          {!user && (
+            <p className="text-xs text-textSecondaryLight text-center">
+              Sign in to RSVP to events
+            </p>
+          )}
         </motion.div>
       )}
 

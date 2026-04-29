@@ -1,24 +1,29 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 interface TabProps {
   to: string;
   icon: React.ReactNode;
-  label: string;
+  label?: string;
+  translationKey?: string;
   showDot?: boolean;
 }
 
-export default function Tab({ to, icon, label, showDot = false }: TabProps) {
+export default function Tab({ to, icon, label, translationKey, showDot = false }: TabProps) {
   const location = useLocation();
+  const { t } = useTranslation();
   const isActive = location.pathname === to || 
     (to === '/explore' && location.pathname.startsWith('/explore'));
+  
+  const displayLabel = translationKey ? t(translationKey) : label;
 
   return (
     <Link
       to={to}
       className="relative flex flex-col items-center justify-center py-3 px-4 transition-colors duration-200 min-h-[56px] min-w-[48px]"
-      aria-label={label}
+      aria-label={displayLabel}
       aria-current={isActive ? 'page' : undefined}
       role="menuitem"
     >
@@ -52,7 +57,7 @@ export default function Tab({ to, icon, label, showDot = false }: TabProps) {
           isActive ? 'text-teal' : 'text-textSecondaryLight'
         }`}
       >
-        {label}
+        {displayLabel}
       </span>
       
       {/* Active indicator */}

@@ -7,6 +7,11 @@ import bcrypt from 'bcrypt';
 async function seed() {
   console.log('🌱 Seeding database...');
 
+  if ((process.env.NODE_ENV || '').toLowerCase() === 'production') {
+    console.error('Refusing to seed demo data in production.');
+    process.exit(1);
+  }
+
   try {
     // Seed organizations
     const [org1, org2, org3] = await db.insert(organizations).values([

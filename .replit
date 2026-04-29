@@ -5,7 +5,7 @@ integrations = ["github:1.0.0", "javascript_database:1.0.0", "javascript_openai_
 
 [nix]
 channel = "stable-25_05"
-packages = ["unzip", "glib", "zip"]
+packages = ["unzip", "glib", "zip", "nspr", "nss", "chromium", "dbus", "atk", "at-spi2-atk", "cups", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXrandr", "mesa", "expat", "xorg.libxcb", "alsa-lib", "pango", "cairo", "libdrm", "libxkbcommon", "expect"]
 
 [workflows]
 runButton = "Project"
@@ -31,14 +31,6 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
-[[ports]]
-localPort = 5000
-externalPort = 5000
-
-[[ports]]
-localPort = 24678
-externalPort = 80
-
 [deployment]
 deploymentTarget = "autoscale"
 run = ["npm", "run", "start"]
@@ -53,9 +45,24 @@ VAPID_EMAIL = "mailto:admin@roomxi.org"
 EMAIL_PROVIDER = "sendgrid"
 EMAIL_FROM_NAME = "Room XI Connect"
 EMAIL_FROM = "roomxi.ent@gmail.com"
+VITE_ENABLE_DEMOS = "true"
+FEATURE_LEGACY_ROUTES_HIDDEN = "true"
 
 [userenv.production]
 PUBLIC_URL = "https://ct-mvp--erickrushxi.replit.app"
+ALLOWED_ORIGINS = "https://*.replit.app,https://*.repl.co,https://*.replit.dev"
 
 [userenv.development]
 PUBLIC_URL = "https://4da2b7bf-6020-4c0a-9461-a2517f11e166-00-2gp3v82rn8h81.picard.replit.dev"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 24678
+externalPort = 3000
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 60000

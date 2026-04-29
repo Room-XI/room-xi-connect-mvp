@@ -22,14 +22,14 @@ export default function PrivacyPolicy() {
                 <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-purple-900">
                   <p className="font-semibold mb-1">Privacy Promise</p>
-                  <p>Your mental health data is yours. We collect only what's necessary, encrypt what's sensitive, and give you full control. We'll never sell your data or use it for advertising. Period.</p>
+                  <p>Your data is yours. We collect only what's necessary, encrypt what's sensitive, and give you full control. We'll never sell your data or use it for advertising. Period.</p>
                 </div>
               </div>
             </div>
 
             <h2>1. Who We Are</h2>
             <p>
-              Room XI Connect is operated by Room XI, a youth mental health organization based in Edmonton, Alberta. 
+              Room XI Connect is operated by Room XI, a youth-safe platform based in Edmonton, Alberta that helps young people check in, find relevant programs, attend them, and access support safely. 
               We are committed to privacy-by-design and trauma-informed care.
             </p>
             <p>
@@ -65,7 +65,7 @@ export default function PrivacyPolicy() {
             <ul>
               <li><strong>Mood:</strong> One of 6 weather-based moods (Cold, Stormy, Foggy, Clear, Breezy, Aurora)</li>
               <li><strong>Wellness dimensions:</strong> Ratings across 8 SAMHSA wellness dimensions</li>
-              <li><strong>Optional note:</strong> Your personal reflections (encrypted end-to-end)</li>
+              <li><strong>Optional note:</strong> Your personal notes (encrypted end-to-end)</li>
               <li><strong>Timestamp:</strong> When you completed the check-in</li>
             </ul>
 
@@ -76,10 +76,10 @@ export default function PrivacyPolicy() {
               <li><strong>Attendance:</strong> QR code check-ins at programs</li>
             </ul>
 
-            <h3>2.5 Ximi AI Conversations (If You Consent)</h3>
+            <h3>2.5 Ximi AI Program Finder (If You Consent)</h3>
             <ul>
-              <li><strong>Chat messages:</strong> Your questions and Ximi's responses</li>
-              <li><strong>Mood context:</strong> Recent check-in data to personalize responses</li>
+              <li><strong>Chat messages:</strong> Your program search queries and Ximi's responses</li>
+              <li><strong>Mood context:</strong> Recent check-in data to improve program recommendations</li>
               <li><strong>Crisis flags:</strong> Automatic detection of crisis keywords</li>
             </ul>
 
@@ -96,7 +96,7 @@ export default function PrivacyPolicy() {
             <ul>
               <li><strong>In transit:</strong> All data uses TLS 1.3 encryption</li>
               <li><strong>At rest:</strong> Database encryption with AES-256</li>
-              <li><strong>Sensitive fields:</strong> Check-in notes, health data, and Ximi chats use end-to-end encryption</li>
+              <li><strong>Sensitive fields:</strong> Check-in notes, health data, and Ximi conversations use end-to-end encryption</li>
             </ul>
 
             <h3>3.2 Access Controls</h3>
@@ -120,7 +120,7 @@ export default function PrivacyPolicy() {
               <li>Authenticate your account and maintain sessions</li>
               <li>Display your check-in history and mood orb visualizations</li>
               <li>Connect you with local programs and resources</li>
-              <li>Enable Ximi AI conversations (if you consent)</li>
+              <li>Enable Ximi AI Program Finder (if you consent)</li>
               <li>Send guardian verification emails (if under 16)</li>
             </ul>
 
@@ -290,7 +290,7 @@ export default function PrivacyPolicy() {
             <ul>
               <li><strong>Primary storage:</strong> Neon PostgreSQL (Canada servers)</li>
               <li><strong>Backups:</strong> Canada-only regions</li>
-              <li><strong>AI services:</strong> Replit (may process in US, but no data storage)</li>
+              <li><strong>AI services:</strong> OpenAI (may process in US for Ximi Program Finder)</li>
             </ul>
             <p>
               We do not transfer data outside Canada except for real-time AI processing, which is ephemeral (not stored).

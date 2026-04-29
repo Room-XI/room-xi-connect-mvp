@@ -1,26 +1,29 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useSession } from '@/lib/session';
 
 interface ExploreTabsProps {
-  current: 'today' | 'programs' | 'map' | 'saved';
+  current: 'today' | 'programs' | 'thisWeek' | 'map' | 'saved';
 }
 
 export default function ExploreTabs({ current }: ExploreTabsProps) {
+  const { t } = useTranslation();
   const { user } = useSession();
   
   const tabs = [
-    { key: 'today', to: '/explore/today', label: 'Today' },
-    { key: 'programs', to: '/explore', label: 'Programs' },
-    { key: 'map', to: '/explore/map', label: 'Map' },
-    ...(user ? [{ key: 'saved', to: '/explore/saved', label: 'Saved' }] : [])
+    { key: 'today', to: '/explore/today', label: t('explore.tabs.today') },
+    { key: 'thisWeek', to: '/explore/this-week', label: t('explore.tabs.thisWeek', { defaultValue: 'This Week' }) },
+    { key: 'programs', to: '/explore', label: t('explore.tabs.programs') },
+    { key: 'map', to: '/explore/map', label: t('explore.tabs.map') },
+    ...(user ? [{ key: 'saved', to: '/explore/saved', label: t('explore.tabs.saved') }] : [])
   ];
 
   return (
     <div 
       role="tablist" 
-      aria-label="Explore views" 
-      className={`segmented-control ${user ? 'grid-cols-4' : 'grid-cols-3'}`}
+      aria-label={t('explore.tabs.ariaLabel')} 
+      className={`segmented-control ${user ? 'grid-cols-5' : 'grid-cols-4'}`}
     >
       {tabs.map(tab => (
         <Link

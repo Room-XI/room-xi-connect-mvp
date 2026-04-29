@@ -8,6 +8,9 @@ export const ximiChatSchema = z.object({
   checkinId: z.string().uuid().optional(),
   moodType: z.enum(moodTypes).optional(),
   wellnessDimensions: z.array(z.enum(wellnessDimensions)).optional(),
+  timeframe: z.enum(['today', 'next_7_days']).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
 });
 
 export const ximiModeSchema = z.object({

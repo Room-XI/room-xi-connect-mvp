@@ -39,9 +39,9 @@ const BREACH_TYPES = [
 ];
 
 const SEVERITIES = [
-  { value: 'low', label: 'Low', color: 'text-sage bg-sage/10' },
+  { value: 'low', label: 'Low', color: 'text-sageText bg-sage/10' },
   { value: 'medium', label: 'Medium', color: 'text-gold bg-gold/10' },
-  { value: 'high', label: 'High', color: 'text-coral bg-coral/10' },
+  { value: 'high', label: 'High', color: 'text-coralText bg-coral/10' },
   { value: 'critical', label: 'Critical', color: 'text-red-600 bg-red-100' },
 ];
 
@@ -176,7 +176,7 @@ export function BreachManagement() {
 
   const getSeverityStyle = (severity: string) => {
     const found = SEVERITIES.find(s => s.value === severity);
-    return found?.color || 'text-sage bg-sage/10';
+    return found?.color || 'text-sageText bg-sage/10';
   };
 
   const getBreachTypeLabel = (type: string) => {
@@ -199,7 +199,7 @@ export function BreachManagement() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-deepSage flex items-center space-x-2">
-          <ShieldAlert className="w-5 h-5 text-coral" />
+          <ShieldAlert className="w-5 h-5 text-coralText" />
           <span>Breach Management (PIPA Compliance)</span>
         </h2>
         <motion.button
@@ -214,7 +214,7 @@ export function BreachManagement() {
       </div>
 
       {error && (
-        <div className="bg-coral/10 text-coral px-4 py-3 rounded-lg flex items-center space-x-2">
+        <div className="bg-coral/10 text-coralText px-4 py-3 rounded-lg flex items-center space-x-2">
           <AlertTriangle className="w-4 h-4" />
           <span>{error}</span>
           <button onClick={() => setError('')} className="ml-auto">
@@ -300,7 +300,7 @@ export function BreachManagement() {
                     type="checkbox"
                     checked={newBreach.oipcNotificationRequired}
                     onChange={(e) => setNewBreach({ ...newBreach, oipcNotificationRequired: e.target.checked })}
-                    className="w-4 h-4 text-coral border-borderMutedLight rounded focus:ring-coral"
+                    className="w-4 h-4 text-coralText border-borderMutedLight rounded focus:ring-coral"
                   />
                   <span className="text-sm font-medium text-deepSage">
                     OIPC Notification Required
@@ -433,7 +433,7 @@ export function BreachManagement() {
         <div className="cosmic-card p-8 text-center">
           <ShieldAlert className="w-12 h-12 text-sage/50 mx-auto mb-3" />
           <p className="text-textSecondaryLight">No breach events recorded.</p>
-          <p className="text-sm text-sage mt-1">Breach events will appear here when created.</p>
+          <p className="text-sm text-sageText mt-1">Breach events will appear here when created.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -474,7 +474,7 @@ export function BreachManagement() {
                     )}
 
                     {breach.oipcNotificationRequired && (
-                      <span className={`flex items-center space-x-1 ${breach.oipcNotifiedAt ? 'text-teal' : 'text-coral'}`}>
+                      <span className={`flex items-center space-x-1 ${breach.oipcNotifiedAt ? 'text-teal' : 'text-coralText'}`}>
                         {breach.oipcNotifiedAt ? (
                           <>
                             <CheckCircle className="w-3 h-3" />

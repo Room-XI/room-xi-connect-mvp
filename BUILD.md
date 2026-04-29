@@ -134,7 +134,7 @@ This document contains **everything** about Room XI Connect: database schemas, w
    - Timezone-aware streak calculation based on user's `localTz` profile field
    - Handles daylight saving time transitions correctly
 
-4. **Ximi AI Companion** - Trauma-informed chatbot using Replit AI (OpenAI-compatible):
+4. **Ximi AI Program Finder** - AI-powered program search using Replit AI (OpenAI-compatible):
    - Dual personality modes: Little Sibling (default) and Peer Guide (optional)
    - Crisis keyword detection (20+ keywords) with immediate safety resource routing
    - Mood-aware responses based on check-in data

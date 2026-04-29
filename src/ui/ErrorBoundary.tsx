@@ -37,7 +37,7 @@ export default class ErrorBoundary extends React.Component<
           <div className="max-w-md w-full text-center space-y-6">
             {/* Error Icon */}
             <div className="w-20 h-20 mx-auto bg-coral/10 rounded-2xl flex items-center justify-center">
-              <AlertTriangle className="w-10 h-10 text-coral" />
+              <AlertTriangle className="w-10 h-10 text-coralText" />
             </div>
             
             {/* Error Message */}
@@ -53,7 +53,7 @@ export default class ErrorBoundary extends React.Component<
             {/* Error Details (in development) */}
             {import.meta.env.DEV && this.state.error && (
               <div className="cosmic-card p-4 text-left">
-                <h3 className="font-semibold text-coral mb-2">Error Details:</h3>
+                <h3 className="font-semibold text-coralText mb-2">Error Details:</h3>
                 <pre className="text-xs text-textSecondaryLight overflow-auto">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
@@ -82,7 +82,7 @@ export default class ErrorBoundary extends React.Component<
 
             {/* Support Info */}
             <div className="cosmic-card p-4 bg-sage/10 border-sage/20">
-              <p className="text-sm text-sage">
+              <p className="text-sm text-sageText">
                 If this problem persists, please contact support with the error details above.
               </p>
             </div>
